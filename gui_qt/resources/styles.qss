@@ -1,0 +1,214 @@
+/* Bilibili Pink Theme — PyQt6 QSS (property-based selectors) */
+
+QWidget {
+    font-family: "Microsoft YaHei UI", "PingFang SC", sans-serif;
+    color: #222222;
+}
+
+/* ── Scrollbar ── */
+QScrollBar:vertical {
+    width: 8px;
+    background: transparent;
+    margin: 8px 0;
+}
+QScrollBar::handle:vertical {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
+    min-height: 30px;
+}
+QScrollBar::handle:vertical:hover {
+    background: rgba(0, 0, 0, 0.25);
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0;
+}
+
+/* ── Sidebar ── */
+#sidebar {
+    background: #fafafa;
+    border-right: 1px solid #e8e8ec;
+}
+#sidebar-nav QListWidget {
+    background: transparent;
+    border: none;
+    padding: 8px;
+}
+#sidebar-nav QListWidget::item {
+    border-radius: 16px;
+    margin: 2px 0px;
+    font-weight: 700;
+    font-size: 14px;
+    color: #666;
+}
+#sidebar-nav QListWidget::item:hover {
+    background: #f0f0f4;
+}
+#sidebar-nav QListWidget::item:selected {
+    background: #ffffff;
+    color: #fb7299;
+    border: 1px solid #e8e8f0;
+}
+
+/* ── Titlebar ── */
+#titlebar {
+    background: #f5f5f8;
+    border-bottom: 1px solid #e8e8ec;
+}
+
+/* ── Glass panel (class property) ── */
+*[class="glass-panel"] {
+    background: #ffffff;
+    border: 1px solid #eeeeff;
+    border-radius: 24px;
+}
+
+/* ── Button styles (class property) ── */
+*[class="btn-pink"] {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #fb7299, stop:1 #ff85a8);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 8px 20px;
+    font-weight: 700;
+    font-size: 13px;
+}
+*[class="btn-pink"]:hover {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #ff85a8, stop:1 #ff95b5);
+}
+*[class="btn-pink"]:pressed {
+    padding-top: 9px;
+    padding-bottom: 7px;
+}
+
+*[class="btn-blue"] {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #00a1d6, stop:1 #40c5f1);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 8px 20px;
+    font-weight: 700;
+    font-size: 13px;
+}
+
+*[class="btn-ghost"] {
+    background: rgba(255, 255, 255, 0.4);
+    border: 1px solid rgba(200, 200, 210, 0.5);
+    border-radius: 10px;
+    padding: 8px 16px;
+    color: #888;
+    font-weight: 600;
+    font-size: 12px;
+}
+*[class="btn-ghost"]:hover {
+    background: rgba(255, 255, 255, 0.6);
+    color: #fb7299;
+}
+
+/* ── Progress Bar ── */
+QProgressBar {
+    background: #e8e8ef;
+    border: 1px solid #f0f0f5;
+    border-radius: 4px;
+    height: 8px;
+    text-align: center;
+    font-size: 10px;
+}
+QProgressBar::chunk {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+        stop:0 #fb7299, stop:0.5 #00a1d6, stop:1 #9664ff);
+    border-radius: 4px;
+}
+
+/* ── ComboBox ── */
+QComboBox {
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(200, 200, 210, 0.5);
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-size: 12px;
+    color: #444;
+    min-width: 100px;
+}
+QComboBox:focus {
+    border: 2px solid #fb7299;
+}
+QComboBox::drop-down {
+    border: none;
+    width: 30px;
+}
+QComboBox QAbstractItemView {
+    background: white;
+    border: 1px solid #eee;
+    border-radius: 12px;
+    padding: 4px;
+    selection-background-color: rgba(251, 114, 153, 0.1);
+    selection-color: #fb7299;
+}
+
+/* ── Radio Button ── */
+QRadioButton {
+    spacing: 8px;
+    font-weight: 700;
+    font-size: 13px;
+    color: #444;
+}
+QRadioButton::indicator {
+    width: 20px;
+    height: 20px;
+    border-radius: 10px;
+    border: 2px solid #ddd;
+}
+QRadioButton::indicator:checked {
+    border: 2px solid #fb7299;
+    background: #fb7299;
+}
+
+/* ── Checkbox ── */
+QCheckBox {
+    spacing: 8px;
+    font-weight: 600;
+    font-size: 13px;
+    color: #666;
+}
+QCheckBox::indicator {
+    width: 18px;
+    height: 18px;
+    border-radius: 4px;
+    border: 2px solid #ccc;
+}
+QCheckBox::indicator:checked {
+    background: #fb7299;
+    border: 2px solid #fb7299;
+}
+
+/* ── QLineEdit ── */
+QLineEdit {
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(200, 200, 210, 0.5);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: #444;
+}
+QLineEdit:focus {
+    border: 2px solid #fb7299;
+}
+
+/* ── QListWidget (history list items) ── */
+QListWidget {
+    background: transparent;
+    border: none;
+}
+QListWidget::item {
+    background: #ffffff;
+    border: 1px solid rgba(200, 200, 210, 0.5);
+    border-radius: 16px;
+    padding: 16px;
+    margin: 4px 0px;
+}
+QListWidget::item:hover {
+    background: rgba(255, 255, 255, 0.9);
+}

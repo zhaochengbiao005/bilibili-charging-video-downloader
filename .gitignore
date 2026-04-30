@@ -1,0 +1,23 @@
+# Build
+dist/
+build/
+*.spec
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+.codeartsdoer/
+
+# Data (runtime)
+data/
+downloads/
+
+# Frontend
+bilibili-video-downloader/node_modules/
+bilibili-video-downloader/dist/
