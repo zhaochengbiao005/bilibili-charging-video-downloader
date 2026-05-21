@@ -9,6 +9,18 @@ pub struct AppConfig {
     pub max_history: usize,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ConfigResponse {
+    pub config: AppConfig,
+    pub app_dir: String,
+    pub default_outdir: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct SaveConfigRequest {
+    pub config: AppConfig,
+}
+
 impl AppConfig {
     pub fn with_default_outdir(default_outdir: String) -> Self {
         Self {

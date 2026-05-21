@@ -1,15 +1,17 @@
-use std::{path::Path, process::Command, time::Duration};
+use std::{path::Path, time::Duration};
 
 use tauri::{AppHandle, Emitter, State};
+use tauri_plugin_dialog::DialogExt;
+use tauri_plugin_opener::OpenerExt;
 use uuid::Uuid;
 
 use crate::{
     error::{AppError, AppResult},
     models::{
-        config::AppConfig,
+        config::{ConfigResponse, SaveConfigRequest},
         download::{DownloadDoneEvent, DownloadProgressEvent, StartDownloadRequest, StartDownloadResponse},
         history::HistoryItem,
-        video::{FetchInfoRequest, VideoData},
+        video::{FetchInfoRequest, FetchInfoResponse},
     },
     state::AppState,
 };
@@ -18,7 +20,7 @@ use crate::{
 pub async fn fetch_info(
     input: FetchInfoRequest,
     state: State<'_, AppState>,
-) -> AppResult<VideoData> {
+) -> AppResult<FetchInfoResponse> {
     let bvid = input.bvid.trim();
     if !is_valid_bvid(bvid) {
         return Err(AppError::InvalidInput {
@@ -26,7 +28,8 @@ pub async fn fetch_info(
         });
     }
 
-    state.client.video_info(bvid).await
+    let video = state.client.video_info(bvid).await?;
+    Ok(FetchInfoResponse { video })
 }
 
 #[tauri::command]
@@ -108,13 +111,21 @@ pub fn clear_history(state: State<'_, AppState>) -> AppResult<()> {
 }
 
 #[tauri::command]
-pub fn get_config(state: State<'_, AppState>) -> AppResult<AppConfig> {
-    state.config_store.load()
+pub fn get_config(state: State<'_, AppState>) -> AppResult<ConfigResponse> {
+    config_response(&state)
 }
 
 #[tauri::command]
-pub fn save_config(config: AppConfig, state: State<'_, AppState>) -> AppResult<()> {
-    state.config_store.save(&config)
+pub fn save_config(
+    input: SaveConfigRequest,
+    state: State<'_, AppState>,
+) -> AppResult<ConfigResponse> {
+    let mut config = input.config;
+    if config.default_outdir.trim().is_empty() {
+        config.default_outdir = state.config_store.default_outdir();
+    }
+    state.config_store.save(&config)?;
+    config_response(&state)
 }
 
 #[tauri::command]
@@ -164,19 +175,44 @@ pub async fn install_ffmpeg(app: AppHandle) -> StartDownloadResponse {
 }
 
 #[tauri::command]
-pub fn choose_output_dir() -> Option<String> {
-    None
+pub async fn choose_output_dir(app: AppHandle, state: State<'_, AppState>) -> AppResult<Option<String>> {
+    let start_dir = state.config_store.load()?.default_outdir;
+    let mut dialog = app.dialog().file().set_title("选择默认输出目录");
+    if Path::new(&start_dir).exists() {
+        dialog = dialog.set_directory(start_dir);
+    }
+
+    tauri::async_runtime::spawn_blocking(move || {
+        dialog
+            .blocking_pick_folder()
+            .map(|path| {
+                path.into_path()
+                    .map(|path| path.to_string_lossy().into_owned())
+                    .map_err(|err| AppError::Io {
+                        message: err.to_string(),
+                    })
+            })
+            .transpose()
+    })
+    .await
+    .map_err(|err| AppError::Io {
+        message: err.to_string(),
+    })?
 }
 
 #[tauri::command]
-pub fn open_path(path: String) -> AppResult<()> {
+pub fn open_path(path: String, app: AppHandle) -> AppResult<()> {
     if path.trim().is_empty() {
         return Err(AppError::InvalidInput {
             message: "路径不能为空".to_string(),
         });
     }
 
-    open_with_system(&path)?;
+    app.opener()
+        .open_path(path, None::<String>)
+        .map_err(|err| AppError::Io {
+            message: err.to_string(),
+        })?;
     Ok(())
 }
 
@@ -204,21 +240,11 @@ fn is_valid_bvid(input: &str) -> bool {
     input.starts_with("BV") && input.len() >= 12 && input.chars().all(|c| c.is_ascii_alphanumeric())
 }
 
-fn open_with_system(path: &str) -> std::io::Result<()> {
-    #[cfg(target_os = "windows")]
-    {
-        Command::new("explorer").arg(path).spawn()?;
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        Command::new("open").arg(path).spawn()?;
-    }
-
-    #[cfg(all(unix, not(target_os = "macos")))]
-    {
-        Command::new("xdg-open").arg(path).spawn()?;
-    }
-
-    Ok(())
+fn config_response(state: &AppState) -> AppResult<ConfigResponse> {
+    let config = state.config_store.load()?;
+    Ok(ConfigResponse {
+        default_outdir: state.config_store.default_outdir(),
+        app_dir: state.config_store.app_dir().to_string_lossy().into_owned(),
+        config,
+    })
 }

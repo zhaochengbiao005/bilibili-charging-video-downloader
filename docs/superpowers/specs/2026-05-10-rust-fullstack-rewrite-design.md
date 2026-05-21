@@ -645,16 +645,24 @@ tracing-subscriber = "0.3"
 
 ### Phase 1: 前后端契约落地
 
-- [ ] 重写 `types.ts`，定义真实请求、响应、事件和错误类型。
-- [ ] 实现 `fetch_info` command。
-- [ ] 实现 `get_config` / `save_config` / `choose_output_dir` / `open_path`。
-- [ ] 前端 Home / Settings / History 不再调用假 HTTP `/api/*`。
+- [x] 重写 `types.ts`，定义真实请求、响应、事件和错误类型。
+- [x] 实现 `fetch_info` command。
+- [x] 实现 `get_config` / `save_config` / `choose_output_dir` / `open_path`。
+- [x] 前端 Home / Settings / History 不再调用假 HTTP `/api/*`。
 
 验收：
 
-- [ ] 输入 BVID 后能通过 Rust 后端返回真实视频信息。
-- [ ] 设置页能读写本地配置。
-- [ ] 打开目录使用 Tauri command，不再用 `saveConfig` 伪装。
+- [x] 输入 BVID 后能通过 Rust 后端返回真实视频信息。
+- [x] 设置页能读写本地配置。
+- [x] 打开目录使用 Tauri command，不再用 `saveConfig` 伪装。
+
+阶段记录（2026-05-21）：
+
+- 已把前端 `types.ts` 扩展为真实契约模型：`FetchInfoRequest/Response`、`StreamOption`、下载事件、配置读写请求/响应、结构化错误载荷。
+- `fetch_info` 现在返回 `FetchInfoResponse { video }`，Rust API 客户端走 B站 `/x/web-interface/view` 真实接口，并为前端生成可用 `streams/qualities`。
+- `get_config` / `save_config` 改为 `ConfigResponse` 包裹，设置页读写落到本地 `config.json`；新增配置 roundtrip 单测。
+- `choose_output_dir` 接入 Tauri dialog 插件，`open_path` 接入 Tauri opener 插件；前端不再通过假 HTTP 或 `saveConfig` 伪装目录操作。
+- 验证通过：`npm run lint`、`npm run build`、`cargo test`、`BILI_LIVE_TEST_BVID=BV1xx411c7mD cargo test public_video_info_contract_returns_streams_when_enabled -- --nocapture`。
 
 ### Phase 2: 登录和权限
 

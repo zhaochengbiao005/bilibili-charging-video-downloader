@@ -4,7 +4,20 @@
 
 import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import type { AppConfig, HistoryItem, VideoData } from './types';
+import type {
+  AppConfig,
+  ConfigResponse,
+  DownloadDoneEvent,
+  DownloadProgressEvent,
+  FetchInfoResponse,
+  FfmpegStatus,
+  HistoryItem,
+  SaveConfigRequest,
+  StartDownloadRequest,
+  StartDownloadResponse,
+  VideoData,
+  AppErrorPayload,
+} from './types';
 
 export type ProgressHandler = (taskId: string, percent: number, speed: string) => void;
 export type LogHandler = (msg: string) => void;
@@ -18,30 +31,8 @@ export function setOnProgress(h: ProgressHandler | null) { onProgress = h; }
 export function setOnLog(h: LogHandler | null) { onLog = h; }
 export function setOnTaskDone(h: TaskDoneHandler | null) { onTaskDone = h; }
 
-interface DownloadProgressEvent {
-  task_id: string;
-  percent: number;
-  speed_bytes_per_sec: number;
-  message?: string;
-}
-
-interface DownloadDoneEvent {
-  task_id: string;
-  status: 'completed' | 'failed' | 'cancelled';
-  message?: string;
-}
-
-interface StartDownloadResponse {
-  task_id: string;
-}
-
-interface FfmpegStatus {
-  available: boolean;
-  path?: string;
-  version?: string;
-}
-
 let eventListeners: Promise<UnlistenFn[]> | null = null;
+let cachedConfigResponse: ConfigResponse | null = null;
 
 function isTauriRuntime(): boolean {
   return Boolean((window as any).__TAURI_INTERNALS__?.invoke);
@@ -55,7 +46,26 @@ async function callCommand<T>(command: string, args?: Record<string, unknown>): 
   if (!isTauriRuntime()) {
     throw missingRuntimeError();
   }
-  return invoke<T>(command, args);
+  try {
+    return await invoke<T>(command, args);
+  } catch (err) {
+    throw normalizeCommandError(err);
+  }
+}
+
+function normalizeCommandError(err: unknown): Error {
+  if (err instanceof Error) return err;
+  if (typeof err === 'string') return new Error(err);
+  if (err && typeof err === 'object') {
+    const payload = err as AppErrorPayload;
+    const message =
+      payload.message ||
+      payload.reason ||
+      (payload.code !== undefined ? `B站 API 错误 ${payload.code}` : undefined) ||
+      JSON.stringify(payload);
+    return new Error(message);
+  }
+  return new Error('后端命令执行失败');
 }
 
 function formatSpeed(bytesPerSec: number): string {
@@ -97,9 +107,10 @@ function ensureEventListeners(): Promise<UnlistenFn[]> {
 }
 
 export async function fetchInfo(bvid: string, cookiePath = ''): Promise<VideoData> {
-  return callCommand<VideoData>('fetch_info', {
+  const res = await callCommand<FetchInfoResponse>('fetch_info', {
     input: { bvid, cookie_path: cookiePath || null },
   });
+  return res.video;
 }
 
 export async function startDownload(
@@ -108,15 +119,16 @@ export async function startDownload(
 ): Promise<string> {
   if (!isTauriRuntime()) throw missingRuntimeError();
   await ensureEventListeners();
+  const input: StartDownloadRequest = {
+    bvid,
+    quality,
+    format: fmt === 'audio' ? 'audio' : 'video',
+    outdir,
+    cookie_path: cookiePath || null,
+    skip_merge: skipMerge,
+  };
   const res = await callCommand<StartDownloadResponse>('start_download', {
-    input: {
-      bvid,
-      quality,
-      format: fmt,
-      outdir,
-      cookie_path: cookiePath || null,
-      skip_merge: skipMerge,
-    },
+    input,
   });
   return res.task_id;
 }
@@ -145,11 +157,15 @@ export async function getConfig(): Promise<AppConfig> {
       max_history: 200,
     };
   }
-  return callCommand<AppConfig>('get_config');
+  const res = await callCommand<ConfigResponse>('get_config');
+  cachedConfigResponse = res;
+  return res.config;
 }
 
 export async function saveConfig(cfg: AppConfig): Promise<boolean> {
-  await callCommand<void>('save_config', { config: cfg });
+  const input: SaveConfigRequest = { config: cfg };
+  const res = await callCommand<ConfigResponse>('save_config', { input });
+  cachedConfigResponse = res;
   return true;
 }
 
@@ -173,11 +189,13 @@ export async function getQualityOptions(): Promise<string[]> {
 
 export async function getDefaultOutdir(): Promise<string> {
   if (!isTauriRuntime()) return 'downloads';
+  if (cachedConfigResponse) return cachedConfigResponse.config.default_outdir;
   return callCommand<string>('get_default_outdir');
 }
 
 export async function getAppDir(): Promise<string> {
   if (!isTauriRuntime()) return 'Tauri 桌面应用运行时';
+  if (cachedConfigResponse) return cachedConfigResponse.app_dir;
   return callCommand<string>('get_app_dir');
 }
 

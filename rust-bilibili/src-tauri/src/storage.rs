@@ -110,3 +110,34 @@ fn write_json_atomic<T: serde::Serialize + ?Sized>(path: &Path, value: &T) -> Ap
     fs::rename(temp_path, path)?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn config_store_roundtrips_saved_config() -> AppResult<()> {
+        let root = std::env::temp_dir().join(format!(
+            "bili_config_test_{}",
+            std::process::id()
+        ));
+        if root.exists() {
+            fs::remove_dir_all(&root)?;
+        }
+
+        let store = ConfigStore::new(root.clone())?;
+        let mut config = AppConfig::with_default_outdir(root.join("videos").to_string_lossy().into_owned());
+        config.auto_merge = false;
+        config.max_history = 17;
+
+        store.save(&config)?;
+        let loaded = store.load()?;
+
+        assert_eq!(loaded.default_outdir, config.default_outdir);
+        assert_eq!(loaded.auto_merge, config.auto_merge);
+        assert_eq!(loaded.max_history, config.max_history);
+
+        fs::remove_dir_all(root)?;
+        Ok(())
+    }
+}

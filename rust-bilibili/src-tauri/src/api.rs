@@ -5,7 +5,7 @@ use serde::Deserialize;
 
 use crate::{
     error::{AppError, AppResult},
-    models::video::{VideoData, VideoPage},
+    models::video::{StreamOption, VideoData, VideoPage},
 };
 
 const BASE_URL: &str = "https://api.bilibili.com";
@@ -121,6 +121,14 @@ struct ViewData {
 
 impl ViewData {
     fn into_video_data(self) -> VideoData {
+        let is_charging = self.rights.elec_high == 1;
+        let is_vip = self.rights.vip_free == 1;
+        let streams = default_stream_options(is_charging, is_vip);
+        let qualities = streams
+            .iter()
+            .filter(|stream| stream.available)
+            .map(|stream| stream.label.clone())
+            .collect();
         let pages = self
             .pages
             .into_iter()
@@ -140,14 +148,10 @@ impl ViewData {
             duration: format_duration(self.duration),
             duration_sec: self.duration,
             pages,
-            qualities: vec![
-                "1080P".to_string(),
-                "720P".to_string(),
-                "480P".to_string(),
-                "360P".to_string(),
-            ],
-            is_charging: Some(self.rights.elec_high == 1),
-            is_vip: Some(self.rights.vip_free == 1),
+            qualities,
+            streams,
+            is_charging: Some(is_charging),
+            is_vip: Some(is_vip),
             vip_type: None,
             is_login: None,
             login_name: None,
@@ -156,6 +160,36 @@ impl ViewData {
             error: None,
         }
     }
+}
+
+fn default_stream_options(is_charging: bool, is_vip: bool) -> Vec<StreamOption> {
+    let restricted = is_charging || is_vip;
+    [
+        (80, "1080P", true, false),
+        (64, "720P", false, false),
+        (32, "480P", false, false),
+        (16, "360P", false, false),
+    ]
+    .into_iter()
+    .map(|(qn, label, maybe_login, maybe_vip)| {
+        let requires_login = maybe_login && restricted;
+        let requires_vip = maybe_vip && is_vip;
+        StreamOption {
+            id: format!("video_{qn}"),
+            qn,
+            label: label.to_string(),
+            codec: None,
+            width: None,
+            height: None,
+            frame_rate: None,
+            bandwidth: None,
+            requires_login,
+            requires_vip,
+            available: !requires_vip,
+            unavailable_reason: requires_vip.then(|| "需要大会员权限".to_string()),
+        }
+    })
+    .collect()
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -183,4 +217,28 @@ struct ViewPage {
     cid: u64,
     page: u32,
     part: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn public_video_info_contract_returns_streams_when_enabled() -> AppResult<()> {
+        let Ok(bvid) = std::env::var("BILI_LIVE_TEST_BVID") else {
+            return Ok(());
+        };
+
+        let client = BilibiliClient::new()?;
+        let video = client.video_info(&bvid).await?;
+
+        assert_eq!(video.id, bvid);
+        assert!(!video.title.trim().is_empty());
+        assert!(!video.author.trim().is_empty());
+        assert!(!video.pages.is_empty());
+        assert!(!video.qualities.is_empty());
+        assert!(!video.streams.is_empty());
+        assert!(video.streams.iter().any(|stream| stream.available));
+        Ok(())
+    }
 }
