@@ -21,3 +21,7 @@ downloads/
 # Frontend
 bilibili-video-downloader/node_modules/
 bilibili-video-downloader/dist/
+rust-bilibili/node_modules/
+rust-bilibili/dist/
+rust-bilibili/src-tauri/gen/
+rust-bilibili/src-tauri/target/
