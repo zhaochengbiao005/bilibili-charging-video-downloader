@@ -13,6 +13,7 @@ import type {
   FfmpegStatus,
   HistoryItem,
   LoginStatus,
+  PlayUrlResponse,
   QrLoginPollResponse,
   QrLoginStartResponse,
   SaveConfigRequest,
@@ -134,6 +135,17 @@ export async function startDownload(
     input,
   });
   return res.task_id;
+}
+
+export async function fetchPlayurl(
+  bvid: string,
+  cid: number,
+  qn: number,
+  cookiePath = '',
+): Promise<PlayUrlResponse> {
+  return callCommand<PlayUrlResponse>('fetch_playurl', {
+    input: { bvid, cid, qn, cookie_path: cookiePath || null },
+  });
 }
 
 export async function getHistory(): Promise<HistoryItem[]> {

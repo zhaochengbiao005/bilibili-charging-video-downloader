@@ -71,6 +71,47 @@ export interface StartDownloadRequest {
   skip_merge: boolean;
 }
 
+export interface PlayUrlRequest {
+  bvid: string;
+  cid: number;
+  qn: number;
+  cookie_path?: string | null;
+}
+
+export interface PlayUrlResponse {
+  quality: number;
+  timelength: number;
+  accept_quality: number[];
+  dash?: DashStreams | null;
+  durl: DurlSegment[];
+}
+
+export interface DashStreams {
+  duration: number;
+  video: DashTrack[];
+  audio: DashTrack[];
+}
+
+export interface DashTrack {
+  id: number;
+  codecs: string;
+  width?: number | null;
+  height?: number | null;
+  frame_rate?: string | null;
+  bandwidth?: number | null;
+  mime_type?: string | null;
+  base_url: string;
+  backup_urls: string[];
+}
+
+export interface DurlSegment {
+  order: number;
+  length: number;
+  size: number;
+  url: string;
+  backup_urls: string[];
+}
+
 export interface StartDownloadResponse {
   task_id: string;
 }

@@ -691,19 +691,29 @@ tracing-subscriber = "0.3"
 
 ### Phase 3: 高性能下载核心
 
-- [ ] 实现 DASH video/audio 下载。
-- [ ] 实现 DURL segment 下载。
-- [ ] 实现 Range 分块下载。
-- [ ] 实现任务状态机和进度事件。
-- [ ] 实现取消下载。
-- [ ] 前端 DownloadQueue 使用后端 taskId 和真实进度。
+- [x] 实现 DASH video/audio 下载。
+- [x] 实现 DURL segment 下载。
+- [x] 实现 Range 分块下载。
+- [x] 实现任务状态机和进度事件。
+- [x] 实现取消下载。
+- [x] 前端 DownloadQueue 使用后端 taskId 和真实进度。
 
 验收：
 
 - [ ] 下载公开测试视频成功。
-- [ ] 下载时 UI 不阻塞。
+- [x] 下载时 UI 不阻塞。
 - [ ] 取消任务能停止下载。
-- [ ] Range 不支持时自动回退，不生成损坏文件。
+- [x] Range 不支持时自动回退，不生成损坏文件。
+
+阶段记录（2026-05-21）：
+
+- 新增 `fetch_playurl` command 和强类型 `PlayUrlResponse`，接入 B站 `/x/player/playurl`，支持 DASH 与 DURL 元数据解析。
+- 新增 `downloader.rs`，实现流式写入、Range 分块下载、Range 返回 `200 OK` 时自动回退普通流式下载、临时文件完成后原子 rename。
+- `start_download` 从占位事件改为后台真实任务：解析第一个分P、下载 DASH 视频/音频原始流，或下载 DURL 分段并串接为 FLV；DASH 音视频合并仍按计划留到 Phase 4。
+- 新增取消 token 表，`cancel_download` 可标记后台任务取消；任务结束后清理 token。
+- 前端 DownloadQueue 使用后端返回的 `taskId`、真实 progress/completed/failed/cancelled 事件更新状态和错误信息。
+- 验证通过：`npm run lint`、`npm run build`、`cargo test`、`BILI_LIVE_PLAYURL_BVID=BV1xx411c7mD cargo test public_playurl_contract_returns_downloadable_streams_when_enabled -- --nocapture`。
+- 待桌面实机验收：公开视频完整下载、取消 2 秒内停止、DASH 原始流下载结果人工检查。
 
 ### Phase 4: FFmpeg 和一站式体验
 

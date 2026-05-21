@@ -1,5 +1,13 @@
+use std::{
+    collections::HashMap,
+    sync::{atomic::AtomicBool, Arc},
+};
+
+use tokio::sync::RwLock;
+
 use crate::{
     api::BilibiliClient,
+    downloader::DownloadClient,
     error::AppResult,
     ffmpeg::FfmpegManager,
     storage::{app_data_dir, ConfigStore, CookieStore, HistoryStore},
@@ -8,6 +16,8 @@ use crate::{
 #[derive(Debug)]
 pub struct AppState {
     pub client: BilibiliClient,
+    pub downloader: DownloadClient,
+    pub cancel_tokens: Arc<RwLock<HashMap<String, Arc<AtomicBool>>>>,
     pub config_store: ConfigStore,
     pub history_store: HistoryStore,
     pub cookie_store: CookieStore,
@@ -23,6 +33,8 @@ impl AppState {
 
         Ok(Self {
             client: BilibiliClient::new()?,
+            downloader: DownloadClient::new()?,
+            cancel_tokens: Arc::new(RwLock::new(HashMap::new())),
             config_store,
             history_store,
             cookie_store,

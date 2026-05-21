@@ -12,7 +12,10 @@ use crate::{
         QrLoginPollResponse, QrLoginStartResponse,
     },
     error::{AppError, AppResult},
-    models::video::{StreamOption, VideoData, VideoPage},
+    models::{
+        download::{DashStreams, DashTrack, DurlSegment, PlayUrlResponse},
+        video::{StreamOption, VideoData, VideoPage},
+    },
 };
 
 const BASE_URL: &str = "https://api.bilibili.com";
@@ -105,6 +108,52 @@ impl BilibiliClient {
         };
 
         Ok(data.into_login_status(response.message))
+    }
+
+    pub async fn playurl(
+        &self,
+        bvid: &str,
+        cid: u64,
+        qn: u32,
+        cookies: Option<&CookieSet>,
+    ) -> AppResult<PlayUrlResponse> {
+        let mut request = self
+            .client
+            .get(format!("{BASE_URL}/x/player/playurl"))
+            .query(&[
+                ("bvid", bvid.to_string()),
+                ("cid", cid.to_string()),
+                ("qn", qn.to_string()),
+                ("platform", "web".to_string()),
+                ("fnval", "4048".to_string()),
+                ("fnver", "0".to_string()),
+                ("fourk", "1".to_string()),
+                ("force_host", "2".to_string()),
+            ])
+            .header(REFERER, format!("https://www.bilibili.com/video/{bvid}"));
+        if let Some(cookies) = cookies {
+            request = request.header(COOKIE, cookies.to_header());
+        }
+
+        let response_text = request.send().await?.error_for_status()?.text().await?;
+        let response: ApiResponse<PlayUrlData> =
+            serde_json::from_str(&response_text).map_err(|err| AppError::Io {
+                message: format!("播放地址响应解析失败: {err}"),
+            })?;
+
+        if response.code != 0 {
+            return Err(AppError::Api {
+                code: response.code,
+                message: response.message,
+            });
+        }
+
+        let data = response.data.ok_or_else(|| AppError::Api {
+            code: response.code,
+            message: "B站响应缺少播放地址".to_string(),
+        })?;
+
+        Ok(data.into_playurl_response())
     }
 
     pub async fn start_qr_login(&self) -> AppResult<QrLoginStartResponse> {
@@ -421,6 +470,149 @@ struct QrPollData {
     message: String,
 }
 
+#[derive(Debug, Default, Deserialize)]
+struct PlayUrlData {
+    #[serde(default)]
+    quality: u32,
+    #[serde(default)]
+    timelength: u64,
+    #[serde(default)]
+    accept_quality: Vec<u32>,
+    dash: Option<DashData>,
+    #[serde(default)]
+    durl: Vec<DurlData>,
+}
+
+impl PlayUrlData {
+    fn into_playurl_response(self) -> PlayUrlResponse {
+        PlayUrlResponse {
+            quality: self.quality,
+            timelength: self.timelength,
+            accept_quality: self.accept_quality,
+            dash: self.dash.map(DashData::into_dash_streams),
+            durl: self.durl.into_iter().map(DurlData::into_segment).collect(),
+        }
+    }
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct DashData {
+    #[serde(default)]
+    duration: u64,
+    #[serde(default)]
+    video: Vec<DashTrackData>,
+    #[serde(default)]
+    audio: Vec<DashTrackData>,
+}
+
+impl DashData {
+    fn into_dash_streams(self) -> DashStreams {
+        DashStreams {
+            duration: self.duration,
+            video: self
+                .video
+                .into_iter()
+                .filter_map(DashTrackData::into_track)
+                .collect(),
+            audio: self
+                .audio
+                .into_iter()
+                .filter_map(DashTrackData::into_track)
+                .collect(),
+        }
+    }
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct DashTrackData {
+    #[serde(default)]
+    id: u32,
+    #[serde(default)]
+    codecs: String,
+    width: Option<u32>,
+    height: Option<u32>,
+    #[serde(default, rename = "frameRate")]
+    frame_rate_camel: Option<String>,
+    frame_rate: Option<String>,
+    bandwidth: Option<u64>,
+    #[serde(default, rename = "mimeType")]
+    mime_type_camel: Option<String>,
+    mime_type: Option<String>,
+    #[serde(default, rename = "baseUrl")]
+    base_url_camel: String,
+    #[serde(default)]
+    base_url: String,
+    #[serde(default, rename = "backupUrl")]
+    backup_url_camel: Vec<String>,
+    #[serde(default)]
+    backup_url: Vec<String>,
+}
+
+impl DashTrackData {
+    fn into_track(self) -> Option<DashTrack> {
+        let base_url = first_non_empty_string([self.base_url, self.base_url_camel]);
+        (!base_url.trim().is_empty()).then_some(DashTrack {
+            id: self.id,
+            codecs: self.codecs,
+            width: self.width,
+            height: self.height,
+            frame_rate: self.frame_rate.or(self.frame_rate_camel),
+            bandwidth: self.bandwidth,
+            mime_type: self.mime_type.or(self.mime_type_camel),
+            base_url,
+            backup_urls: merge_url_lists(self.backup_url, self.backup_url_camel),
+        })
+    }
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct DurlData {
+    #[serde(default)]
+    order: u32,
+    #[serde(default)]
+    length: u64,
+    #[serde(default)]
+    size: u64,
+    #[serde(default)]
+    url: String,
+    #[serde(default, rename = "backupUrl")]
+    backup_url_camel: Vec<String>,
+    #[serde(default)]
+    backup_url: Vec<String>,
+}
+
+impl DurlData {
+    fn into_segment(self) -> DurlSegment {
+        DurlSegment {
+            order: self.order,
+            length: self.length,
+            size: self.size,
+            url: self.url,
+            backup_urls: merge_url_lists(self.backup_url, self.backup_url_camel),
+        }
+    }
+}
+
+fn first_non_empty_string(values: impl IntoIterator<Item = String>) -> String {
+    values
+        .into_iter()
+        .find(|value| !value.trim().is_empty())
+        .unwrap_or_default()
+}
+
+fn merge_url_lists(primary: Vec<String>, secondary: Vec<String>) -> Vec<String> {
+    primary
+        .into_iter()
+        .chain(secondary)
+        .filter(|url| !url.trim().is_empty())
+        .fold(Vec::new(), |mut urls, url| {
+            if !urls.contains(&url) {
+                urls.push(url);
+            }
+            urls
+        })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -441,6 +633,30 @@ mod tests {
         assert!(!video.qualities.is_empty());
         assert!(!video.streams.is_empty());
         assert!(video.streams.iter().any(|stream| stream.available));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn public_playurl_contract_returns_downloadable_streams_when_enabled() -> AppResult<()> {
+        let Ok(bvid) = std::env::var("BILI_LIVE_PLAYURL_BVID") else {
+            return Ok(());
+        };
+
+        let client = BilibiliClient::new()?;
+        let video = client.video_info(&bvid, None).await?;
+        let cid = video
+            .pages
+            .first()
+            .expect("public video should have cid")
+            .cid;
+        let playurl = client.playurl(&bvid, cid, 16, None).await?;
+
+        let dash_count = playurl
+            .dash
+            .as_ref()
+            .map(|dash| dash.video.len() + dash.audio.len())
+            .unwrap_or_default();
+        assert!(dash_count > 0 || !playurl.durl.is_empty());
         Ok(())
     }
 }

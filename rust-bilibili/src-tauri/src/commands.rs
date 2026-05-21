@@ -1,6 +1,10 @@
 use std::{
     path::{Path, PathBuf},
-    time::Duration,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    time::Instant,
 };
 
 use tauri::{AppHandle, Emitter, State};
@@ -10,11 +14,13 @@ use uuid::Uuid;
 
 use crate::{
     auth::LoginStatus,
+    downloader::{emit_progress, FileDownloadSpec, ProgressSender},
     error::{AppError, AppResult},
     models::{
         config::{ConfigResponse, SaveConfigRequest},
         download::{
-            DownloadDoneEvent, DownloadProgressEvent, StartDownloadRequest, StartDownloadResponse,
+            DashTrack, DownloadDoneEvent, DownloadProgressEvent, DurlSegment, PlayUrlRequest,
+            PlayUrlResponse, StartDownloadRequest, StartDownloadResponse,
         },
         history::HistoryItem,
         video::{FetchInfoRequest, FetchInfoResponse},
@@ -43,63 +49,108 @@ pub async fn fetch_info(
 pub async fn start_download(
     input: StartDownloadRequest,
     app: AppHandle,
-    _state: State<'_, AppState>,
+    state: State<'_, AppState>,
 ) -> AppResult<StartDownloadResponse> {
     if !is_valid_bvid(&input.bvid) {
         return Err(AppError::InvalidInput {
             message: "请输入有效的 BVID".to_string(),
         });
     }
+    if input.outdir.trim().is_empty() {
+        return Err(AppError::InvalidInput {
+            message: "输出目录不能为空".to_string(),
+        });
+    }
 
     let task_id = format!("dl_{}", Uuid::new_v4());
+    let cancel = Arc::new(AtomicBool::new(false));
+    state
+        .cancel_tokens
+        .write()
+        .await
+        .insert(task_id.clone(), cancel.clone());
+    let client = state.client.clone();
+    let downloader = state.downloader.clone();
+    let cancel_tokens = state.cancel_tokens.clone();
+    let cookies = load_cookies_for_request(input.cookie_path.as_deref(), &state)?;
     let event_task_id = task_id.clone();
-    let label = format!("{} {} {}", input.bvid, input.quality, input.format);
+    let app_for_task = app.clone();
 
     tauri::async_runtime::spawn(async move {
-        let _ = app.emit(
-            "download://log",
-            format!("下载任务已创建，下载核心将在 Phase 3 接入: {label}"),
-        );
-        let _ = app.emit(
-            "download://progress",
-            DownloadProgressEvent {
-                task_id: event_task_id.clone(),
-                stage: "queued".to_string(),
-                percent: 0.0,
-                bytes_done: 0,
-                bytes_total: 0,
-                speed_bytes_per_sec: 0,
-                message: Some("任务已进入后端队列".to_string()),
-            },
-        );
-        tokio::time::sleep(Duration::from_millis(250)).await;
-        let _ = app.emit(
-            "download://failed",
-            DownloadDoneEvent {
-                task_id: event_task_id,
-                status: "failed".to_string(),
-                message: Some("下载核心尚未接入，当前阶段仅验证 Tauri 事件链路".to_string()),
-            },
-        );
+        let result = run_download_task(
+            event_task_id.clone(),
+            input,
+            app_for_task.clone(),
+            client,
+            downloader,
+            cookies,
+            cancel,
+        )
+        .await;
+
+        cancel_tokens.write().await.remove(&event_task_id);
+
+        match result {
+            Ok(output_path) => {
+                let _ = app_for_task.emit(
+                    "download://completed",
+                    DownloadDoneEvent {
+                        task_id: event_task_id,
+                        status: "completed".to_string(),
+                        message: Some(format!("下载完成：{}", output_path.to_string_lossy())),
+                    },
+                );
+            }
+            Err(err) => {
+                let message = err.to_string();
+                let status = if message.contains("任务已取消") {
+                    "cancelled"
+                } else {
+                    "failed"
+                };
+                let _ = app_for_task.emit(
+                    "download://failed",
+                    DownloadDoneEvent {
+                        task_id: event_task_id,
+                        status: status.to_string(),
+                        message: Some(message),
+                    },
+                );
+            }
+        }
     });
 
     Ok(StartDownloadResponse { task_id })
 }
 
 #[tauri::command]
-pub async fn cancel_download(task_id: String, app: AppHandle) -> AppResult<()> {
-    app.emit(
-        "download://failed",
-        DownloadDoneEvent {
-            task_id,
-            status: "cancelled".to_string(),
-            message: Some("任务已取消".to_string()),
-        },
-    )
-    .map_err(|err| AppError::Download {
-        task_id: None,
-        message: err.to_string(),
-    })
+pub async fn cancel_download(task_id: String, state: State<'_, AppState>) -> AppResult<()> {
+    if let Some(cancel) = state.cancel_tokens.read().await.get(&task_id) {
+        cancel.store(true, Ordering::SeqCst);
+        Ok(())
+    } else {
+        Err(AppError::InvalidInput {
+            message: "下载任务不存在或已结束".to_string(),
+        })
+    }
+}
+
+#[tauri::command]
+pub async fn fetch_playurl(
+    input: PlayUrlRequest,
+    state: State<'_, AppState>,
+) -> AppResult<PlayUrlResponse> {
+    let bvid = input.bvid.trim();
+    if !is_valid_bvid(bvid) {
+        return Err(AppError::InvalidInput {
+            message: "请输入有效的 BVID".to_string(),
+        });
+    }
+    let cookies = load_cookies_for_request(input.cookie_path.as_deref(), &state)?;
+    state
+        .client
+        .playurl(bvid, input.cid, input.qn, cookies.as_ref())
+        .await
 }
 
 #[tauri::command]
@@ -321,4 +372,265 @@ fn load_cookies_for_request(
             .map(Some);
     }
     state.cookie_store.load()
+}
+
+async fn run_download_task(
+    task_id: String,
+    input: StartDownloadRequest,
+    app: AppHandle,
+    client: crate::api::BilibiliClient,
+    downloader: crate::downloader::DownloadClient,
+    cookies: Option<crate::auth::CookieSet>,
+    cancel: Arc<AtomicBool>,
+) -> AppResult<PathBuf> {
+    let progress = progress_sender(app.clone());
+    let started = Instant::now();
+    progress(DownloadProgressEvent {
+        task_id: task_id.clone(),
+        stage: "resolving".to_string(),
+        percent: 0.0,
+        bytes_done: 0,
+        bytes_total: 0,
+        speed_bytes_per_sec: 0,
+        message: Some("正在解析播放地址".to_string()),
+    });
+
+    let video = client.video_info(&input.bvid, cookies.as_ref()).await?;
+    let page = video.pages.first().ok_or_else(|| AppError::InvalidInput {
+        message: "视频没有可下载分P".to_string(),
+    })?;
+    let qn = quality_to_qn(&input.quality);
+    let playurl = client
+        .playurl(&input.bvid, page.cid, qn, cookies.as_ref())
+        .await?;
+    let output_dir = PathBuf::from(input.outdir.trim());
+    tokio::fs::create_dir_all(&output_dir).await?;
+    let safe_title = sanitize_filename::sanitize(format!("{}-{}", video.title, page.part));
+    let referer = format!("https://www.bilibili.com/video/{}", input.bvid);
+
+    if input.format == "audio" {
+        let dash = playurl.dash.ok_or_else(|| AppError::Download {
+            task_id: Some(task_id.clone()),
+            message: "没有找到 DASH 音频流".to_string(),
+        })?;
+        let track = select_audio_track(&dash.audio).ok_or_else(|| AppError::Download {
+            task_id: Some(task_id.clone()),
+            message: "没有可下载音频流".to_string(),
+        })?;
+        let output_path = output_dir.join(format!("{safe_title}.m4a"));
+        let result = downloader
+            .download_file(
+                FileDownloadSpec {
+                    task_id: task_id.clone(),
+                    stage: "downloading_audio".to_string(),
+                    url: first_url(&track.base_url, &track.backup_urls)?,
+                    output_path,
+                    referer,
+                },
+                cancel,
+                progress.clone(),
+            )
+            .await?;
+        return Ok(result.output_path);
+    }
+
+    if let Some(dash) = playurl.dash {
+        let video_track =
+            select_video_track(&dash.video, qn).ok_or_else(|| AppError::Download {
+                task_id: Some(task_id.clone()),
+                message: "没有可下载视频流".to_string(),
+            })?;
+        let video_path = output_dir.join(format!("{safe_title}-video-{}.m4s", video_track.id));
+        let video_result = downloader
+            .download_file(
+                FileDownloadSpec {
+                    task_id: task_id.clone(),
+                    stage: "downloading_video".to_string(),
+                    url: first_url(&video_track.base_url, &video_track.backup_urls)?,
+                    output_path: video_path,
+                    referer: referer.clone(),
+                },
+                cancel.clone(),
+                progress.clone(),
+            )
+            .await?;
+
+        if let Some(audio_track) = select_audio_track(&dash.audio) {
+            let audio_path = output_dir.join(format!("{safe_title}-audio.m4a"));
+            let _ = downloader
+                .download_file(
+                    FileDownloadSpec {
+                        task_id: task_id.clone(),
+                        stage: "downloading_audio".to_string(),
+                        url: first_url(&audio_track.base_url, &audio_track.backup_urls)?,
+                        output_path: audio_path,
+                        referer,
+                    },
+                    cancel,
+                    progress.clone(),
+                )
+                .await?;
+        }
+
+        progress(DownloadProgressEvent {
+            task_id,
+            stage: "completed".to_string(),
+            percent: 100.0,
+            bytes_done: video_result.bytes_written,
+            bytes_total: video_result.bytes_written,
+            speed_bytes_per_sec: 0,
+            message: Some("原始 DASH 流下载完成，音视频合并将在 Phase 4 接入".to_string()),
+        });
+        return Ok(video_result.output_path);
+    }
+
+    if !playurl.durl.is_empty() {
+        let output_path = output_dir.join(format!("{safe_title}.flv"));
+        download_durl_segments(
+            &downloader,
+            &task_id,
+            &playurl.durl,
+            &output_path,
+            &referer,
+            cancel,
+            progress.clone(),
+        )
+        .await?;
+        emit_progress(
+            &progress,
+            &task_id,
+            "completed",
+            1,
+            1,
+            started,
+            Some("DURL 分段下载完成".to_string()),
+        );
+        return Ok(output_path);
+    }
+
+    Err(AppError::Download {
+        task_id: Some(task_id),
+        message: "没有找到可下载的视频流".to_string(),
+    })
+}
+
+async fn download_durl_segments(
+    downloader: &crate::downloader::DownloadClient,
+    task_id: &str,
+    segments: &[DurlSegment],
+    output_path: &Path,
+    referer: &str,
+    cancel: Arc<AtomicBool>,
+    progress: ProgressSender,
+) -> AppResult<()> {
+    let temp_dir = output_path.with_extension("segments");
+    tokio::fs::create_dir_all(&temp_dir).await?;
+    let mut parts = Vec::new();
+    let total_size: u64 = segments.iter().map(|segment| segment.size).sum();
+    let started = Instant::now();
+    let mut done = 0_u64;
+
+    for (index, segment) in segments.iter().enumerate() {
+        let part_path = temp_dir.join(format!("{index:04}.flv"));
+        let result = downloader
+            .download_file(
+                FileDownloadSpec {
+                    task_id: task_id.to_string(),
+                    stage: "downloading_segments".to_string(),
+                    url: first_url(&segment.url, &segment.backup_urls)?,
+                    output_path: part_path.clone(),
+                    referer: referer.to_string(),
+                },
+                cancel.clone(),
+                progress.clone(),
+            )
+            .await?;
+        done += if total_size > 0 {
+            segment.size
+        } else {
+            result.bytes_written
+        };
+        emit_progress(
+            &progress,
+            task_id,
+            "downloading_segments",
+            done,
+            total_size.max(done),
+            started,
+            None,
+        );
+        parts.push(part_path);
+    }
+
+    let temp_path = output_path.with_extension("tmp");
+    let mut output = tokio::fs::File::create(&temp_path).await?;
+    for part in parts {
+        let mut file = tokio::fs::File::open(part).await?;
+        tokio::io::copy(&mut file, &mut output).await?;
+    }
+    tokio::io::AsyncWriteExt::flush(&mut output).await?;
+    if output_path.exists() {
+        tokio::fs::remove_file(output_path).await?;
+    }
+    tokio::fs::rename(&temp_path, output_path).await?;
+    let _ = tokio::fs::remove_dir_all(temp_dir).await;
+    Ok(())
+}
+
+fn progress_sender(app: AppHandle) -> ProgressSender {
+    Arc::new(move |event| {
+        let _ = app.emit("download://progress", event);
+    })
+}
+
+fn quality_to_qn(quality: &str) -> u32 {
+    if quality.contains("HDR") {
+        125
+    } else if quality.contains("4K") {
+        120
+    } else if quality.contains("1080P60") {
+        116
+    } else if quality.contains("1080P") {
+        80
+    } else if quality.contains("720P") {
+        64
+    } else if quality.contains("480P") {
+        32
+    } else {
+        16
+    }
+}
+
+fn select_video_track(tracks: &[DashTrack], qn: u32) -> Option<DashTrack> {
+    tracks
+        .iter()
+        .filter(|track| track.id <= qn)
+        .max_by_key(|track| (track.id, track.bandwidth.unwrap_or_default()))
+        .or_else(|| {
+            tracks
+                .iter()
+                .max_by_key(|track| track.bandwidth.unwrap_or_default())
+        })
+        .cloned()
+}
+
+fn select_audio_track(tracks: &[DashTrack]) -> Option<DashTrack> {
+    tracks
+        .iter()
+        .max_by_key(|track| track.bandwidth.unwrap_or_default())
+        .cloned()
+}
+
+fn first_url(primary: &str, backups: &[String]) -> AppResult<String> {
+    if !primary.trim().is_empty() {
+        return Ok(primary.to_string());
+    }
+    backups
+        .iter()
+        .find(|url| !url.trim().is_empty())
+        .cloned()
+        .ok_or_else(|| AppError::Download {
+            task_id: None,
+            message: "播放地址为空".to_string(),
+        })
 }

@@ -45,7 +45,16 @@ export function Home() {
     Bridge.setOnTaskDone((taskId, result) => {
       setTasks(prev => prev.map(t =>
         t.id === taskId
-          ? { ...t, status: result.status === 'completed' ? 'completed' as const : 'error' as const, progress: result.status === 'completed' ? 100 : t.progress }
+          ? {
+              ...t,
+              status: result.status === 'completed'
+                ? 'completed' as const
+                : result.status === 'cancelled'
+                  ? 'cancelled' as const
+                  : 'error' as const,
+              progress: result.status === 'completed' ? 100 : t.progress,
+              error_message: result.status === 'failed' ? result.message : undefined,
+            }
           : t
       ));
     });

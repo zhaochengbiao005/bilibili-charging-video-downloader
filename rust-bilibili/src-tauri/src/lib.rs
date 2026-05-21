@@ -1,6 +1,7 @@
 mod api;
 mod auth;
 mod commands;
+mod downloader;
 mod error;
 mod ffmpeg;
 mod models;
@@ -18,6 +19,7 @@ pub fn run() {
         .manage(state::AppState::new().expect("failed to initialize app state"))
         .invoke_handler(tauri::generate_handler![
             commands::fetch_info,
+            commands::fetch_playurl,
             commands::start_download,
             commands::cancel_download,
             commands::get_history,

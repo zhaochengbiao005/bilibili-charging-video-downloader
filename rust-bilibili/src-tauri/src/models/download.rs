@@ -1,6 +1,52 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct PlayUrlRequest {
+    pub bvid: String,
+    pub cid: u64,
+    pub qn: u32,
+    pub cookie_path: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct PlayUrlResponse {
+    pub quality: u32,
+    pub timelength: u64,
+    pub accept_quality: Vec<u32>,
+    pub dash: Option<DashStreams>,
+    pub durl: Vec<DurlSegment>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct DashStreams {
+    pub duration: u64,
+    pub video: Vec<DashTrack>,
+    pub audio: Vec<DashTrack>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct DashTrack {
+    pub id: u32,
+    pub codecs: String,
+    pub width: Option<u32>,
+    pub height: Option<u32>,
+    pub frame_rate: Option<String>,
+    pub bandwidth: Option<u64>,
+    pub mime_type: Option<String>,
+    pub base_url: String,
+    pub backup_urls: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct DurlSegment {
+    pub order: u32,
+    pub length: u64,
+    pub size: u64,
+    pub url: String,
+    pub backup_urls: Vec<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct StartDownloadRequest {
     pub bvid: String,
     pub quality: String,
