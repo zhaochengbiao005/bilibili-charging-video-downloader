@@ -1,24 +1,93 @@
-import React, { useState } from 'react';
-import { Lock, Mail, QrCode, RotateCcw, Smartphone, X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { CheckCircle2, FileJson, Lock, LogOut, Mail, QrCode, RotateCcw, Smartphone, X } from 'lucide-react';
 import * as Bridge from '../bridge';
 import { Mascot22, Mascot33, QrGlyph } from './Mascots';
+import type { LoginStatus, QrLoginStartResponse } from '../types';
 
 interface LoginModalProps {
+  loginStatus: LoginStatus | null;
+  onLoginChange: (status: LoginStatus) => void;
   onClose: () => void;
 }
 
-export function LoginModal({ onClose }: LoginModalProps) {
+export function LoginModal({ loginStatus, onLoginChange, onClose }: LoginModalProps) {
   const [mode, setMode] = useState<'qr' | 'password'>('qr');
   const [passwordMode, setPasswordMode] = useState<'password' | 'sms'>('password');
   const [message, setMessage] = useState('');
+  const [qrData, setQrData] = useState<QrLoginStartResponse | null>(null);
+  const [isQrLoading, setIsQrLoading] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+
+  useEffect(() => {
+    if (!qrData) return;
+
+    let stopped = false;
+    const timer = window.setInterval(async () => {
+      try {
+        const result = await Bridge.pollQrLogin(qrData.qrcode_key);
+        if (stopped) return;
+        setMessage(result.message);
+        if (result.status === 'confirmed' && result.login) {
+          onLoginChange(result.login);
+          window.clearInterval(timer);
+          setQrData(null);
+        }
+        if (result.status === 'expired') {
+          window.clearInterval(timer);
+          setQrData(null);
+        }
+      } catch (err) {
+        if (!stopped) {
+          setMessage(err instanceof Error ? err.message : '扫码状态检查失败');
+        }
+      }
+    }, 2000);
+
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+    };
+  }, [onLoginChange, qrData]);
 
   const handleQrLogin = async () => {
     setMessage('');
+    setIsQrLoading(true);
     try {
-      await Bridge.qrLogin();
-      setMessage('已发起扫码登录，请在哔哩哔哩客户端确认。');
+      const data = await Bridge.startQrLogin();
+      setQrData(data);
+      setMessage('二维码已生成，请在哔哩哔哩客户端确认登录。');
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : '扫码登录暂未接入后端。');
+      setMessage(err instanceof Error ? err.message : '扫码登录启动失败。');
+    } finally {
+      setIsQrLoading(false);
+    }
+  };
+
+  const handleImportCookie = async () => {
+    setMessage('');
+    setIsImporting(true);
+    try {
+      const path = await Bridge.chooseCookieFile();
+      if (!path) return;
+      const status = await Bridge.checkCookie(path);
+      onLoginChange(status);
+      setMessage(status.is_login ? 'Cookie 登录成功。' : status.message || 'Cookie 未登录或已失效。');
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : 'Cookie 导入失败。');
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    setMessage('');
+    try {
+      const status = await Bridge.clearCookie();
+      onLoginChange(status);
+      setQrData(null);
+      setMessage('已退出登录。');
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : '退出登录失败。');
     }
   };
 
@@ -40,8 +109,28 @@ export function LoginModal({ onClose }: LoginModalProps) {
       <section className="relative flex w-full max-h-[calc(100vh-1.5rem)] flex-col overflow-hidden rounded-[22px] border border-pink-100 bg-white/92 shadow-[0_24px_70px_rgba(31,38,135,0.22)] backdrop-blur-[28px]">
         <div className="shrink-0 px-6 pt-5 text-center sm:px-7">
           <h2 className="text-[26px] font-black tracking-tight text-bili-pink">登录哔哩哔哩</h2>
-          <p className="mt-1 text-xs font-medium text-gray-400">解锁 1080P/4K 高清画质与高帧率视频下载</p>
+          <p className="mt-1 text-xs font-medium text-gray-400">
+            {loginStatus?.is_login
+              ? `${loginStatus.username || '已登录'} · LV${loginStatus.level ?? 0}`
+              : '解锁 1080P/4K 高清画质与高帧率视频下载'}
+          </p>
         </div>
+
+        {loginStatus?.is_login && (
+          <div className="mx-6 mt-4 flex shrink-0 items-center justify-between rounded-2xl border border-green-100 bg-green-50 px-4 py-3 text-sm sm:mx-7">
+            <span className="flex min-w-0 items-center gap-2 font-black text-green-600">
+              <CheckCircle2 size={16} />
+              <span className="truncate">已登录：{loginStatus.username}</span>
+            </span>
+            <button
+              onClick={handleLogout}
+              className="flex shrink-0 items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-black text-gray-500 shadow-sm transition hover:text-bili-pink"
+            >
+              <LogOut size={13} />
+              退出
+            </button>
+          </div>
+        )}
 
         <div className="mx-6 mt-5 grid shrink-0 grid-cols-2 rounded-2xl bg-gray-100 p-1 sm:mx-7">
           <button
@@ -51,7 +140,7 @@ export function LoginModal({ onClose }: LoginModalProps) {
             }`}
           >
             <QrCode size={16} />
-            扫码登录
+            扫码 / Cookie
           </button>
           <button
             onClick={() => setMode('password')}
@@ -66,17 +155,35 @@ export function LoginModal({ onClose }: LoginModalProps) {
 
         {mode === 'qr' ? (
           <div className="custom-scrollbar flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-6 pb-6 pt-6 sm:px-7">
-            <QrGlyph className="h-[168px] w-[168px] shrink-0 sm:h-[188px] sm:w-[188px]" />
+            {qrData ? (
+              <div
+                className="grid h-[188px] w-[188px] shrink-0 place-items-center overflow-hidden rounded-[1.75rem] border border-pink-100 bg-white p-3 shadow-inner"
+                dangerouslySetInnerHTML={{ __html: qrData.qrcode_svg }}
+              />
+            ) : (
+              <QrGlyph className="h-[168px] w-[168px] shrink-0 sm:h-[188px] sm:w-[188px]" />
+            )}
             <p className="mt-4 text-sm font-bold text-gray-600">
               请使用 <span className="text-bili-pink">哔哩哔哩客户端</span> 扫码登录
             </p>
-            <p className="mt-1 text-xs text-gray-400">二维码将于 120 秒后过期</p>
+            <p className="mt-1 text-xs text-gray-400">
+              {qrData ? `二维码约 ${Math.round(qrData.expires_in_sec / 60)} 分钟后过期` : '也可以直接导入 Cookie 文件'}
+            </p>
             <button
               onClick={handleQrLogin}
-              className="mt-5 flex items-center gap-2 rounded-full bg-gradient-to-r from-bili-pink to-pink-500 px-7 py-3 text-sm font-black text-white shadow-lg shadow-pink-200 transition hover:scale-[1.02]"
+              disabled={isQrLoading}
+              className="mt-5 flex items-center gap-2 rounded-full bg-gradient-to-r from-bili-pink to-pink-500 px-7 py-3 text-sm font-black text-white shadow-lg shadow-pink-200 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
             >
               <Smartphone size={16} />
-              点击模拟客户端扫码
+              {qrData ? '刷新二维码' : isQrLoading ? '生成中...' : '生成扫码二维码'}
+            </button>
+            <button
+              onClick={handleImportCookie}
+              disabled={isImporting}
+              className="mt-3 flex items-center gap-2 rounded-full border border-pink-100 bg-white px-6 py-2.5 text-sm font-black text-bili-pink shadow-sm transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <FileJson size={15} />
+              {isImporting ? '导入中...' : '导入 Cookie 文件'}
             </button>
           </div>
         ) : (

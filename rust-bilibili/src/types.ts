@@ -146,3 +146,26 @@ export interface AppErrorPayload {
   reason?: string;
   task_id?: string | null;
 }
+
+export interface LoginStatus {
+  is_login: boolean;
+  username?: string | null;
+  uid?: number | null;
+  level?: number | null;
+  vip_type?: number | null;
+  message?: string | null;
+  cookie_path?: string | null;
+}
+
+export interface QrLoginStartResponse {
+  url: string;
+  qrcode_key: string;
+  qrcode_svg: string;
+  expires_in_sec: number;
+}
+
+export interface QrLoginPollResponse {
+  status: 'waiting' | 'scanned' | 'confirmed' | 'expired' | 'unknown';
+  message: string;
+  login?: LoginStatus | null;
+}

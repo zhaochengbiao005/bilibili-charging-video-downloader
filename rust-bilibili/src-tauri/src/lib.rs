@@ -1,4 +1,5 @@
 mod api;
+mod auth;
 mod commands;
 mod error;
 mod ffmpeg;
@@ -31,8 +32,12 @@ pub fn run() {
             commands::install_ffmpeg,
             commands::choose_output_dir,
             commands::open_path,
+            commands::choose_cookie_file,
+            commands::check_login,
             commands::check_cookie,
+            commands::clear_cookie,
             commands::start_qr_login,
+            commands::poll_qr_login,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

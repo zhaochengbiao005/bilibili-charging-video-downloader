@@ -666,17 +666,28 @@ tracing-subscriber = "0.3"
 
 ### Phase 2: 登录和权限
 
-- [ ] 实现 Cookie 文件解析。
-- [ ] 实现默认 Cookie 保存和读取。
-- [ ] 实现 `check_login`。
-- [ ] 实现扫码登录 MVP。
-- [ ] 前端显示登录状态、账号名、权限提示。
+- [x] 实现 Cookie 文件解析。
+- [x] 实现默认 Cookie 保存和读取。
+- [x] 实现 `check_login`。
+- [x] 实现扫码登录 MVP。
+- [x] 前端显示登录状态、账号名、权限提示。
 
 验收：
 
-- [ ] 无 Cookie 可解析公开视频。
+- [x] 无 Cookie 可解析公开视频。
 - [ ] 有 Cookie 可解析需要登录权限的视频。
 - [ ] Cookie 失效时前端显示明确提示。
+
+阶段记录（2026-05-21）：
+
+- 新增 Rust `auth.rs`，支持 JSON 对象、Cookie-Editor 数组、Netscape、`KEY=VALUE` Cookie 文本解析，并补齐单元测试。
+- 新增默认 Cookie 存储：导入后的登录 Cookie 写入 `%APPDATA%/BilibiliDownloader/cookies.json`，不写入项目目录；配置/历史/Cookie 均走本地应用数据目录。
+- `check_login` 接入 B站 `/x/web-interface/nav`，返回账号名、UID、等级、大会员类型和中文状态提示。
+- `start_qr_login` / `poll_qr_login` 接入 B站公开二维码登录接口，前端展示真实二维码 SVG 并轮询扫码状态；扫码成功后自动保存 Cookie。
+- 前端登录弹窗新增 Cookie 文件导入、退出登录、扫码二维码刷新；侧栏显示当前登录账号和等级；视频解析会携带默认 Cookie 并把登录状态写回视频信息。
+- 下载设置对需要登录的高清画质显示 `需登录` 标签和权限提示。
+- 验证通过：`npm run lint`、`npm run build`、`cargo test`、`BILI_LIVE_TEST_BVID=BV1xx411c7mD cargo test public_video_info_contract_returns_streams_when_enabled -- --nocapture`。
+- 待真实账号验收：需要用户扫码或提供有效/失效 Cookie 后，确认受限视频解析和失效 Cookie 提示。
 
 ### Phase 3: 高性能下载核心
 

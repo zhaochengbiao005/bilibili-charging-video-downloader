@@ -4,6 +4,7 @@ use std::{
 };
 
 use crate::{
+    auth::{parse_cookie_file, CookieSet},
     error::{AppError, AppResult},
     models::{config::AppConfig, history::HistoryItem},
 };
@@ -17,6 +18,11 @@ pub struct ConfigStore {
 #[derive(Debug, Clone)]
 pub struct HistoryStore {
     history_path: PathBuf,
+}
+
+#[derive(Debug, Clone)]
+pub struct CookieStore {
+    cookie_path: PathBuf,
 }
 
 impl ConfigStore {
@@ -36,7 +42,10 @@ impl ConfigStore {
     }
 
     pub fn default_outdir(&self) -> String {
-        self.app_dir.join("downloads").to_string_lossy().into_owned()
+        self.app_dir
+            .join("downloads")
+            .to_string_lossy()
+            .into_owned()
     }
 
     pub fn load(&self) -> AppResult<AppConfig> {
@@ -88,6 +97,52 @@ impl HistoryStore {
     }
 }
 
+impl CookieStore {
+    pub fn new(app_dir: PathBuf) -> Self {
+        Self {
+            cookie_path: app_dir.join("cookies.json"),
+        }
+    }
+
+    pub fn path(&self) -> &Path {
+        &self.cookie_path
+    }
+
+    pub fn load(&self) -> AppResult<Option<CookieSet>> {
+        if !self.cookie_path.exists() {
+            return Ok(None);
+        }
+        Ok(Some(parse_cookie_file(&self.cookie_path)?))
+    }
+
+    pub fn save(&self, cookies: &CookieSet) -> AppResult<()> {
+        if !cookies.has_login_cookie() {
+            return Err(AppError::InvalidInput {
+                message: "Cookie 中缺少 SESSDATA，无法保存为默认登录 Cookie".to_string(),
+            });
+        }
+        write_json_atomic(&self.cookie_path, cookies)
+    }
+
+    pub fn import_from_path(&self, path: &Path) -> AppResult<CookieSet> {
+        if !path.exists() {
+            return Err(AppError::InvalidInput {
+                message: "Cookie 文件不存在".to_string(),
+            });
+        }
+        let cookies = parse_cookie_file(path)?;
+        self.save(&cookies)?;
+        Ok(cookies)
+    }
+
+    pub fn clear(&self) -> AppResult<()> {
+        if self.cookie_path.exists() {
+            fs::remove_file(&self.cookie_path)?;
+        }
+        Ok(())
+    }
+}
+
 pub fn app_data_dir() -> AppResult<PathBuf> {
     let base = dirs::data_dir().ok_or_else(|| AppError::Io {
         message: "无法定位系统数据目录".to_string(),
@@ -117,16 +172,14 @@ mod tests {
 
     #[test]
     fn config_store_roundtrips_saved_config() -> AppResult<()> {
-        let root = std::env::temp_dir().join(format!(
-            "bili_config_test_{}",
-            std::process::id()
-        ));
+        let root = std::env::temp_dir().join(format!("bili_config_test_{}", std::process::id()));
         if root.exists() {
             fs::remove_dir_all(&root)?;
         }
 
         let store = ConfigStore::new(root.clone())?;
-        let mut config = AppConfig::with_default_outdir(root.join("videos").to_string_lossy().into_owned());
+        let mut config =
+            AppConfig::with_default_outdir(root.join("videos").to_string_lossy().into_owned());
         config.auto_merge = false;
         config.max_history = 17;
 
@@ -137,6 +190,29 @@ mod tests {
         assert_eq!(loaded.auto_merge, config.auto_merge);
         assert_eq!(loaded.max_history, config.max_history);
 
+        fs::remove_dir_all(root)?;
+        Ok(())
+    }
+
+    #[test]
+    fn cookie_store_imports_and_loads_default_cookie() -> AppResult<()> {
+        let root = std::env::temp_dir().join(format!("bili_cookie_test_{}", std::process::id()));
+        if root.exists() {
+            fs::remove_dir_all(&root)?;
+        }
+        fs::create_dir_all(&root)?;
+
+        let source_path = root.join("source.json");
+        fs::write(&source_path, r#"{"SESSDATA":"sess","bili_jct":"csrf"}"#)?;
+        let store = CookieStore::new(root.clone());
+
+        store.import_from_path(&source_path)?;
+        let loaded = store.load()?.expect("cookie should be saved");
+
+        assert_eq!(
+            loaded.cookies.get("SESSDATA").map(String::as_str),
+            Some("sess")
+        );
         fs::remove_dir_all(root)?;
         Ok(())
     }

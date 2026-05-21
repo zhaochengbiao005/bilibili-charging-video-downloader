@@ -20,6 +20,9 @@ export function DownloadOptions({
 
   const audioQualities = ['320kbps 高品质', '192kbps 标准', '128kbps 基础'];
   const qualities = format === 'video' ? data.qualities : audioQualities;
+  const visibleStreams = format === 'video'
+    ? data.streams
+    : [];
 
   const handleFormatSwitch = (f: 'video' | 'audio') => {
     onFormatChange(f);
@@ -72,9 +75,12 @@ export function DownloadOptions({
           {format === 'video' ? '画质' : '音质'}
         </label>
         <div className="flex flex-col gap-2.5">
-          {qualities.map((q, i) => {
+          {qualities.map((q) => {
             const isSelected = selectedQuality === q;
             const isPremium = q.includes('4K') || q.includes('HDR') || q.includes('320kbps');
+            const stream = visibleStreams.find((item) => item.label === q);
+            const needsLogin = Boolean(stream?.requires_login && !data.is_login);
+            const unavailableReason = needsLogin ? '需登录' : stream?.unavailable_reason;
             const fileSize = format === 'video'
               ? (q.includes('4K') ? '~850 MB' : q.includes('1080P60') ? '~450 MB' : q.includes('1080P') ? '~245 MB' : q.includes('720P') ? '~120 MB' : '~50 MB')
               : (q.includes('320kbps') ? '~12 MB' : q.includes('192kbps') ? '~8 MB' : '~5 MB');
@@ -95,6 +101,7 @@ export function DownloadOptions({
                   <span className="font-bold text-gray-800 flex items-center gap-2">
                     {q}
                     {isPremium && <span className="text-[10px] bg-yellow-100 text-yellow-600 px-2 py-0.5 rounded-full">高级</span>}
+                    {unavailableReason && <span className="text-[10px] bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">{unavailableReason}</span>}
                   </span>
                 </div>
                 <div className={`text-xs font-bold px-3 py-1.5 rounded-lg ${
@@ -120,6 +127,13 @@ export function DownloadOptions({
         <div className="mt-3 flex items-center gap-2 text-xs text-orange-500 bg-orange-50 rounded-xl px-4 py-2.5 border border-orange-100">
           <AlertTriangle size={14} />
           {data.is_vip ? '大会员可下载完整版' : '充电专属视频，需开通大会员'}
+        </div>
+      )}
+
+      {data.streams.some((stream) => stream.requires_login) && !data.is_login && (
+        <div className="mt-3 flex items-center gap-2 text-xs text-orange-500 bg-orange-50 rounded-xl px-4 py-2.5 border border-orange-100">
+          <AlertTriangle size={14} />
+          部分高清画质需要登录后才能下载
         </div>
       )}
 

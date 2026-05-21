@@ -1,14 +1,22 @@
 use std::time::Duration;
 
-use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, ACCEPT_LANGUAGE, ORIGIN, REFERER, USER_AGENT};
+use reqwest::header::{
+    HeaderMap, HeaderValue, ACCEPT, ACCEPT_LANGUAGE, COOKIE, ORIGIN, REFERER, SET_COOKIE,
+    USER_AGENT,
+};
 use serde::Deserialize;
 
 use crate::{
+    auth::{
+        build_qrcode_svg, parse_set_cookie_headers, CookieSet, LoginStatus, QrLoginPollOutcome,
+        QrLoginPollResponse, QrLoginStartResponse,
+    },
     error::{AppError, AppResult},
     models::video::{StreamOption, VideoData, VideoPage},
 };
 
 const BASE_URL: &str = "https://api.bilibili.com";
+const PASSPORT_URL: &str = "https://passport.bilibili.com";
 
 #[derive(Debug, Clone)]
 pub struct BilibiliClient {
@@ -26,11 +34,25 @@ impl BilibiliClient {
         Ok(Self { client })
     }
 
-    pub async fn video_info(&self, bvid: &str) -> AppResult<VideoData> {
-        let response = self
+    pub async fn video_info(
+        &self,
+        bvid: &str,
+        cookies: Option<&CookieSet>,
+    ) -> AppResult<VideoData> {
+        let login = match cookies {
+            Some(cookies) => Some(self.check_login(cookies).await?),
+            None => None,
+        };
+
+        let mut request = self
             .client
             .get(format!("{BASE_URL}/x/web-interface/view"))
-            .query(&[("bvid", bvid)])
+            .query(&[("bvid", bvid)]);
+        if let Some(cookies) = cookies {
+            request = request.header(COOKIE, cookies.to_header());
+        }
+
+        let response = request
             .send()
             .await?
             .error_for_status()?
@@ -49,7 +71,127 @@ impl BilibiliClient {
             message: "B站响应缺少视频信息".to_string(),
         })?;
 
-        Ok(data.into_video_data())
+        let mut video = data.into_video_data();
+        if let Some(login) = login {
+            video.is_login = Some(login.is_login);
+            video.login_name = login.username;
+            video.login_level = login.level;
+        }
+        Ok(video)
+    }
+
+    pub async fn check_login(&self, cookies: &CookieSet) -> AppResult<LoginStatus> {
+        if !cookies.has_login_cookie() {
+            return Ok(LoginStatus::guest("Cookie 中缺少 SESSDATA"));
+        }
+
+        let response = self
+            .client
+            .get(format!("{BASE_URL}/x/web-interface/nav"))
+            .header(COOKIE, cookies.to_header())
+            .header(REFERER, "https://www.bilibili.com/")
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<ApiResponse<NavData>>()
+            .await?;
+
+        if response.code != 0 {
+            return Ok(LoginStatus::guest(response.message));
+        }
+
+        let Some(data) = response.data else {
+            return Ok(LoginStatus::guest("B站响应缺少登录状态"));
+        };
+
+        Ok(data.into_login_status(response.message))
+    }
+
+    pub async fn start_qr_login(&self) -> AppResult<QrLoginStartResponse> {
+        let response = self
+            .client
+            .get(format!(
+                "{PASSPORT_URL}/x/passport-login/web/qrcode/generate"
+            ))
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<ApiResponse<QrGenerateData>>()
+            .await?;
+
+        if response.code != 0 {
+            return Err(AppError::Api {
+                code: response.code,
+                message: response.message,
+            });
+        }
+
+        let data = response.data.ok_or_else(|| AppError::Api {
+            code: response.code,
+            message: "B站响应缺少二维码登录数据".to_string(),
+        })?;
+
+        Ok(QrLoginStartResponse {
+            qrcode_svg: build_qrcode_svg(&data.url)?,
+            url: data.url,
+            qrcode_key: data.qrcode_key,
+            expires_in_sec: 180,
+        })
+    }
+
+    pub async fn poll_qr_login(&self, qrcode_key: &str) -> AppResult<QrLoginPollOutcome> {
+        let response = self
+            .client
+            .get(format!("{PASSPORT_URL}/x/passport-login/web/qrcode/poll"))
+            .query(&[("qrcode_key", qrcode_key)])
+            .send()
+            .await?
+            .error_for_status()?;
+
+        let cookies = parse_set_cookie_headers(
+            response
+                .headers()
+                .get_all(SET_COOKIE)
+                .iter()
+                .filter_map(|value| value.to_str().ok()),
+        )
+        .login_only();
+
+        let body = response.json::<ApiResponse<QrPollData>>().await?;
+        if body.code != 0 {
+            return Err(AppError::Api {
+                code: body.code,
+                message: body.message,
+            });
+        }
+
+        let data = body.data.ok_or_else(|| AppError::Api {
+            code: body.code,
+            message: "B站响应缺少扫码状态".to_string(),
+        })?;
+
+        let (status, message) = match data.code {
+            0 => ("confirmed", "登录成功"),
+            86038 => ("expired", "二维码已过期"),
+            86090 => ("scanned", "已扫码，请在手机上确认登录"),
+            86101 => ("waiting", "等待扫码"),
+            _ => ("unknown", data.message.as_str()),
+        };
+
+        let login = if data.code == 0 && cookies.has_login_cookie() {
+            Some(self.check_login(&cookies).await?)
+        } else {
+            None
+        };
+
+        Ok(QrLoginPollOutcome {
+            response: QrLoginPollResponse {
+                status: status.to_string(),
+                message: message.to_string(),
+                login,
+            },
+            cookies: (data.code == 0 && cookies.has_login_cookie()).then_some(cookies),
+        })
     }
 }
 
@@ -62,10 +204,19 @@ fn default_headers() -> HeaderMap {
              (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
         ),
     );
-    headers.insert(ACCEPT, HeaderValue::from_static("application/json, text/plain, */*"));
-    headers.insert(ACCEPT_LANGUAGE, HeaderValue::from_static("zh-CN,zh;q=0.9,en;q=0.8"));
+    headers.insert(
+        ACCEPT,
+        HeaderValue::from_static("application/json, text/plain, */*"),
+    );
+    headers.insert(
+        ACCEPT_LANGUAGE,
+        HeaderValue::from_static("zh-CN,zh;q=0.9,en;q=0.8"),
+    );
     headers.insert(ORIGIN, HeaderValue::from_static("https://www.bilibili.com"));
-    headers.insert(REFERER, HeaderValue::from_static("https://www.bilibili.com/"));
+    headers.insert(
+        REFERER,
+        HeaderValue::from_static("https://www.bilibili.com/"),
+    );
     headers
 }
 
@@ -219,6 +370,57 @@ struct ViewPage {
     part: String,
 }
 
+#[derive(Debug, Default, Deserialize)]
+struct NavData {
+    #[serde(default, rename = "isLogin")]
+    is_login: bool,
+    #[serde(default)]
+    uname: String,
+    #[serde(default)]
+    mid: u64,
+    #[serde(default)]
+    level_info: LevelInfo,
+    #[serde(default, rename = "vipType")]
+    vip_type: u32,
+}
+
+impl NavData {
+    fn into_login_status(self, api_message: String) -> LoginStatus {
+        LoginStatus {
+            is_login: self.is_login,
+            username: self.is_login.then_some(self.uname),
+            uid: self.is_login.then_some(self.mid),
+            level: self.is_login.then_some(self.level_info.current_level),
+            vip_type: self.is_login.then_some(self.vip_type),
+            message: (!self.is_login).then_some(if api_message.is_empty() {
+                "Cookie 未登录或已失效".to_string()
+            } else {
+                api_message
+            }),
+            cookie_path: None,
+        }
+    }
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct LevelInfo {
+    #[serde(default)]
+    current_level: u32,
+}
+
+#[derive(Debug, Deserialize)]
+struct QrGenerateData {
+    url: String,
+    qrcode_key: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct QrPollData {
+    code: i32,
+    #[serde(default)]
+    message: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -230,7 +432,7 @@ mod tests {
         };
 
         let client = BilibiliClient::new()?;
-        let video = client.video_info(&bvid).await?;
+        let video = client.video_info(&bvid, None).await?;
 
         assert_eq!(video.id, bvid);
         assert!(!video.title.trim().is_empty());

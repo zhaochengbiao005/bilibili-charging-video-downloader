@@ -2,12 +2,14 @@ import React from 'react';
 import { Clock, Home, Info, Settings as SettingsIcon, Heart } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { AkariSilhouette } from './Mascots';
+import type { LoginStatus } from '../types';
 
 interface SidebarProps {
+  loginStatus: LoginStatus | null;
   onLoginClick: () => void;
 }
 
-export function Sidebar({ onLoginClick }: SidebarProps) {
+export function Sidebar({ loginStatus, onLoginClick }: SidebarProps) {
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `flex items-center gap-4 px-4 py-3 rounded-2xl font-bold transition-all ${
       isActive
@@ -25,7 +27,11 @@ export function Sidebar({ onLoginClick }: SidebarProps) {
         <AkariSilhouette className="h-12 w-12 opacity-90 transition group-hover:scale-105" />
         <div>
           <h2 className="font-black text-lg text-bili-pink tracking-tight leading-tight">B站视频下载器</h2>
-          <p className="text-xs text-gray-500 font-medium">点击登录哔哩哔哩</p>
+          <p className="text-xs text-gray-500 font-medium">
+            {loginStatus?.is_login
+              ? `${loginStatus.username || '已登录'}${loginStatus.level !== null && loginStatus.level !== undefined ? ` · LV${loginStatus.level}` : ''}`
+              : '点击登录哔哩哔哩'}
+          </p>
         </div>
       </button>
 

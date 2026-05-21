@@ -1,4 +1,7 @@
-use std::{path::Path, time::Duration};
+use std::{
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
 use tauri::{AppHandle, Emitter, State};
 use tauri_plugin_dialog::DialogExt;
@@ -6,10 +9,13 @@ use tauri_plugin_opener::OpenerExt;
 use uuid::Uuid;
 
 use crate::{
+    auth::LoginStatus,
     error::{AppError, AppResult},
     models::{
         config::{ConfigResponse, SaveConfigRequest},
-        download::{DownloadDoneEvent, DownloadProgressEvent, StartDownloadRequest, StartDownloadResponse},
+        download::{
+            DownloadDoneEvent, DownloadProgressEvent, StartDownloadRequest, StartDownloadResponse,
+        },
         history::HistoryItem,
         video::{FetchInfoRequest, FetchInfoResponse},
     },
@@ -28,7 +34,8 @@ pub async fn fetch_info(
         });
     }
 
-    let video = state.client.video_info(bvid).await?;
+    let cookies = load_cookies_for_request(input.cookie_path.as_deref(), &state)?;
+    let video = state.client.video_info(bvid, cookies.as_ref()).await?;
     Ok(FetchInfoResponse { video })
 }
 
@@ -175,7 +182,10 @@ pub async fn install_ffmpeg(app: AppHandle) -> StartDownloadResponse {
 }
 
 #[tauri::command]
-pub async fn choose_output_dir(app: AppHandle, state: State<'_, AppState>) -> AppResult<Option<String>> {
+pub async fn choose_output_dir(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<Option<String>> {
     let start_dir = state.config_store.load()?.default_outdir;
     let mut dialog = app.dialog().file().set_title("选择默认输出目录");
     if Path::new(&start_dir).exists() {
@@ -217,23 +227,74 @@ pub fn open_path(path: String, app: AppHandle) -> AppResult<()> {
 }
 
 #[tauri::command]
-pub fn check_cookie(cookie_path: String) -> AppResult<serde_json::Value> {
-    if cookie_path.trim().is_empty() || !Path::new(&cookie_path).exists() {
-        return Ok(serde_json::json!({ "is_login": false }));
-    }
+pub async fn choose_cookie_file(app: AppHandle) -> AppResult<Option<String>> {
+    let dialog = app
+        .dialog()
+        .file()
+        .set_title("选择 Cookie 文件")
+        .add_filter("Cookie 文件", &["json", "txt", "cookies"]);
 
-    Ok(serde_json::json!({
-        "is_login": false,
-        "path": cookie_path,
-        "message": "Cookie 登录校验将在 Phase 2 接入"
-    }))
+    tauri::async_runtime::spawn_blocking(move || {
+        dialog
+            .blocking_pick_file()
+            .map(|path| {
+                path.into_path()
+                    .map(|path| path.to_string_lossy().into_owned())
+                    .map_err(|err| AppError::Io {
+                        message: err.to_string(),
+                    })
+            })
+            .transpose()
+    })
+    .await
+    .map_err(|err| AppError::Io {
+        message: err.to_string(),
+    })?
 }
 
 #[tauri::command]
-pub fn start_qr_login() -> AppResult<serde_json::Value> {
-    Err(AppError::InvalidInput {
-        message: "扫码登录将在 Phase 2 接入".to_string(),
-    })
+pub async fn check_login(state: State<'_, AppState>) -> AppResult<LoginStatus> {
+    let Some(cookies) = state.cookie_store.load()? else {
+        return Ok(LoginStatus::guest("尚未导入 Cookie"));
+    };
+    let status = state.client.check_login(&cookies).await?;
+    Ok(status.with_cookie_path(Some(state.cookie_store.path())))
+}
+
+#[tauri::command]
+pub async fn check_cookie(
+    cookie_path: String,
+    state: State<'_, AppState>,
+) -> AppResult<LoginStatus> {
+    let path = PathBuf::from(cookie_path.trim());
+    let cookies = state.cookie_store.import_from_path(&path)?;
+    let status = state.client.check_login(&cookies).await?;
+    Ok(status.with_cookie_path(Some(state.cookie_store.path())))
+}
+
+#[tauri::command]
+pub async fn clear_cookie(state: State<'_, AppState>) -> AppResult<LoginStatus> {
+    state.cookie_store.clear()?;
+    Ok(LoginStatus::guest("已退出登录"))
+}
+
+#[tauri::command]
+pub async fn start_qr_login(
+    state: State<'_, AppState>,
+) -> AppResult<crate::auth::QrLoginStartResponse> {
+    state.client.start_qr_login().await
+}
+
+#[tauri::command]
+pub async fn poll_qr_login(
+    qrcode_key: String,
+    state: State<'_, AppState>,
+) -> AppResult<crate::auth::QrLoginPollResponse> {
+    let outcome = state.client.poll_qr_login(qrcode_key.trim()).await?;
+    if let Some(cookies) = outcome.cookies {
+        state.cookie_store.save(&cookies)?;
+    }
+    Ok(outcome.response)
 }
 
 fn is_valid_bvid(input: &str) -> bool {
@@ -247,4 +308,17 @@ fn config_response(state: &AppState) -> AppResult<ConfigResponse> {
         app_dir: state.config_store.app_dir().to_string_lossy().into_owned(),
         config,
     })
+}
+
+fn load_cookies_for_request(
+    cookie_path: Option<&str>,
+    state: &AppState,
+) -> AppResult<Option<crate::auth::CookieSet>> {
+    if let Some(path) = cookie_path.map(str::trim).filter(|path| !path.is_empty()) {
+        return state
+            .cookie_store
+            .import_from_path(Path::new(path))
+            .map(Some);
+    }
+    state.cookie_store.load()
 }

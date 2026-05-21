@@ -6,11 +6,14 @@ import { History } from './pages/History';
 import { Settings } from './pages/Settings';
 import { About } from './pages/About';
 import { LoginModal } from './components/LoginModal';
+import type { LoginStatus } from './types';
+import * as Bridge from './bridge';
 
 function Root() {
   const location = useLocation();
   const navigate = useNavigate();
   const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [loginStatus, setLoginStatus] = useState<LoginStatus | null>(null);
 
   const modalRoute = location.pathname === '/history'
     ? { title: '下载历史', content: <History /> }
@@ -35,6 +38,15 @@ function Root() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isLoginOpen, modalRoute, navigate]);
 
+  useEffect(() => {
+    Bridge.checkLogin().then(setLoginStatus).catch((err) => {
+      setLoginStatus({
+        is_login: false,
+        message: err instanceof Error ? err.message : '登录状态检查失败',
+      });
+    });
+  }, []);
+
   return (
     <div className="flex w-full h-full sm:w-[calc(100vw-2rem)] sm:h-[calc(100vh-2rem)] bg-sky-50/45 backdrop-blur-[32px] sm:rounded-[2rem] overflow-hidden text-gray-800 font-sans selection:bg-bili-pink selection:text-white relative border border-white/50 shadow-[0_20px_70px_-16px_rgba(0,0,0,0.22)]">
 
@@ -44,7 +56,7 @@ function Root() {
           hasOverlay ? 'blur-[8px] scale-[0.97] opacity-50 pointer-events-none' : ''
         }`}
       >
-        <Sidebar onLoginClick={() => setIsLoginOpen(true)} />
+        <Sidebar loginStatus={loginStatus} onLoginClick={() => setIsLoginOpen(true)} />
         <main className="flex-1 flex flex-col overflow-y-auto custom-scrollbar relative z-10">
           <Home />
         </main>
@@ -62,7 +74,11 @@ function Root() {
           }`}
           onClick={(e) => e.stopPropagation()}
         >
-          <LoginModal onClose={() => setIsLoginOpen(false)} />
+          <LoginModal
+            loginStatus={loginStatus}
+            onLoginChange={setLoginStatus}
+            onClose={() => setIsLoginOpen(false)}
+          />
         </div>
       </div>
 

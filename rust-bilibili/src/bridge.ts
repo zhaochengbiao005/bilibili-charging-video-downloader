@@ -12,6 +12,9 @@ import type {
   FetchInfoResponse,
   FfmpegStatus,
   HistoryItem,
+  LoginStatus,
+  QrLoginPollResponse,
+  QrLoginStartResponse,
   SaveConfigRequest,
   StartDownloadRequest,
   StartDownloadResponse,
@@ -199,8 +202,16 @@ export async function getAppDir(): Promise<string> {
   return callCommand<string>('get_app_dir');
 }
 
-export async function qrLogin(): Promise<any> {
-  return callCommand('start_qr_login');
+export async function startQrLogin(): Promise<QrLoginStartResponse> {
+  return callCommand<QrLoginStartResponse>('start_qr_login');
+}
+
+export async function pollQrLogin(qrcodeKey: string): Promise<QrLoginPollResponse> {
+  return callCommand<QrLoginPollResponse>('poll_qr_login', { qrcodeKey });
+}
+
+export async function qrLogin(): Promise<QrLoginStartResponse> {
+  return startQrLogin();
 }
 
 export async function cancelDownload(taskId: string): Promise<boolean> {
@@ -217,8 +228,24 @@ export async function openPath(path: string): Promise<void> {
   await callCommand<void>('open_path', { path });
 }
 
-export async function checkCookie(cookiePath: string): Promise<any> {
-  return callCommand('check_cookie', { cookiePath });
+export async function checkLogin(): Promise<LoginStatus> {
+  if (!isTauriRuntime()) {
+    return { is_login: false, message: '此功能需要在 Tauri 桌面应用中运行' };
+  }
+  return callCommand<LoginStatus>('check_login');
+}
+
+export async function chooseCookieFile(): Promise<string | null> {
+  if (!isTauriRuntime()) return null;
+  return callCommand<string | null>('choose_cookie_file');
+}
+
+export async function checkCookie(cookiePath: string): Promise<LoginStatus> {
+  return callCommand<LoginStatus>('check_cookie', { cookiePath });
+}
+
+export async function clearCookie(): Promise<LoginStatus> {
+  return callCommand<LoginStatus>('clear_cookie');
 }
 
 export const minimizeWindow = () => {};
