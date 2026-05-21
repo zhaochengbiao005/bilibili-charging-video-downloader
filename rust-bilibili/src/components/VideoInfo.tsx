@@ -1,19 +1,51 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { User, Eye, Clock, Layers, AlertTriangle, Crown } from 'lucide-react';
 import type { VideoData } from '../types';
+import * as Bridge from '../bridge';
 
 interface VideoInfoProps {
   data: VideoData | null;
 }
 
 export function VideoInfo({ data }: VideoInfoProps) {
+  const [thumbnailSrc, setThumbnailSrc] = useState('');
+  const [thumbnailFailed, setThumbnailFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setThumbnailFailed(false);
+    setThumbnailSrc('');
+
+    if (!data?.thumbnail) return;
+
+    Bridge.fetchImageDataUrl(data.thumbnail)
+      .then((src) => {
+        if (!cancelled) setThumbnailSrc(src);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setThumbnailSrc(data.thumbnail);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [data?.thumbnail]);
+
   if (!data) return null;
 
   return (
-    <div className="glass-panel rounded-[2rem] p-8 flex flex-col gap-6">
-      <div className="w-full aspect-video rounded-2xl overflow-hidden relative shadow-inner bg-gray-100">
-        {data.thumbnail ? (
-          <img src={data.thumbnail} alt="视频封面" className="w-full h-full object-cover" />
+    <div className="glass-panel rounded-[2rem] p-7 md:p-8 2xl:p-10 flex flex-col gap-7">
+      <div className="w-full aspect-video rounded-[1.75rem] overflow-hidden relative shadow-[0_24px_70px_rgba(20,32,70,0.12)] bg-gray-100">
+        {thumbnailSrc && !thumbnailFailed ? (
+          <img
+            src={thumbnailSrc}
+            alt="视频封面"
+            className="w-full h-full object-cover"
+            referrerPolicy="no-referrer"
+            onError={() => setThumbnailFailed(true)}
+          />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-300 text-lg font-bold">暂无封面</div>
         )}
@@ -24,7 +56,7 @@ export function VideoInfo({ data }: VideoInfoProps) {
       </div>
 
       <div className="flex flex-col gap-4">
-        <h2 className="text-[26px] font-black text-gray-900 leading-snug">
+        <h2 className="text-[28px] 2xl:text-[32px] font-black text-gray-900 leading-snug">
           {data.title}
         </h2>
 

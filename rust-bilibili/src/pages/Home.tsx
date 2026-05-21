@@ -17,6 +17,7 @@ export function Home() {
   const [cookiePath, setCookiePath] = useState('');
   const [outdir, setOutdir] = useState('downloads');
   const [format, setFormat] = useState<'video' | 'audio'>('video');
+  const [threads, setThreads] = useState(8);
   const [ffmpegAvailable, setFfmpegAvailable] = useState(false);
 
   useEffect(() => {
@@ -101,7 +102,8 @@ export function Home() {
     try {
       const taskId = await Bridge.startDownload(
         videoData.id, selectedQuality, format,
-        outdir, cookiePath, format === 'audio' || !ffmpegAvailable
+        outdir, cookiePath, format === 'audio',
+        threads
       );
       const newTask: DownloadTask = {
         id: taskId,
@@ -117,7 +119,7 @@ export function Home() {
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     }
-  }, [videoData, selectedQuality, format, outdir, cookiePath, ffmpegAvailable]);
+  }, [videoData, selectedQuality, format, outdir, cookiePath, threads]);
 
   const handleCancel = useCallback(async (taskId: string) => {
     await Bridge.cancelDownload(taskId);
@@ -144,7 +146,7 @@ export function Home() {
   );
 
   return (
-    <div className="max-w-[1040px] mx-auto w-full px-12 py-12 flex flex-col gap-10 min-h-full">
+    <div className="w-full min-h-full px-6 md:px-10 xl:px-14 2xl:px-16 py-8 md:py-10 flex flex-col gap-8 md:gap-10">
       <div className="text-center flex flex-col items-center shrink-0">
         <h1 className="text-[34px] font-black tracking-tight text-gray-900 drop-shadow-sm">下载你喜欢的视频</h1>
         <p className="mt-3 text-base text-gray-500 font-medium">粘贴 B站视频链接，快速解析并下载高清视频与音频</p>
@@ -161,11 +163,11 @@ export function Home() {
       </div>
 
       {videoData ? (
-        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.15fr)_420px] gap-8 pb-10">
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(620px,1fr)_430px] 2xl:grid-cols-[minmax(760px,1fr)_460px] gap-10 xl:gap-16 2xl:gap-20 pb-10 items-start flex-1">
           <div className="min-w-0">
             <VideoInfo data={videoData} />
           </div>
-          <div className="flex flex-col gap-8">
+          <div className="flex flex-col gap-8 xl:sticky xl:top-10">
             <DownloadOptions
               data={videoData}
               selectedQuality={selectedQuality}
@@ -173,6 +175,8 @@ export function Home() {
               onDownload={handleDownload}
               format={format}
               onFormatChange={handleFormatChange}
+              threads={threads}
+              onThreadsChange={setThreads}
               ffmpegAvailable={ffmpegAvailable}
             />
             {tasks.length > 0 && (

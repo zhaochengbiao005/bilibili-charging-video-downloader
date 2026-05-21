@@ -7,6 +7,8 @@ use std::{
     time::Instant,
 };
 
+use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
+use reqwest::header::{CONTENT_TYPE, REFERER};
 use tauri::{AppHandle, Emitter, State};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
@@ -46,6 +48,43 @@ pub async fn fetch_info(
 }
 
 #[tauri::command]
+pub async fn fetch_image_data_url(url: String) -> AppResult<String> {
+    let url = url.trim();
+    if !(url.starts_with("https://") || url.starts_with("http://")) {
+        return Err(AppError::InvalidInput {
+            message: "图片地址无效".to_string(),
+        });
+    }
+
+    let response = reqwest::Client::new()
+        .get(url)
+        .header(REFERER, "https://www.bilibili.com/")
+        .send()
+        .await?
+        .error_for_status()?;
+    let content_type = response
+        .headers()
+        .get(CONTENT_TYPE)
+        .and_then(|value| value.to_str().ok())
+        .unwrap_or("image/jpeg")
+        .split(';')
+        .next()
+        .unwrap_or("image/jpeg")
+        .to_string();
+    if !content_type.starts_with("image/") {
+        return Err(AppError::InvalidInput {
+            message: "远程地址不是图片".to_string(),
+        });
+    }
+
+    let bytes = response.bytes().await?;
+    Ok(format!(
+        "data:{content_type};base64,{}",
+        BASE64_STANDARD.encode(bytes)
+    ))
+}
+
+#[tauri::command]
 pub async fn start_download(
     input: StartDownloadRequest,
     app: AppHandle,
@@ -61,6 +100,11 @@ pub async fn start_download(
             message: "输出目录不能为空".to_string(),
         });
     }
+    if input.threads == 0 {
+        return Err(AppError::InvalidInput {
+            message: "下载线程数必须大于 0".to_string(),
+        });
+    }
 
     let task_id = format!("dl_{}", Uuid::new_v4());
     let cancel = Arc::new(AtomicBool::new(false));
@@ -71,6 +115,7 @@ pub async fn start_download(
         .insert(task_id.clone(), cancel.clone());
     let client = state.client.clone();
     let downloader = state.downloader.clone();
+    let ffmpeg = state.ffmpeg.clone();
     let cancel_tokens = state.cancel_tokens.clone();
     let cookies = load_cookies_for_request(input.cookie_path.as_deref(), &state)?;
     let event_task_id = task_id.clone();
@@ -83,6 +128,7 @@ pub async fn start_download(
             app_for_task.clone(),
             client,
             downloader,
+            ffmpeg,
             cookies,
             cancel,
         )
@@ -380,6 +426,7 @@ async fn run_download_task(
     app: AppHandle,
     client: crate::api::BilibiliClient,
     downloader: crate::downloader::DownloadClient,
+    ffmpeg: crate::ffmpeg::FfmpegManager,
     cookies: Option<crate::auth::CookieSet>,
     cancel: Arc<AtomicBool>,
 ) -> AppResult<PathBuf> {
@@ -400,6 +447,7 @@ async fn run_download_task(
         message: "视频没有可下载分P".to_string(),
     })?;
     let qn = quality_to_qn(&input.quality);
+    let max_workers = input.threads.clamp(1, 32);
     let playurl = client
         .playurl(&input.bvid, page.cid, qn, cookies.as_ref())
         .await?;
@@ -407,6 +455,7 @@ async fn run_download_task(
     tokio::fs::create_dir_all(&output_dir).await?;
     let safe_title = sanitize_filename::sanitize(format!("{}-{}", video.title, page.part));
     let referer = format!("https://www.bilibili.com/video/{}", input.bvid);
+    let cookie_header = cookies.as_ref().map(|cookies| cookies.to_header());
 
     if input.format == "audio" {
         let dash = playurl.dash.ok_or_else(|| AppError::Download {
@@ -426,6 +475,8 @@ async fn run_download_task(
                     url: first_url(&track.base_url, &track.backup_urls)?,
                     output_path,
                     referer,
+                    max_workers,
+                    cookie_header: cookie_header.clone(),
                 },
                 cancel,
                 progress.clone(),
@@ -449,27 +500,63 @@ async fn run_download_task(
                     url: first_url(&video_track.base_url, &video_track.backup_urls)?,
                     output_path: video_path,
                     referer: referer.clone(),
+                    max_workers,
+                    cookie_header: cookie_header.clone(),
                 },
                 cancel.clone(),
                 progress.clone(),
             )
             .await?;
 
-        if let Some(audio_track) = select_audio_track(&dash.audio) {
-            let audio_path = output_dir.join(format!("{safe_title}-audio.m4a"));
-            let _ = downloader
-                .download_file(
-                    FileDownloadSpec {
-                        task_id: task_id.clone(),
-                        stage: "downloading_audio".to_string(),
-                        url: first_url(&audio_track.base_url, &audio_track.backup_urls)?,
-                        output_path: audio_path,
-                        referer,
-                    },
-                    cancel,
-                    progress.clone(),
-                )
+        let Some(audio_track) = select_audio_track(&dash.audio) else {
+            return Err(AppError::Download {
+                task_id: Some(task_id),
+                message: "没有可用于合并 MP4 的音频流".to_string(),
+            });
+        };
+        let audio_path = output_dir.join(format!("{safe_title}-audio.m4a"));
+        let _ = downloader
+            .download_file(
+                FileDownloadSpec {
+                    task_id: task_id.clone(),
+                    stage: "downloading_audio".to_string(),
+                    url: first_url(&audio_track.base_url, &audio_track.backup_urls)?,
+                    output_path: audio_path.clone(),
+                    referer,
+                    max_workers,
+                    cookie_header: cookie_header.clone(),
+                },
+                cancel,
+                progress.clone(),
+            )
+            .await?;
+
+        if !input.skip_merge {
+            progress(DownloadProgressEvent {
+                task_id: task_id.clone(),
+                stage: "merging".to_string(),
+                percent: 98.0,
+                bytes_done: video_result.bytes_written,
+                bytes_total: video_result.bytes_written,
+                speed_bytes_per_sec: 0,
+                message: Some("正在合并音视频".to_string()),
+            });
+            let merged_path = output_dir.join(format!("{safe_title}.mp4"));
+            ffmpeg
+                .merge_video_audio(&video_result.output_path, &audio_path, &merged_path)
                 .await?;
+            let _ = tokio::fs::remove_file(&video_result.output_path).await;
+            let _ = tokio::fs::remove_file(&audio_path).await;
+            progress(DownloadProgressEvent {
+                task_id,
+                stage: "completed".to_string(),
+                percent: 100.0,
+                bytes_done: video_result.bytes_written,
+                bytes_total: video_result.bytes_written,
+                speed_bytes_per_sec: 0,
+                message: Some("MP4 下载完成".to_string()),
+            });
+            return Ok(merged_path);
         }
 
         progress(DownloadProgressEvent {
@@ -479,7 +566,7 @@ async fn run_download_task(
             bytes_done: video_result.bytes_written,
             bytes_total: video_result.bytes_written,
             speed_bytes_per_sec: 0,
-            message: Some("原始 DASH 流下载完成，音视频合并将在 Phase 4 接入".to_string()),
+            message: Some("原始 DASH 流下载完成，已按请求跳过 MP4 合并".to_string()),
         });
         return Ok(video_result.output_path);
     }
@@ -494,6 +581,8 @@ async fn run_download_task(
             &referer,
             cancel,
             progress.clone(),
+            max_workers,
+            cookie_header.clone(),
         )
         .await?;
         emit_progress(
@@ -522,6 +611,8 @@ async fn download_durl_segments(
     referer: &str,
     cancel: Arc<AtomicBool>,
     progress: ProgressSender,
+    max_workers: usize,
+    cookie_header: Option<String>,
 ) -> AppResult<()> {
     let temp_dir = output_path.with_extension("segments");
     tokio::fs::create_dir_all(&temp_dir).await?;
@@ -540,6 +631,8 @@ async fn download_durl_segments(
                     url: first_url(&segment.url, &segment.backup_urls)?,
                     output_path: part_path.clone(),
                     referer: referer.to_string(),
+                    max_workers,
+                    cookie_header: cookie_header.clone(),
                 },
                 cancel.clone(),
                 progress.clone(),

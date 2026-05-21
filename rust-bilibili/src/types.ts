@@ -69,6 +69,7 @@ export interface StartDownloadRequest {
   outdir: string;
   cookie_path?: string | null;
   skip_merge: boolean;
+  threads: number;
 }
 
 export interface PlayUrlRequest {

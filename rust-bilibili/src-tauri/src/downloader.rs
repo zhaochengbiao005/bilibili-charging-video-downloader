@@ -8,12 +8,14 @@ use std::{
 };
 
 use reqwest::{
-    header::{CONTENT_LENGTH, RANGE, REFERER},
+    header::{CONTENT_LENGTH, COOKIE, RANGE, REFERER},
     StatusCode,
 };
 use tokio::{
     fs::{self, File},
     io::AsyncWriteExt,
+    sync::Semaphore,
+    task::JoinSet,
 };
 
 use crate::{
@@ -36,6 +38,8 @@ pub struct FileDownloadSpec {
     pub url: String,
     pub output_path: PathBuf,
     pub referer: String,
+    pub max_workers: usize,
+    pub cookie_header: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -68,10 +72,7 @@ impl DownloadClient {
             fs::create_dir_all(parent).await?;
         }
 
-        let total_size = self
-            .content_length(&spec.url, &spec.referer)
-            .await
-            .unwrap_or(0);
+        let total_size = self.content_length(&spec).await.unwrap_or(0);
         if total_size > CHUNK_SIZE {
             match self
                 .download_range(&spec, total_size, cancel.clone(), progress.clone())
@@ -97,14 +98,12 @@ impl DownloadClient {
             .await
     }
 
-    async fn content_length(&self, url: &str, referer: &str) -> Option<u64> {
-        let response = self
-            .client
-            .head(url)
-            .header(REFERER, referer)
-            .send()
-            .await
-            .ok()?;
+    async fn content_length(&self, spec: &FileDownloadSpec) -> Option<u64> {
+        let mut request = self.client.head(&spec.url).header(REFERER, &spec.referer);
+        if let Some(cookie_header) = &spec.cookie_header {
+            request = request.header(COOKIE, cookie_header);
+        }
+        let response = request.send().await.ok()?;
         response
             .headers()
             .get(CONTENT_LENGTH)
@@ -121,6 +120,7 @@ impl DownloadClient {
     ) -> AppResult<FileDownloadResult> {
         let temp_dir = spec.output_path.with_extension("parts");
         fs::create_dir_all(&temp_dir).await?;
+        let _cleanup = TempDirCleanup::new(temp_dir.clone());
 
         let mut ranges = Vec::new();
         let mut start = 0_u64;
@@ -130,39 +130,80 @@ impl DownloadClient {
             start = end + 1;
         }
 
-        let mut bytes_done = 0_u64;
         let started = Instant::now();
-        let mut part_paths = Vec::with_capacity(ranges.len());
+        let max_workers = spec.max_workers.clamp(1, 32).min(ranges.len().max(1));
+        let semaphore = Arc::new(Semaphore::new(max_workers));
+        let mut tasks = JoinSet::new();
+        let range_count = ranges.len();
 
         for (index, (start, end)) in ranges.into_iter().enumerate() {
             ensure_not_cancelled(&cancel, &spec.task_id)?;
             let part_path = temp_dir.join(format!("{index:04}.part"));
-            let bytes = self
-                .download_range_part(spec, start, end, &part_path, &cancel)
-                .await?;
-            bytes_done += bytes;
-            part_paths.push(part_path);
-            emit_progress(
-                &progress,
-                &spec.task_id,
-                &spec.stage,
-                bytes_done,
-                total_size,
-                started,
-                None,
-            );
+            let worker = self.clone();
+            let spec = spec.clone();
+            let cancel = cancel.clone();
+            let semaphore = semaphore.clone();
+            tasks.spawn(async move {
+                let _permit =
+                    semaphore
+                        .acquire_owned()
+                        .await
+                        .map_err(|err| AppError::Download {
+                            task_id: Some(spec.task_id.clone()),
+                            message: err.to_string(),
+                        })?;
+                let bytes = worker
+                    .download_range_part(&spec, start, end, &part_path, &cancel)
+                    .await?;
+                Ok::<_, AppError>((index, part_path, bytes))
+            });
+        }
+
+        let mut bytes_done = 0_u64;
+        let mut part_paths: Vec<Option<PathBuf>> = vec![None; range_count];
+        while let Some(result) = tasks.join_next().await {
+            ensure_not_cancelled(&cancel, &spec.task_id)?;
+            match result {
+                Ok(Ok((index, part_path, bytes))) => {
+                    bytes_done += bytes;
+                    part_paths[index] = Some(part_path);
+                    emit_progress(
+                        &progress,
+                        &spec.task_id,
+                        &spec.stage,
+                        bytes_done,
+                        total_size,
+                        started,
+                        None,
+                    );
+                }
+                Ok(Err(err)) => {
+                    tasks.abort_all();
+                    return Err(err);
+                }
+                Err(err) => {
+                    tasks.abort_all();
+                    return Err(AppError::Download {
+                        task_id: Some(spec.task_id.clone()),
+                        message: format!("下载线程异常: {err}"),
+                    });
+                }
+            }
         }
 
         let temp_path = spec.output_path.with_extension("tmp");
         let mut output = File::create(&temp_path).await?;
-        for part_path in &part_paths {
+        for part_path in part_paths {
             ensure_not_cancelled(&cancel, &spec.task_id)?;
+            let part_path = part_path.ok_or_else(|| AppError::Download {
+                task_id: Some(spec.task_id.clone()),
+                message: "下载分块缺失".to_string(),
+            })?;
             let mut part = File::open(part_path).await?;
             tokio::io::copy(&mut part, &mut output).await?;
         }
         output.flush().await?;
         replace_file(&temp_path, &spec.output_path).await?;
-        let _ = fs::remove_dir_all(temp_dir).await;
 
         Ok(FileDownloadResult {
             output_path: spec.output_path.clone(),
@@ -178,13 +219,15 @@ impl DownloadClient {
         part_path: &Path,
         cancel: &Arc<AtomicBool>,
     ) -> AppResult<u64> {
-        let mut response = self
+        let mut request = self
             .client
             .get(&spec.url)
             .header(REFERER, &spec.referer)
-            .header(RANGE, format!("bytes={start}-{end}"))
-            .send()
-            .await?;
+            .header(RANGE, format!("bytes={start}-{end}"));
+        if let Some(cookie_header) = &spec.cookie_header {
+            request = request.header(COOKIE, cookie_header);
+        }
+        let mut response = request.send().await?;
 
         if response.status() == StatusCode::OK {
             return Err(AppError::Download {
@@ -217,13 +260,11 @@ impl DownloadClient {
         cancel: Arc<AtomicBool>,
         progress: ProgressSender,
     ) -> AppResult<FileDownloadResult> {
-        let mut response = self
-            .client
-            .get(&spec.url)
-            .header(REFERER, &spec.referer)
-            .send()
-            .await?
-            .error_for_status()?;
+        let mut request = self.client.get(&spec.url).header(REFERER, &spec.referer);
+        if let Some(cookie_header) = &spec.cookie_header {
+            request = request.header(COOKIE, cookie_header);
+        }
+        let mut response = request.send().await?.error_for_status()?;
         let total_size = response
             .headers()
             .get(CONTENT_LENGTH)
@@ -265,6 +306,22 @@ impl DownloadClient {
             output_path: spec.output_path.clone(),
             bytes_written: bytes_done,
         })
+    }
+}
+
+struct TempDirCleanup {
+    path: PathBuf,
+}
+
+impl TempDirCleanup {
+    fn new(path: PathBuf) -> Self {
+        Self { path }
+    }
+}
+
+impl Drop for TempDirCleanup {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.path);
     }
 }
 

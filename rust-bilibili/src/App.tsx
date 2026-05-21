@@ -48,7 +48,7 @@ function Root() {
   }, []);
 
   return (
-    <div className="flex w-full h-full sm:w-[calc(100vw-2rem)] sm:h-[calc(100vh-2rem)] bg-sky-50/45 backdrop-blur-[32px] sm:rounded-[2rem] overflow-hidden text-gray-800 font-sans selection:bg-bili-pink selection:text-white relative border border-white/50 shadow-[0_20px_70px_-16px_rgba(0,0,0,0.22)]">
+    <div className="flex w-screen h-screen bg-sky-50/45 backdrop-blur-[32px] overflow-hidden text-gray-800 font-sans selection:bg-bili-pink selection:text-white relative">
 
       {/* Background layer */}
       <div

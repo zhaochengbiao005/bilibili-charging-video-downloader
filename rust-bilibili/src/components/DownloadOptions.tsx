@@ -1,5 +1,5 @@
 import React from 'react';
-import { SlidersHorizontal, Film, Music, Download, AlertTriangle } from 'lucide-react';
+import { SlidersHorizontal, Film, Music, Download, AlertTriangle, Cpu } from 'lucide-react';
 import type { VideoData } from '../types';
 
 interface DownloadOptionsProps {
@@ -9,12 +9,14 @@ interface DownloadOptionsProps {
   onDownload: () => void;
   format: 'video' | 'audio';
   onFormatChange: (f: 'video' | 'audio') => void;
+  threads: number;
+  onThreadsChange: (threads: number) => void;
   ffmpegAvailable?: boolean;
 }
 
 export function DownloadOptions({
   data, selectedQuality, onSelectQuality, onDownload,
-  format, onFormatChange, ffmpegAvailable = true,
+  format, onFormatChange, threads, onThreadsChange, ffmpegAvailable = true,
 }: DownloadOptionsProps) {
   if (!data) return null;
 
@@ -34,7 +36,7 @@ export function DownloadOptions({
   };
 
   return (
-    <div className="glass-panel rounded-[2rem] p-8 flex flex-col h-full shrink-0">
+    <div className="glass-panel rounded-[2rem] p-7 2xl:p-8 flex flex-col h-full shrink-0">
       <div className="flex items-center gap-3 mb-6">
         <div className="text-bili-pink flex items-center justify-center">
           <SlidersHorizontal size={24} strokeWidth={2.5} />
@@ -67,6 +69,28 @@ export function DownloadOptions({
             <Music size={24} />
             音频 (MP3)
           </button>
+        </div>
+      </div>
+
+      <div className="mb-5">
+        <label className="flex items-center gap-2 text-sm font-black text-gray-600 mb-3">
+          <Cpu size={16} />
+          下载线程
+        </label>
+        <div className="grid grid-cols-4 gap-2 rounded-2xl bg-white/35 border border-white/70 p-1.5">
+          {[4, 8, 16, 32].map((value) => (
+            <button
+              key={value}
+              onClick={() => onThreadsChange(value)}
+              className={`min-h-11 rounded-xl text-sm font-black transition-all ${
+                threads === value
+                  ? 'bg-white text-bili-pink shadow-sm border border-pink-100'
+                  : 'text-gray-500 hover:text-bili-pink hover:bg-white/50 border border-transparent'
+              }`}
+            >
+              {value}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -120,6 +144,13 @@ export function DownloadOptions({
         <div className="mt-4 flex items-center gap-2 text-xs text-orange-500 bg-orange-50 rounded-xl px-4 py-2.5 border border-orange-100">
           <AlertTriangle size={14} />
           音频格式需要 FFmpeg 支持
+        </div>
+      )}
+
+      {format === 'video' && !ffmpegAvailable && (
+        <div className="mt-4 flex items-center gap-2 text-xs text-orange-500 bg-orange-50 rounded-xl px-4 py-2.5 border border-orange-100">
+          <AlertTriangle size={14} />
+          MP4 合并需要 FFmpeg，未检测到时下载会提示安装
         </div>
       )}
 

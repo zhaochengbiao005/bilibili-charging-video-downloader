@@ -54,6 +54,8 @@ pub struct StartDownloadRequest {
     pub outdir: String,
     pub cookie_path: Option<String>,
     pub skip_merge: bool,
+    #[serde(default = "default_threads")]
+    pub threads: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -77,4 +79,8 @@ pub struct DownloadDoneEvent {
     pub task_id: String,
     pub status: String,
     pub message: Option<String>,
+}
+
+fn default_threads() -> usize {
+    8
 }

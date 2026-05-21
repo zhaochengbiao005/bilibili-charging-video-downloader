@@ -19,6 +19,7 @@ pub fn run() {
         .manage(state::AppState::new().expect("failed to initialize app state"))
         .invoke_handler(tauri::generate_handler![
             commands::fetch_info,
+            commands::fetch_image_data_url,
             commands::fetch_playurl,
             commands::start_download,
             commands::cancel_download,

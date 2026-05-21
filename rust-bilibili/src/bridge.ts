@@ -117,9 +117,14 @@ export async function fetchInfo(bvid: string, cookiePath = ''): Promise<VideoDat
   return res.video;
 }
 
+export async function fetchImageDataUrl(url: string): Promise<string> {
+  if (!isTauriRuntime()) return url;
+  return callCommand<string>('fetch_image_data_url', { url });
+}
+
 export async function startDownload(
   bvid: string, quality: string, fmt: string,
-  outdir: string, cookiePath = '', skipMerge = false
+  outdir: string, cookiePath = '', skipMerge = false, threads = 8
 ): Promise<string> {
   if (!isTauriRuntime()) throw missingRuntimeError();
   await ensureEventListeners();
@@ -130,6 +135,7 @@ export async function startDownload(
     outdir,
     cookie_path: cookiePath || null,
     skip_merge: skipMerge,
+    threads,
   };
   const res = await callCommand<StartDownloadResponse>('start_download', {
     input,
