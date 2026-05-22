@@ -76,7 +76,7 @@ impl BilibiliClient {
 
         let mut video = data.into_video_data();
         if let Some(page) = video.pages.first() {
-            if let Ok(playurl) = self.playurl(bvid, page.cid, 80, cookies).await {
+            if let Ok(playurl) = self.playurl(bvid, page.cid, 127, cookies).await {
                 video.apply_playurl_sizes(&playurl);
             }
         }
@@ -409,6 +409,13 @@ impl ViewData {
                 cid: page.cid,
                 page: page.page,
                 part: page.part,
+                duration: format_duration(page.duration),
+                duration_sec: page.duration,
+                thumbnail: if page.first_frame.trim().is_empty() {
+                    None
+                } else {
+                    Some(page.first_frame)
+                },
             })
             .collect();
 
@@ -441,6 +448,21 @@ impl VideoData {
     fn apply_playurl_sizes(&mut self, playurl: &PlayUrlResponse) {
         if let Some(dash) = &playurl.dash {
             self.audio_streams = build_audio_stream_options(&dash.audio);
+            self.streams = build_stream_options_from_dash(
+                &dash.video,
+                &dash.audio,
+                self.is_charging.unwrap_or(false),
+                self.is_vip.unwrap_or(false),
+            );
+            self.qualities = self
+                .streams
+                .iter()
+                .filter(|stream| stream.available)
+                .map(|stream| stream.label.clone())
+                .collect();
+            if !self.qualities.is_empty() {
+                return;
+            }
 
             for stream in &mut self.streams {
                 let video_size = dash
@@ -512,16 +534,99 @@ fn build_audio_stream_options(tracks: &[DashTrack]) -> Vec<AudioStreamOption> {
         .collect()
 }
 
+fn build_stream_options_from_dash(
+    video_tracks: &[DashTrack],
+    audio_tracks: &[DashTrack],
+    is_charging: bool,
+    is_vip: bool,
+) -> Vec<StreamOption> {
+    let restricted = is_charging || is_vip;
+    let best_audio_size = audio_tracks
+        .iter()
+        .max_by_key(|track| track.bandwidth.unwrap_or_default())
+        .and_then(|track| track.size_bytes)
+        .unwrap_or_default();
+    let mut streams = Vec::new();
+
+    for &(qn, base_label, maybe_login, maybe_vip) in VIDEO_QUALITY_TIERS {
+        let best_track = video_tracks
+            .iter()
+            .filter(|track| track.id == qn)
+            .max_by_key(|track| {
+                (
+                    track.bandwidth.unwrap_or_default(),
+                    dolby_track_score(track),
+                    hdr_track_score(track),
+                )
+            });
+
+        if let Some(track) = best_track {
+            let mut variants = Vec::new();
+            if is_dolby_track(track) {
+                variants.push("杜比视界");
+            }
+            if is_hdr_track(track) {
+                variants.push("HDR");
+            }
+            let label = if variants.is_empty() {
+                base_label.to_string()
+            } else {
+                format!("{base_label} {}", variants.join(" "))
+            };
+            let video_size = track.size_bytes.unwrap_or_default();
+            let size_bytes = match (video_size, best_audio_size) {
+                (0, 0) => None,
+                (video, 0) => Some(video),
+                (0, audio) => Some(audio),
+                (video, audio) => Some(video.saturating_add(audio)),
+            };
+            streams.push(StreamOption {
+                id: format!("video_{}_{}", qn, stream_variant_id(track)),
+                qn,
+                label,
+                codec: Some(track.codecs.clone()),
+                width: track.width,
+                height: track.height,
+                frame_rate: track.frame_rate.clone(),
+                bandwidth: track.bandwidth,
+                size_bytes,
+                requires_login: maybe_login && restricted,
+                requires_vip: maybe_vip && is_vip,
+                available: true,
+                unavailable_reason: None,
+            });
+        } else {
+            let requires_vip = maybe_vip && is_vip;
+            streams.push(StreamOption {
+                id: format!("video_{qn}"),
+                qn,
+                label: base_label.to_string(),
+                codec: None,
+                width: None,
+                height: None,
+                frame_rate: None,
+                bandwidth: None,
+                size_bytes: None,
+                requires_login: maybe_login && restricted,
+                requires_vip,
+                available: false,
+                unavailable_reason: Some(if requires_vip {
+                    "需要大会员权限".to_string()
+                } else {
+                    "当前视频无此画质".to_string()
+                }),
+            });
+        }
+    }
+
+    streams
+}
+
 fn default_stream_options(is_charging: bool, is_vip: bool) -> Vec<StreamOption> {
     let restricted = is_charging || is_vip;
-    [
-        (80, "1080P", true, false),
-        (64, "720P", false, false),
-        (32, "480P", false, false),
-        (16, "360P", false, false),
-    ]
-    .into_iter()
-    .map(|(qn, label, maybe_login, maybe_vip)| {
+    VIDEO_QUALITY_TIERS
+    .iter()
+    .map(|&(qn, label, maybe_login, maybe_vip)| {
         let requires_login = maybe_login && restricted;
         let requires_vip = maybe_vip && is_vip;
         StreamOption {
@@ -541,6 +646,54 @@ fn default_stream_options(is_charging: bool, is_vip: bool) -> Vec<StreamOption> 
         }
     })
     .collect()
+}
+
+const VIDEO_QUALITY_TIERS: &[(u32, &str, bool, bool)] = &[
+    (127, "8K", true, true),
+    (126, "杜比视界", true, true),
+    (125, "HDR", true, true),
+    (120, "4K", true, true),
+    (116, "1080P60", true, false),
+    (112, "1080P+", true, false),
+    (74, "720P60", true, false),
+    (80, "1080P", true, false),
+    (64, "720P", false, false),
+    (32, "480P", false, false),
+    (16, "360P", false, false),
+];
+
+fn is_dolby_track(track: &DashTrack) -> bool {
+    let codecs = track.codecs.to_ascii_lowercase();
+    codecs.contains("dvh")
+        || codecs.contains("dvhe")
+        || codecs.contains("dolby")
+        || track
+            .mime_type
+            .as_deref()
+            .is_some_and(|mime| mime.to_ascii_lowercase().contains("dolby"))
+}
+
+fn is_hdr_track(track: &DashTrack) -> bool {
+    let codecs = track.codecs.to_ascii_lowercase();
+    codecs.contains("hev1") || codecs.contains("hvc1") || track.id == 125
+}
+
+fn dolby_track_score(track: &DashTrack) -> u8 {
+    u8::from(is_dolby_track(track))
+}
+
+fn hdr_track_score(track: &DashTrack) -> u8 {
+    u8::from(is_hdr_track(track))
+}
+
+fn stream_variant_id(track: &DashTrack) -> &'static str {
+    if is_dolby_track(track) {
+        "dolby"
+    } else if is_hdr_track(track) {
+        "hdr"
+    } else {
+        "std"
+    }
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -570,6 +723,10 @@ struct ViewPage {
     cid: u64,
     page: u32,
     part: String,
+    #[serde(default)]
+    duration: u64,
+    #[serde(default)]
+    first_frame: String,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -880,6 +1037,9 @@ mod tests {
                 cid: 1,
                 page: 1,
                 part: "P1".to_string(),
+                duration: "0:01".to_string(),
+                duration_sec: 1,
+                thumbnail: None,
             }],
             qualities: vec!["1080P".to_string()],
             streams: default_stream_options(false, false),
@@ -939,5 +1099,54 @@ mod tests {
         assert_eq!(video.audio_streams[0].size_bytes, Some(3_200_000));
         assert!(video.audio_streams[0].available);
         assert!(!video.audio_streams[1].available);
+    }
+
+    #[test]
+    fn dash_stream_options_include_8k_and_dolby_labels() {
+        let video_tracks = vec![
+            DashTrack {
+                id: 127,
+                codecs: "avc1.640034".to_string(),
+                width: Some(7680),
+                height: Some(4320),
+                frame_rate: Some("60".to_string()),
+                bandwidth: Some(50_000_000),
+                size_bytes: Some(500_000_000),
+                mime_type: Some("video/mp4".to_string()),
+                base_url: "https://example.test/8k.m4s".to_string(),
+                backup_urls: vec![],
+            },
+            DashTrack {
+                id: 126,
+                codecs: "dvh1.08.07".to_string(),
+                width: Some(3840),
+                height: Some(2160),
+                frame_rate: Some("60".to_string()),
+                bandwidth: Some(35_000_000),
+                size_bytes: Some(350_000_000),
+                mime_type: Some("video/mp4".to_string()),
+                base_url: "https://example.test/dolby.m4s".to_string(),
+                backup_urls: vec![],
+            },
+        ];
+        let audio_tracks = vec![DashTrack {
+            id: 30280,
+            codecs: "mp4a".to_string(),
+            width: None,
+            height: None,
+            frame_rate: None,
+            bandwidth: Some(320_000),
+            size_bytes: Some(3_200_000),
+            mime_type: Some("audio/mp4".to_string()),
+            base_url: "https://example.test/audio.m4s".to_string(),
+            backup_urls: vec![],
+        }];
+
+        let streams = build_stream_options_from_dash(&video_tracks, &audio_tracks, false, false);
+
+        assert!(streams.iter().any(|stream| stream.label == "8K"));
+        assert!(streams
+            .iter()
+            .any(|stream| stream.label.contains("杜比视界")));
     }
 }

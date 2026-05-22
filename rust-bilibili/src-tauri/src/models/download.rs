@@ -50,6 +50,9 @@ pub struct DurlSegment {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct StartDownloadRequest {
     pub bvid: String,
+    pub cid: Option<u64>,
+    pub page: Option<u32>,
+    pub part: Option<String>,
     pub quality: String,
     pub format: String,
     pub outdir: String,

@@ -7,6 +7,9 @@ interface DownloadOptionsProps {
   selectedQuality: string;
   onSelectQuality: (q: string) => void;
   onDownload: () => void;
+  batchCount?: number;
+  currentPageLabel?: string;
+  onDownloadAll?: () => void;
   format: 'video' | 'audio';
   onFormatChange: (f: 'video' | 'audio') => void;
   threads: number;
@@ -18,6 +21,7 @@ interface DownloadOptionsProps {
 
 export function DownloadOptions({
   data, selectedQuality, onSelectQuality, onDownload,
+  batchCount = 1, currentPageLabel, onDownloadAll,
   format, onFormatChange, threads, onThreadsChange,
   danmakuMode, onDanmakuModeChange, ffmpegAvailable = true,
 }: DownloadOptionsProps) {
@@ -30,6 +34,12 @@ export function DownloadOptions({
   const visibleStreams = format === 'video'
     ? data.streams
     : [];
+  const isHighFidelityVideo = format === 'video' && (
+    selectedQuality.includes('8K') ||
+    selectedQuality.includes('杜比') ||
+    selectedQuality.includes('HDR')
+  );
+  const effectiveDanmakuMode = isHighFidelityVideo && danmakuMode === 'burn' ? 'ass' : danmakuMode;
 
   const handleFormatSwitch = (f: 'video' | 'audio') => {
     onFormatChange(f);
@@ -117,14 +127,20 @@ export function DownloadOptions({
               { value: 'burn' as const, label: '烧录', icon: Flame },
             ].map((item) => {
               const Icon = item.icon;
-              const active = danmakuMode === item.value;
+              const disabled = isHighFidelityVideo && item.value === 'burn';
+              const active = effectiveDanmakuMode === item.value;
               return (
                 <button
                   key={item.value}
                   type="button"
-                  onClick={() => onDanmakuModeChange(item.value)}
+                  disabled={disabled}
+                  onClick={() => {
+                    if (!disabled) onDanmakuModeChange(item.value);
+                  }}
                   className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl text-sm font-black transition-all ${
-                    active
+                    disabled
+                      ? 'cursor-not-allowed border border-transparent text-gray-300'
+                      : active
                       ? 'bg-white text-bili-pink shadow-sm border border-pink-100'
                       : 'border border-transparent text-gray-500 hover:bg-white/60 hover:text-bili-pink'
                   }`}
@@ -141,6 +157,11 @@ export function DownloadOptions({
           {danmakuMode === 'burn' && (
             <p className="mt-2 text-xs font-medium text-gray-400">生成带弹幕的 MP4，播放更顺滑但弹幕不可关闭。</p>
           )}
+          {isHighFidelityVideo && (
+            <p className="mt-2 text-xs font-medium text-orange-400">
+              8K / HDR / 杜比视界将保留原始画质，弹幕烧录会自动改为外挂弹幕。
+            </p>
+          )}
         </div>
       )}
 
@@ -151,7 +172,12 @@ export function DownloadOptions({
         <div className="flex flex-col gap-2.5">
           {qualities.map((q) => {
             const isSelected = selectedQuality === q;
-            const isPremium = format === 'video' && (q.includes('4K') || q.includes('HDR'));
+            const isPremium = format === 'video' && (
+              q.includes('4K') ||
+              q.includes('HDR') ||
+              q.includes('8K') ||
+              q.includes('杜比')
+            );
             const stream = visibleStreams.find((item) => item.label === q);
             const needsLogin = Boolean(stream?.requires_login && !data.is_login);
             const audioStream = data.audio_streams?.find((item) => item.label === q);
@@ -242,8 +268,18 @@ export function DownloadOptions({
         className="w-full mt-5 bg-gradient-to-r from-bili-pink to-bili-pink-hover text-white py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] shadow-[0_14px_30px_rgba(255,143,179,0.32)] active:scale-[0.98]"
       >
         <Download size={20} strokeWidth={2.5} />
-        开始下载
+        {currentPageLabel ? `下载当前 ${currentPageLabel}` : '开始下载'}
       </button>
+      {onDownloadAll && batchCount > 1 && (
+        <button
+          type="button"
+          onClick={onDownloadAll}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-pink-100 bg-white/84 py-3 text-sm font-black text-bili-pink shadow-sm transition-all hover:bg-pink-50/80 active:scale-[0.99]"
+        >
+          <Download size={18} strokeWidth={2.5} />
+          下载全部 {batchCount} 个视频
+        </button>
+      )}
     </div>
   );
 }

@@ -1,13 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import { User, Eye, Clock, Layers, AlertTriangle, Crown } from 'lucide-react';
-import type { VideoData } from '../types';
+import { ChevronLeft, ChevronRight, Eye, Clock, Layers, AlertTriangle, Crown } from 'lucide-react';
+import type { VideoData, VideoPage } from '../types';
 import * as Bridge from '../bridge';
 
 interface VideoInfoProps {
   data: VideoData | null;
+  currentPage?: VideoPage | null;
+  currentPageIndex?: number;
+  onPrevPage?: () => void;
+  onNextPage?: () => void;
+  onSelectPage?: (page: VideoPage) => void;
 }
 
-export function VideoInfo({ data }: VideoInfoProps) {
+export function VideoInfo({
+  data,
+  currentPage,
+  currentPageIndex = 0,
+  onPrevPage,
+  onNextPage,
+  onSelectPage,
+}: VideoInfoProps) {
   const [thumbnailSrc, setThumbnailSrc] = useState('');
   const [thumbnailFailed, setThumbnailFailed] = useState(false);
   const [authorAvatarSrc, setAuthorAvatarSrc] = useState('');
@@ -18,22 +30,23 @@ export function VideoInfo({ data }: VideoInfoProps) {
     setThumbnailFailed(false);
     setThumbnailSrc('');
 
-    if (!data?.thumbnail) return;
+    const thumbnailUrl = currentPage?.thumbnail || data?.thumbnail || '';
+    if (!thumbnailUrl) return;
 
-    Bridge.fetchImageDataUrl(data.thumbnail)
+    Bridge.fetchImageDataUrl(thumbnailUrl)
       .then((src) => {
         if (!cancelled) setThumbnailSrc(src);
       })
       .catch(() => {
         if (!cancelled) {
-          setThumbnailSrc(data.thumbnail);
+          setThumbnailSrc(thumbnailUrl);
         }
       });
 
     return () => {
       cancelled = true;
     };
-  }, [data?.thumbnail]);
+  }, [data?.thumbnail, currentPage?.thumbnail]);
 
   useEffect(() => {
     let cancelled = false;
@@ -58,10 +71,25 @@ export function VideoInfo({ data }: VideoInfoProps) {
   }, [data?.author_avatar]);
 
   if (!data) return null;
+  const pages = data.pages ?? [];
+  const hasMultiplePages = pages.length > 1;
+  const displayPage = currentPage ?? pages[0] ?? null;
+  const displayDuration = displayPage?.duration || data.duration;
 
   return (
     <div className="glass-panel rounded-[1.75rem] p-4 md:p-5 flex flex-col gap-4">
-      <div className="w-full max-w-[540px] mx-auto aspect-video rounded-[1.2rem] overflow-hidden relative shadow-[0_14px_34px_rgba(20,32,70,0.09)] bg-gray-100">
+      <div className="relative mx-auto w-full max-w-[640px] px-10 md:px-14">
+        {hasMultiplePages && (
+          <button
+            type="button"
+            onClick={onPrevPage}
+            className="absolute left-0 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/90 bg-white/84 text-bili-pink shadow-[0_12px_28px_rgba(255,143,179,0.18)] transition-all hover:bg-pink-50 hover:shadow-[0_16px_36px_rgba(255,143,179,0.28)] active:scale-95"
+            aria-label="上一个分P"
+          >
+            <ChevronLeft size={24} strokeWidth={2.8} />
+          </button>
+        )}
+        <div className="w-full aspect-video rounded-[1.2rem] overflow-hidden relative shadow-[0_14px_34px_rgba(20,32,70,0.09)] bg-gray-100">
         {thumbnailSrc && !thumbnailFailed ? (
           <img
             src={thumbnailSrc}
@@ -75,14 +103,35 @@ export function VideoInfo({ data }: VideoInfoProps) {
         )}
         <div className="absolute bottom-3 right-3 bg-black/70 backdrop-blur-md text-white text-xs font-bold font-mono px-3 py-1.5 rounded-lg border border-white/10 shadow-sm flex items-center gap-1.5">
           <Clock size={12} />
-          {data.duration}
+          {displayDuration}
         </div>
+        {hasMultiplePages && displayPage && (
+          <div className="absolute left-3 top-3 rounded-xl border border-white/15 bg-black/58 px-3 py-1.5 text-xs font-black text-white shadow-sm backdrop-blur-md">
+            P{displayPage.page} / {pages.length}
+          </div>
+        )}
+        </div>
+        {hasMultiplePages && (
+          <button
+            type="button"
+            onClick={onNextPage}
+            className="absolute right-0 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/90 bg-white/84 text-bili-pink shadow-[0_12px_28px_rgba(255,143,179,0.18)] transition-all hover:bg-pink-50 hover:shadow-[0_16px_36px_rgba(255,143,179,0.28)] active:scale-95"
+            aria-label="下一个分P"
+          >
+            <ChevronRight size={24} strokeWidth={2.8} />
+          </button>
+        )}
       </div>
 
       <div className="flex flex-col gap-3">
         <h2 className="text-[20px] 2xl:text-[24px] font-black text-gray-900 leading-snug">
-          {data.title}
+          {displayPage && hasMultiplePages ? displayPage.part : data.title}
         </h2>
+        {displayPage && hasMultiplePages && (
+          <p className="text-sm font-bold text-gray-500">
+            {data.title}
+          </p>
+        )}
 
         <div className="flex flex-wrap items-center gap-2">
           {data.is_charging && (
@@ -131,17 +180,26 @@ export function VideoInfo({ data }: VideoInfoProps) {
           </div>
         </div>
 
-        {data.pages && data.pages.length > 1 && (
+        {hasMultiplePages && (
           <details className="text-sm">
             <summary className="font-bold text-gray-600 cursor-pointer hover:text-bili-pink transition-colors">
-              查看分P列表 ({data.pages.length})
+              查看分P列表 ({pages.length})
             </summary>
-            <div className="mt-2 flex flex-col gap-1 max-h-32 overflow-y-auto pr-2">
-              {data.pages.map((p) => (
-                <div key={p.cid} className="flex items-center gap-2 px-3 py-1.5 bg-white/40 rounded-lg text-xs text-gray-600">
+            <div className="mt-2 flex flex-col gap-1 max-h-32 overflow-y-auto pr-2 custom-scrollbar">
+              {pages.map((p, index) => (
+                <button
+                  key={p.cid}
+                  type="button"
+                  onClick={() => onSelectPage?.(p)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-left text-xs transition-all ${
+                    index === currentPageIndex
+                      ? 'bg-pink-50 text-bili-pink'
+                      : 'bg-white/40 text-gray-600 hover:bg-white/72 hover:text-bili-pink'
+                  }`}
+                >
                   <span className="font-bold text-bili-pink">P{p.page}</span>
                   <span className="truncate">{p.part}</span>
-                </div>
+                </button>
               ))}
             </div>
           </details>

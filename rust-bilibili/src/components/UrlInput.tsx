@@ -23,12 +23,17 @@ export function UrlInput({ onParse, isParsing, error }: UrlInputProps) {
           <div className="flex shrink-0 items-center justify-center text-slate-400 transition-colors duration-300 group-focus-within:text-bili-pink">
             <Link2 size={23} strokeWidth={2.7} />
           </div>
-          <input
-            type="text"
-            className="min-w-0 flex-1 bg-transparent py-5 text-[19px] font-semibold text-gray-800 placeholder:text-slate-400/85 outline-none disabled:cursor-not-allowed disabled:opacity-70"
-            placeholder="https://www.bilibili.com/video/BV..."
+          <textarea
+            rows={1}
+            className="min-h-[58px] min-w-0 flex-1 resize-none bg-transparent py-4 text-[18px] font-semibold leading-7 text-gray-800 placeholder:text-slate-400/85 outline-none disabled:cursor-not-allowed disabled:opacity-70"
+            placeholder="粘贴一个或多个 B站视频链接"
             value={url}
             onChange={(e) => setUrl(e.target.value)}
+            onKeyDown={(e) => {
+              if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.currentTarget.form?.requestSubmit();
+              }
+            }}
             disabled={isParsing}
           />
           <button

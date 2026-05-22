@@ -210,7 +210,7 @@ export function Settings() {
         </p>
         <p className="text-[#2377A6]/80">
           程序配置、Cookie、下载历史和兜底 FFmpeg 都保存在 <strong>{appDir}</strong> 目录中。
-          下载的视频默认保存在 <strong>{appDir}/downloads/</strong>，避免文件散落到系统数据目录或用户视频目录。
+          下载的视频默认保存在 <strong>{appDir}/downloads/</strong>。
         </p>
       </div>
 

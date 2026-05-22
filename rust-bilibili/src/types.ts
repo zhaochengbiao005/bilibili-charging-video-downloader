@@ -2,6 +2,9 @@ export interface VideoPage {
   cid: number;
   page: number;
   part: string;
+  duration: string;
+  duration_sec: number;
+  thumbnail?: string | null;
 }
 
 export interface StreamOption {
@@ -77,6 +80,9 @@ export type DownloadStage =
 
 export interface StartDownloadRequest {
   bvid: string;
+  cid?: number | null;
+  page?: number | null;
+  part?: string | null;
   quality: string;
   format: 'video' | 'audio';
   outdir: string;

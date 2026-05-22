@@ -1,20 +1,23 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search } from 'lucide-react';
+import { Check, Download, Search, Video } from 'lucide-react';
 import { UrlInput } from '../components/UrlInput';
 import { VideoInfo } from '../components/VideoInfo';
 import { DownloadOptions } from '../components/DownloadOptions';
 import { DownloadQueue } from '../components/DownloadQueue';
-import type { DanmakuMode, VideoData, DownloadTask } from '../types';
+import type { DanmakuMode, VideoData, DownloadTask, VideoPage } from '../types';
 import * as Bridge from '../bridge';
 import homeBg from '../assets/home-bg.png';
 
 export function Home() {
   const [isParsing, setIsParsing] = useState(false);
-  const [videoData, setVideoData] = useState<VideoData | null>(null);
+  const [videos, setVideos] = useState<VideoData[]>([]);
+  const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
+  const [selectedPageByVideo, setSelectedPageByVideo] = useState<Record<string, number>>({});
   const [selectedQuality, setSelectedQuality] = useState('1080P');
   const [tasks, setTasks] = useState<DownloadTask[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [cookiePath, setCookiePath] = useState('');
   const [outdir, setOutdir] = useState('downloads');
   const [format, setFormat] = useState<'video' | 'audio'>('video');
@@ -58,64 +61,167 @@ export function Home() {
     };
   }, []);
 
+  const activeVideo = videos.find(video => video.id === selectedVideoId) ?? videos[0] ?? null;
+  const activePageIndex = activeVideo
+    ? Math.min(selectedPageByVideo[activeVideo.id] ?? 0, Math.max(activeVideo.pages.length - 1, 0))
+    : 0;
+  const activePage = activeVideo?.pages[activePageIndex] ?? activeVideo?.pages[0] ?? null;
+  const totalDownloadItems = videos.reduce(
+    (total, video) => total + Math.max(video.pages.length, 1),
+    0,
+  );
+
   const handleParse = useCallback(async (url: string) => {
     setError(null);
-    const bvid = extractBvid(url);
-    if (!bvid) {
+    setNotice(null);
+    const bvids = extractBvids(url);
+    if (bvids.length === 0) {
       setError('请输入包含 BV 号的有效 B站视频链接');
       return;
     }
 
     setIsParsing(true);
     try {
-      const result = await Bridge.fetchInfo(bvid, cookiePath);
-      if (result.error) {
-        setError(result.error);
-        setIsParsing(false);
+      const parsedVideos: VideoData[] = [];
+      const failures: string[] = [];
+
+      for (const bvid of bvids) {
+        try {
+          const result = await Bridge.fetchInfo(bvid, cookiePath);
+          if (result.error) {
+            failures.push(`${bvid}：${result.error}`);
+          } else {
+            parsedVideos.push(result);
+          }
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : '获取视频信息失败';
+          failures.push(`${bvid}：${message}`);
+        }
+      }
+
+      if (parsedVideos.length === 0) {
+        setVideos([]);
+        setSelectedVideoId(null);
+        setError(failures[0] || '获取视频信息失败');
         return;
       }
-      setVideoData(result);
-      if (result.qualities?.length > 0) {
-        setSelectedQuality(result.qualities[0]);
+
+      setVideos(parsedVideos);
+      setSelectedVideoId(parsedVideos[0].id);
+      setSelectedPageByVideo(Object.fromEntries(parsedVideos.map(video => [video.id, 0])));
+      setSelectedQuality(firstQualityForFormat(parsedVideos[0], format, selectedQuality));
+      if (failures.length > 0) {
+        setNotice(`已解析 ${parsedVideos.length} 个，失败 ${failures.length} 个`);
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : '获取视频信息失败');
+    } finally {
+      setIsParsing(false);
     }
-    setIsParsing(false);
-  }, [cookiePath]);
+  }, [cookiePath, format, selectedQuality]);
+
+  const startVideoDownload = useCallback(async (
+    video: VideoData,
+    quality = selectedQuality,
+    page: VideoPage | null = video.pages[0] ?? null,
+  ): Promise<DownloadTask> => {
+    const requestedDanmakuMode = safeDanmakuModeForQuality(format, quality, danmakuMode);
+    const taskId = await Bridge.startDownload(
+      video.id, quality, format,
+      outdir, cookiePath, format === 'audio',
+      threads,
+      format === 'video' ? requestedDanmakuMode : 'none',
+      page,
+    );
+    const effectiveDanmakuMode = format === 'video' ? requestedDanmakuMode : 'none';
+    const title = page && video.pages.length > 1
+      ? `${video.title} - P${page.page} ${page.part}`
+      : video.title;
+    return {
+      id: taskId,
+      bvid: video.id,
+      title,
+      quality,
+      format,
+      progress: 0,
+      status: 'downloading',
+      output_dir: outdir,
+      download_danmaku: effectiveDanmakuMode !== 'none',
+      danmaku_mode: effectiveDanmakuMode,
+      message: danmakuTaskMessage(effectiveDanmakuMode),
+    };
+  }, [selectedQuality, format, outdir, cookiePath, threads, danmakuMode]);
 
   const handleDownload = useCallback(async () => {
-    if (!videoData) {
+    if (!activeVideo) {
       setError('请先解析视频链接，再开始下载');
       return;
     }
 
     try {
-      const taskId = await Bridge.startDownload(
-        videoData.id, selectedQuality, format,
-        outdir, cookiePath, format === 'audio',
-        threads,
-        format === 'video' ? danmakuMode : 'none'
-      );
-      const effectiveDanmakuMode = format === 'video' ? danmakuMode : 'none';
-      const newTask: DownloadTask = {
-        id: taskId,
-        bvid: videoData.id,
-        title: videoData.title,
-        quality: selectedQuality,
-        format,
-        progress: 0,
-        status: 'downloading',
-        output_dir: outdir,
-        download_danmaku: effectiveDanmakuMode !== 'none',
-        danmaku_mode: effectiveDanmakuMode,
-        message: danmakuTaskMessage(effectiveDanmakuMode),
-      };
+      const newTask = await startVideoDownload(activeVideo, selectedQuality, activePage);
       setTasks(prev => [newTask, ...prev]);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     }
-  }, [videoData, selectedQuality, format, outdir, cookiePath, threads, danmakuMode]);
+  }, [activeVideo, startVideoDownload]);
+
+  const handleDownloadAll = useCallback(async () => {
+    if (videos.length === 0) {
+      setError('请先解析视频链接，再开始下载');
+      return;
+    }
+
+    try {
+      const results = await Promise.allSettled(
+        videos.flatMap(video => {
+          const pages = video.pages.length > 0 ? video.pages : [null];
+          return pages.map((page) => {
+            const quality = firstQualityForFormat(video, format, selectedQuality);
+            return startVideoDownload(video, quality, page);
+          });
+        }),
+      );
+      const newTasks = results
+        .filter((result): result is PromiseFulfilledResult<DownloadTask> => result.status === 'fulfilled')
+        .map(result => result.value);
+      const failedCount = results.length - newTasks.length;
+      if (newTasks.length > 0) {
+        setTasks(prev => [...newTasks, ...prev]);
+      }
+      if (failedCount > 0) {
+        setNotice(`已启动 ${newTasks.length} 个下载，失败 ${failedCount} 个`);
+      }
+      if (newTasks.length === 0 && failedCount > 0) {
+        const firstFailure = results.find((result): result is PromiseRejectedResult => result.status === 'rejected');
+        throw firstFailure?.reason ?? new Error('批量下载启动失败');
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }, [videos, format, selectedQuality, startVideoDownload]);
+
+  const handleSelectVideo = useCallback((video: VideoData) => {
+    setSelectedVideoId(video.id);
+    setSelectedQuality(firstQualityForFormat(video, format, selectedQuality));
+  }, [format, selectedQuality]);
+
+  const handleSelectPage = useCallback((page: VideoPage) => {
+    if (!activeVideo) return;
+    const nextIndex = activeVideo.pages.findIndex(item => item.cid === page.cid);
+    if (nextIndex >= 0) {
+      setSelectedPageByVideo(prev => ({ ...prev, [activeVideo.id]: nextIndex }));
+    }
+  }, [activeVideo]);
+
+  const handleStepPage = useCallback((direction: -1 | 1) => {
+    if (!activeVideo || activeVideo.pages.length <= 1) return;
+    setSelectedPageByVideo(prev => {
+      const current = prev[activeVideo.id] ?? 0;
+      const next = (current + direction + activeVideo.pages.length) % activeVideo.pages.length;
+      return { ...prev, [activeVideo.id]: next };
+    });
+  }, [activeVideo]);
 
   const handleCancel = useCallback(async (taskId: string) => {
     await Bridge.cancelDownload(taskId);
@@ -162,13 +268,71 @@ export function Home() {
             isParsing={isParsing}
             error={error}
           />
+          {notice && (
+            <div className="absolute left-1/2 top-full z-40 mt-4 -translate-x-1/2 whitespace-nowrap rounded-xl border border-orange-100 bg-orange-50 px-5 py-2.5 text-sm font-bold text-orange-500 shadow-sm">
+              {notice}
+            </div>
+          )}
         </div>
       </div>
 
-      {videoData ? (
+      {activeVideo ? (
         <div className="relative z-10 grid grid-cols-1 xl:grid-cols-[minmax(500px,720px)_430px] 2xl:grid-cols-[minmax(540px,780px)_460px] gap-6 xl:gap-10 2xl:gap-12 pb-8 items-start justify-center flex-1">
           <div className="min-w-0 flex flex-col gap-3">
-            <VideoInfo data={videoData} />
+            {videos.length > 1 && (
+              <div className="glass-panel rounded-[1.75rem] p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-sm font-black text-gray-700">
+                    <Video size={18} className="text-bili-pink" />
+                    已解析 {videos.length} 个视频
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleDownloadAll}
+                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#FF9FC0] to-[#FF86B2] px-4 text-sm font-black text-white shadow-[0_10px_22px_rgba(255,134,178,0.28)] transition-all hover:brightness-105 active:scale-[0.98]"
+                  >
+                    <Download size={16} strokeWidth={2.6} />
+                    下载全部
+                  </button>
+                </div>
+                <div className="flex max-h-36 flex-col gap-2 overflow-y-auto pr-1 custom-scrollbar">
+                  {videos.map((video, index) => {
+                    const selected = video.id === activeVideo.id;
+                    return (
+                      <button
+                        key={video.id}
+                        type="button"
+                        onClick={() => handleSelectVideo(video)}
+                        className={`flex items-center gap-3 rounded-2xl border px-3 py-2.5 text-left transition-all ${
+                          selected
+                            ? 'border-pink-100 bg-white/86 text-bili-pink shadow-sm'
+                            : 'border-white/70 bg-white/52 text-gray-600 hover:border-pink-100 hover:bg-white/78'
+                        }`}
+                      >
+                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-pink-50 text-xs font-black text-bili-pink">
+                          {index + 1}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-sm font-bold">{video.title}</span>
+                        {video.pages.length > 1 && (
+                          <span className="rounded-lg bg-white/70 px-2 py-1 text-[11px] font-black text-gray-400">
+                            {video.pages.length}P
+                          </span>
+                        )}
+                        {selected && <Check size={16} strokeWidth={2.8} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+            <VideoInfo
+              data={activeVideo}
+              currentPage={activePage}
+              currentPageIndex={activePageIndex}
+              onPrevPage={() => handleStepPage(-1)}
+              onNextPage={() => handleStepPage(1)}
+              onSelectPage={handleSelectPage}
+            />
             {tasks.length > 0 && (
               <div className="flex flex-col gap-4">
                 <div className="relative">
@@ -191,10 +355,13 @@ export function Home() {
           </div>
           <div className="flex flex-col gap-8 xl:sticky xl:top-8">
             <DownloadOptions
-              data={videoData}
+              data={activeVideo}
               selectedQuality={selectedQuality}
               onSelectQuality={setSelectedQuality}
               onDownload={handleDownload}
+              batchCount={totalDownloadItems}
+              currentPageLabel={activePage && activeVideo.pages.length > 1 ? `P${activePage.page}` : undefined}
+              onDownloadAll={totalDownloadItems > 1 ? handleDownloadAll : undefined}
               format={format}
               onFormatChange={handleFormatChange}
               threads={threads}
@@ -236,7 +403,38 @@ function danmakuTaskMessage(mode: DanmakuMode): string | undefined {
   return undefined;
 }
 
-function extractBvid(text: string): string | null {
-  const m = /BV\w{10,}/.exec(text.trim());
-  return m ? m[0] : null;
+function safeDanmakuModeForQuality(
+  format: 'video' | 'audio',
+  quality: string,
+  mode: DanmakuMode,
+): DanmakuMode {
+  if (format !== 'video') return 'none';
+  if (
+    mode === 'burn' &&
+    (quality.includes('8K') || quality.includes('HDR') || quality.includes('杜比'))
+  ) {
+    return 'ass';
+  }
+  return mode;
+}
+
+function firstQualityForFormat(
+  video: VideoData,
+  format: 'video' | 'audio',
+  currentQuality: string,
+): string {
+  if (format === 'audio') {
+    const audioLabels = video.audio_streams?.map(stream => stream.label) ?? [];
+    return audioLabels.includes(currentQuality)
+      ? currentQuality
+      : audioLabels[0] || '320kbps 高品质';
+  }
+  return video.qualities.includes(currentQuality)
+    ? currentQuality
+    : video.qualities[0] || currentQuality;
+}
+
+function extractBvids(text: string): string[] {
+  const matches = text.match(/BV[a-zA-Z0-9]{10,}/g) ?? [];
+  return [...new Set(matches)];
 }

@@ -22,6 +22,7 @@ import type {
   StartDownloadResponse,
   VideoData,
   AppErrorPayload,
+  VideoPage,
 } from './types';
 
 export type ProgressHandler = (taskId: string, percent: number, speed: string, event: DownloadProgressEvent) => void;
@@ -155,7 +156,8 @@ export async function fetchImageDataUrl(url: string): Promise<string> {
 
 export async function startDownload(
   bvid: string, quality: string, fmt: string,
-  outdir: string, cookiePath = '', skipMerge = false, threads = 8, danmakuMode: DanmakuMode = 'none'
+  outdir: string, cookiePath = '', skipMerge = false, threads = 8,
+  danmakuMode: DanmakuMode = 'none', page?: VideoPage | null,
 ): Promise<string> {
   if (!isTauriRuntime()) throw missingRuntimeError();
   await ensureEventListeners();
@@ -163,6 +165,9 @@ export async function startDownload(
   const effectiveDanmakuMode = isVideo ? danmakuMode : 'none';
   const input: StartDownloadRequest = {
     bvid,
+    cid: page?.cid ?? null,
+    page: page?.page ?? null,
+    part: page?.part ?? null,
     quality,
     format: isVideo ? 'video' : 'audio',
     outdir,

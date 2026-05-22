@@ -513,9 +513,18 @@ async fn run_download_task(
     });
 
     let video = client.video_info(&input.bvid, cookies.as_ref()).await?;
-    let page = video.pages.first().ok_or_else(|| AppError::InvalidInput {
-        message: "视频没有可下载分P".to_string(),
-    })?;
+    let page = input
+        .cid
+        .and_then(|cid| video.pages.iter().find(|page| page.cid == cid))
+        .or_else(|| {
+            input
+                .page
+                .and_then(|page_no| video.pages.iter().find(|page| page.page == page_no))
+        })
+        .or_else(|| video.pages.first())
+        .ok_or_else(|| AppError::InvalidInput {
+            message: "视频没有可下载分P".to_string(),
+        })?;
     let qn = quality_to_qn(&input.quality);
     let max_workers = input.threads.clamp(1, 32);
     let playurl = client
@@ -1015,12 +1024,20 @@ fn progress_sender(app: AppHandle) -> ProgressSender {
 }
 
 fn quality_to_qn(quality: &str) -> u32 {
-    if quality.contains("HDR") {
+    if quality.contains("8K") {
+        127
+    } else if quality.contains("杜比") || quality.to_ascii_lowercase().contains("dolby") {
+        126
+    } else if quality.contains("HDR") {
         125
     } else if quality.contains("4K") {
         120
     } else if quality.contains("1080P60") {
         116
+    } else if quality.contains("1080P+") {
+        112
+    } else if quality.contains("720P60") {
+        74
     } else if quality.contains("1080P") {
         80
     } else if quality.contains("720P") {
@@ -1033,16 +1050,41 @@ fn quality_to_qn(quality: &str) -> u32 {
 }
 
 fn select_video_track(tracks: &[DashTrack], qn: u32) -> Option<DashTrack> {
+    let wants_dolby = qn == 126;
+    let wants_hdr = qn == 125;
     tracks
         .iter()
         .filter(|track| track.id <= qn)
-        .max_by_key(|track| (track.id, track.bandwidth.unwrap_or_default()))
+        .max_by_key(|track| {
+            (
+                track.id,
+                u8::from(wants_dolby && is_dolby_track(track)),
+                u8::from(wants_hdr && is_hdr_track(track)),
+                track.bandwidth.unwrap_or_default(),
+            )
+        })
         .or_else(|| {
             tracks
                 .iter()
                 .max_by_key(|track| track.bandwidth.unwrap_or_default())
         })
         .cloned()
+}
+
+fn is_dolby_track(track: &DashTrack) -> bool {
+    let codecs = track.codecs.to_ascii_lowercase();
+    codecs.contains("dvh")
+        || codecs.contains("dvhe")
+        || codecs.contains("dolby")
+        || track
+            .mime_type
+            .as_deref()
+            .is_some_and(|mime| mime.to_ascii_lowercase().contains("dolby"))
+}
+
+fn is_hdr_track(track: &DashTrack) -> bool {
+    let codecs = track.codecs.to_ascii_lowercase();
+    codecs.contains("hev1") || codecs.contains("hvc1") || track.id == 125
 }
 
 fn select_audio_track(tracks: &[DashTrack], quality: &str) -> Option<DashTrack> {
@@ -1096,6 +1138,45 @@ mod tests {
             base_url: format!("https://example.test/{id}.m4s"),
             backup_urls: vec![],
         }
+    }
+
+    fn dash_video_track(id: u32, codecs: &str, bandwidth: u64) -> DashTrack {
+        DashTrack {
+            id,
+            codecs: codecs.to_string(),
+            width: Some(if id == 127 { 7680 } else { 3840 }),
+            height: Some(if id == 127 { 4320 } else { 2160 }),
+            frame_rate: Some("60".to_string()),
+            bandwidth: Some(bandwidth),
+            size_bytes: Some(bandwidth),
+            mime_type: Some("video/mp4".to_string()),
+            base_url: format!("https://example.test/video-{id}-{bandwidth}.m4s"),
+            backup_urls: vec![],
+        }
+    }
+
+    #[test]
+    fn quality_to_qn_supports_8k_and_dolby() {
+        assert_eq!(quality_to_qn("8K"), 127);
+        assert_eq!(quality_to_qn("杜比视界"), 126);
+        assert_eq!(quality_to_qn("8K 杜比视界"), 127);
+        assert_eq!(quality_to_qn("HDR"), 125);
+        assert_eq!(quality_to_qn("1080P+"), 112);
+        assert_eq!(quality_to_qn("720P60"), 74);
+    }
+
+    #[test]
+    fn select_video_track_prefers_requested_dolby_variant() {
+        let tracks = vec![
+            dash_video_track(126, "hev1.2.4.L153", 8_000_000),
+            dash_video_track(126, "dvh1.08.07", 7_000_000),
+            dash_video_track(120, "avc1.640034", 10_000_000),
+        ];
+
+        let selected = select_video_track(&tracks, 126).expect("track should be selected");
+
+        assert_eq!(selected.id, 126);
+        assert!(selected.codecs.contains("dvh"));
     }
 
     #[test]

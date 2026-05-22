@@ -16,6 +16,9 @@ pub struct VideoPage {
     pub cid: u64,
     pub page: u32,
     pub part: String,
+    pub duration: String,
+    pub duration_sec: u64,
+    pub thumbnail: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
