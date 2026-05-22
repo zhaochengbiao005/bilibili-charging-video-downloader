@@ -6,6 +6,7 @@ import { DownloadOptions } from '../components/DownloadOptions';
 import { DownloadQueue } from '../components/DownloadQueue';
 import type { VideoData, DownloadTask } from '../types';
 import * as Bridge from '../bridge';
+import homeBg from '../assets/home-bg.png';
 
 export function Home() {
   const [isParsing, setIsParsing] = useState(false);
@@ -146,15 +147,21 @@ export function Home() {
   );
 
   return (
-    <div className="w-full min-h-full px-6 md:px-10 xl:px-14 2xl:px-16 py-8 md:py-10 flex flex-col gap-8 md:gap-10">
+    <div className="relative w-full min-h-full px-6 md:px-10 xl:px-14 2xl:px-16 py-8 md:py-10 flex flex-col gap-7 md:gap-8 overflow-hidden">
+      <img
+        src={homeBg}
+        alt=""
+        aria-hidden="true"
+        className="pointer-events-none absolute right-[-88px] bottom-[-132px] z-0 w-[520px] max-w-[54vw] opacity-70 drop-shadow-[0_22px_52px_rgba(123,207,255,0.18)] sm:w-[600px] xl:w-[690px] 2xl:w-[760px]"
+      />
       <div className="text-center flex flex-col items-center shrink-0 relative">
         <div className="bili-soft-pattern absolute -top-4 left-1/2 h-24 w-[420px] -translate-x-1/2 rounded-full opacity-45 blur-[0.2px]" />
         <h1 className="relative text-[34px] font-black tracking-tight text-[#1F2937] drop-shadow-sm">下载你喜欢的视频</h1>
         <p className="mt-3 text-base text-gray-500 font-medium">粘贴 B站视频链接，快速解析并下载高清视频与音频</p>
       </div>
 
-      <div className="flex justify-center shrink-0">
-        <div className="w-full max-w-[770px] bili-input-panel rounded-full p-2 pl-6 relative backdrop-blur-[24px]">
+      <div className="flex justify-center shrink-0 relative z-10 mt-8 md:mt-10">
+        <div className="w-full max-w-[980px] relative">
           <UrlInput
             onParse={handleParse}
             isParsing={isParsing}
@@ -164,8 +171,8 @@ export function Home() {
       </div>
 
       {videoData ? (
-        <div className="grid grid-cols-1 xl:grid-cols-[minmax(560px,880px)_430px] 2xl:grid-cols-[minmax(640px,940px)_460px] gap-8 xl:gap-14 2xl:gap-16 pb-10 items-start justify-center flex-1">
-          <div className="min-w-0 flex flex-col gap-6">
+        <div className="relative z-10 grid grid-cols-1 xl:grid-cols-[minmax(500px,720px)_430px] 2xl:grid-cols-[minmax(540px,780px)_460px] gap-6 xl:gap-10 2xl:gap-12 pb-8 items-start justify-center flex-1">
+          <div className="min-w-0 flex flex-col gap-3">
             <VideoInfo data={videoData} />
             {tasks.length > 0 && (
               <div className="flex flex-col gap-4">
@@ -187,7 +194,7 @@ export function Home() {
               </div>
             )}
           </div>
-          <div className="flex flex-col gap-8 xl:sticky xl:top-10">
+          <div className="flex flex-col gap-8 xl:sticky xl:top-8">
             <DownloadOptions
               data={videoData}
               selectedQuality={selectedQuality}

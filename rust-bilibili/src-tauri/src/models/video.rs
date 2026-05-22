@@ -28,10 +28,20 @@ pub struct StreamOption {
     pub height: Option<u32>,
     pub frame_rate: Option<String>,
     pub bandwidth: Option<u64>,
+    pub size_bytes: Option<u64>,
     pub requires_login: bool,
     pub requires_vip: bool,
     pub available: bool,
     pub unavailable_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct AudioStreamOption {
+    pub id: String,
+    pub label: String,
+    pub bandwidth: Option<u64>,
+    pub size_bytes: Option<u64>,
+    pub available: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -47,6 +57,7 @@ pub struct VideoData {
     pub pages: Vec<VideoPage>,
     pub qualities: Vec<String>,
     pub streams: Vec<StreamOption>,
+    pub audio_streams: Vec<AudioStreamOption>,
     pub is_charging: Option<bool>,
     pub is_vip: Option<bool>,
     pub vip_type: Option<u32>,

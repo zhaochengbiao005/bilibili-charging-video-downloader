@@ -21,6 +21,8 @@ export function DownloadOptions({
   if (!data) return null;
 
   const audioQualities = ['320kbps 高品质', '192kbps 标准', '128kbps 基础'];
+  const firstAvailableAudioQuality =
+    data.audio_streams?.find((stream) => stream.available)?.label ?? audioQualities[0];
   const qualities = format === 'video' ? data.qualities : audioQualities;
   const visibleStreams = format === 'video'
     ? data.streams
@@ -29,7 +31,7 @@ export function DownloadOptions({
   const handleFormatSwitch = (f: 'video' | 'audio') => {
     onFormatChange(f);
     if (f === 'audio') {
-      onSelectQuality(audioQualities[0]);
+      onSelectQuality(firstAvailableAudioQuality);
     } else if (data.qualities.length > 0) {
       onSelectQuality(data.qualities[0]);
     }
@@ -101,19 +103,29 @@ export function DownloadOptions({
         <div className="flex flex-col gap-2.5">
           {qualities.map((q) => {
             const isSelected = selectedQuality === q;
-            const isPremium = q.includes('4K') || q.includes('HDR') || q.includes('320kbps');
+            const isPremium = format === 'video' && (q.includes('4K') || q.includes('HDR'));
             const stream = visibleStreams.find((item) => item.label === q);
             const needsLogin = Boolean(stream?.requires_login && !data.is_login);
-            const unavailableReason = needsLogin ? '需登录' : stream?.unavailable_reason;
+            const audioStream = data.audio_streams?.find((item) => item.label === q);
+            const unavailableReason = needsLogin
+              ? '需登录'
+              : format === 'audio' && audioStream?.available === false
+                ? '无此音质'
+                : stream?.unavailable_reason;
+            const isDisabled = Boolean(unavailableReason);
             const fileSize = format === 'video'
-              ? (q.includes('4K') ? '~850 MB' : q.includes('1080P60') ? '~450 MB' : q.includes('1080P') ? '~245 MB' : q.includes('720P') ? '~120 MB' : '~50 MB')
-              : (q.includes('320kbps') ? '~12 MB' : q.includes('192kbps') ? '~8 MB' : '~5 MB');
+              ? formatFileSize(stream?.size_bytes)
+              : formatFileSize(audioStream?.size_bytes);
 
             return (
               <label
                 key={q}
-                className={`group flex items-center justify-between p-4 rounded-2xl border-2 cursor-pointer transition-all ${
-                  isSelected ? 'border-bili-pink bg-pink-50/30' : 'border-white bg-white/40 hover:border-pink-200'
+                className={`group flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${
+                  isDisabled
+                    ? 'cursor-not-allowed border-white/60 bg-white/25 opacity-60'
+                    : isSelected
+                      ? 'cursor-pointer border-bili-pink bg-pink-50/30'
+                      : 'cursor-pointer border-white bg-white/40 hover:border-pink-200'
                 }`}
               >
                 <div className="flex items-center gap-4">
@@ -133,7 +145,16 @@ export function DownloadOptions({
                 }`}>
                   {fileSize}
                 </div>
-                <input type="radio" name="quality" className="hidden" checked={isSelected} onChange={() => onSelectQuality(q)} />
+                <input
+                  type="radio"
+                  name="quality"
+                  className="hidden"
+                  checked={isSelected}
+                  disabled={isDisabled}
+                  onChange={() => {
+                    if (!isDisabled) onSelectQuality(q);
+                  }}
+                />
               </label>
             );
           })}
@@ -177,4 +198,11 @@ export function DownloadOptions({
       </button>
     </div>
   );
+}
+
+function formatFileSize(sizeBytes?: number | null): string {
+  if (!sizeBytes || !Number.isFinite(sizeBytes) || sizeBytes <= 0) return '大小未知';
+  const mib = sizeBytes / 1024 / 1024;
+  if (mib < 100) return `${mib.toFixed(1)} MB`;
+  return `${Math.round(mib)} MB`;
 }

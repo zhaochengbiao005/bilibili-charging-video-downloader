@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Clock, Home, Info, Settings as SettingsIcon, Heart } from 'lucide-react';
+import { Clock, Home, Info, Settings as SettingsIcon } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import defaultLoginAvatar from '../assets/user-login-default.jpg';
 import type { LoginStatus } from '../types';
@@ -88,12 +88,7 @@ export function Sidebar({ loginStatus, onLoginClick }: SidebarProps) {
         </NavLink>
       </nav>
 
-      <div className="px-10 pb-6 mt-auto">
-        <button className="w-full flex items-center justify-center gap-2 py-3.5 bg-pink-50/60 hover:bg-pink-100/65 text-bili-pink rounded-2xl font-black transition-all border border-[#FFE1EC] shadow-[0_8px_18px_rgba(255,143,179,0.12)]">
-          <Heart size={18} strokeWidth={2.5} />
-          支持项目
-        </button>
-      </div>
+      <div className="pb-6 mt-auto" />
     </aside>
   );
 }

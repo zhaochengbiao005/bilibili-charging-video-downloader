@@ -141,12 +141,12 @@ export function LoginModal({ isOpen, loginStatus, onLoginChange, onClose }: Logi
       <img
         src={mascot22}
         alt="22娘"
-        className="pointer-events-none absolute -left-24 top-20 z-20 hidden h-40 w-32 object-contain drop-shadow-[0_22px_34px_rgba(37,99,235,0.22)] sm:block md:-left-32 md:top-16 md:h-52 md:w-40"
+        className="pointer-events-none absolute -left-32 top-14 z-20 hidden h-60 w-48 object-contain drop-shadow-[0_22px_34px_rgba(37,99,235,0.22)] sm:block md:-left-52 md:top-10 md:h-80 md:w-64 lg:-left-60 lg:h-[22rem] lg:w-72"
       />
       <img
         src={mascot33}
         alt="33娘"
-        className="pointer-events-none absolute -right-24 top-20 z-20 hidden h-40 w-32 object-contain drop-shadow-[0_22px_34px_rgba(255,143,179,0.24)] sm:block md:-right-32 md:top-16 md:h-52 md:w-40"
+        className="pointer-events-none absolute -right-32 top-14 z-20 hidden h-60 w-48 object-contain drop-shadow-[0_22px_34px_rgba(255,143,179,0.24)] sm:block md:-right-52 md:top-10 md:h-80 md:w-64 lg:-right-60 lg:h-[22rem] lg:w-72"
       />
 
       <button

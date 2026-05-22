@@ -524,7 +524,7 @@ async fn run_download_task(
             task_id: Some(task_id.clone()),
             message: "没有找到 DASH 音频流".to_string(),
         })?;
-        let track = select_audio_track(&dash.audio).ok_or_else(|| AppError::Download {
+        let track = select_audio_track(&dash.audio, &input.quality).ok_or_else(|| AppError::Download {
             task_id: Some(task_id.clone()),
             message: "没有可下载音频流".to_string(),
         })?;
@@ -597,7 +597,7 @@ async fn run_download_task(
             )
             .await?;
 
-        let Some(audio_track) = select_audio_track(&dash.audio) else {
+        let Some(audio_track) = select_audio_track(&dash.audio, &input.quality) else {
             return Err(AppError::Download {
                 task_id: Some(task_id),
                 message: "没有可用于合并 MP4 的音频流".to_string(),
@@ -853,10 +853,23 @@ fn select_video_track(tracks: &[DashTrack], qn: u32) -> Option<DashTrack> {
         .cloned()
 }
 
-fn select_audio_track(tracks: &[DashTrack]) -> Option<DashTrack> {
+fn select_audio_track(tracks: &[DashTrack], quality: &str) -> Option<DashTrack> {
+    let target_id = if quality.contains("128kbps") {
+        30216
+    } else if quality.contains("192kbps") {
+        30232
+    } else {
+        30280
+    };
+
     tracks
         .iter()
-        .max_by_key(|track| track.bandwidth.unwrap_or_default())
+        .find(|track| track.id == target_id)
+        .or_else(|| {
+            tracks
+                .iter()
+                .max_by_key(|track| track.bandwidth.unwrap_or_default())
+        })
         .cloned()
 }
 
@@ -872,4 +885,37 @@ fn first_url(primary: &str, backups: &[String]) -> AppResult<String> {
             task_id: None,
             message: "播放地址为空".to_string(),
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn dash_audio_track(id: u32, bandwidth: u64) -> DashTrack {
+        DashTrack {
+            id,
+            codecs: "mp4a".to_string(),
+            width: None,
+            height: None,
+            frame_rate: None,
+            bandwidth: Some(bandwidth),
+            size_bytes: Some(bandwidth),
+            mime_type: Some("audio/mp4".to_string()),
+            base_url: format!("https://example.test/{id}.m4s"),
+            backup_urls: vec![],
+        }
+    }
+
+    #[test]
+    fn select_audio_track_prefers_matching_bilibili_audio_id() {
+        let tracks = vec![
+            dash_audio_track(30280, 320_000),
+            dash_audio_track(30232, 192_000),
+            dash_audio_track(30216, 128_000),
+        ];
+
+        assert_eq!(select_audio_track(&tracks, "320kbps 高品质").unwrap().id, 30280);
+        assert_eq!(select_audio_track(&tracks, "192kbps 标准").unwrap().id, 30232);
+        assert_eq!(select_audio_track(&tracks, "128kbps 基础").unwrap().id, 30216);
+    }
 }

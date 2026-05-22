@@ -1,5 +1,11 @@
 import React from 'react';
-import { Info, Code, ShieldCheck, Heart } from 'lucide-react';
+import { Info, Code, ShieldCheck, Github, ExternalLink } from 'lucide-react';
+
+const BILIBILI_PROFILE_URL = 'https://space.bilibili.com/228533833?spm_id_from=333.788.0.0';
+const GITHUB_REPO_URL = 'https://github.com/zhaochengbiao005?tab=repositories';
+
+const linkClass =
+  'flex items-center justify-center gap-2 px-6 py-3.5 bg-white/70 hover:bg-white text-gray-800 rounded-2xl font-black transition-all border border-[#FFE1EC] shadow-[0_10px_24px_rgba(255,143,179,0.12)] hover:text-bili-pink hover:scale-[1.02] shrink-0';
 
 export function About() {
   return (
@@ -9,7 +15,7 @@ export function About() {
              <Info size={32} strokeWidth={2.5} className="-rotate-3" />
           </div>
           <h1 className="text-4xl font-black tracking-tight mb-4 text-gray-900 drop-shadow-sm">关于 B站视频下载器</h1>
-          <p className="text-lg text-gray-600 font-medium max-w-xl shadow-sm">
+          <p className="text-lg text-gray-600 font-medium max-w-xl leading-relaxed">
             一个快速、安全、现代的 B站视频下载工具，帮助你在本地完成解析、下载、合并和历史管理。
           </p>
        </div>
@@ -37,13 +43,19 @@ export function About() {
 
        <div className="glass-panel p-8 md:p-10 rounded-[2rem] mt-6 flex flex-col md:flex-row items-center justify-between gap-8">
           <div>
-            <h3 className="text-2xl font-bold text-gray-900 mb-2">支持项目</h3>
-            <p className="text-gray-600 font-medium">如果这个工具帮到了你，可以继续关注后续的登录、下载和合并能力完善。</p>
+            <h3 className="text-2xl font-bold text-gray-900 mb-2">相关链接</h3>
+            <p className="text-gray-600 font-medium">可以通过 B站主页和 GitHub 仓库查看后续更新。</p>
           </div>
-          <button className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-bili-pink to-bili-pink-hover text-white rounded-2xl font-bold shadow-[0_14px_30px_rgba(255,143,179,0.28)] hover:scale-105 transition-all shrink-0">
-             <Heart size={20} strokeWidth={2.5} />
-             支持一下
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+            <a href={BILIBILI_PROFILE_URL} target="_blank" rel="noreferrer" className={linkClass}>
+              <ExternalLink size={18} strokeWidth={2.5} />
+              我的 B站主页
+            </a>
+            <a href={GITHUB_REPO_URL} target="_blank" rel="noreferrer" className={linkClass}>
+              <Github size={18} strokeWidth={2.5} />
+              GitHub 项目仓库
+            </a>
+          </div>
        </div>
 
        <div className="text-center text-gray-500 font-medium text-sm mt-12 pb-8">

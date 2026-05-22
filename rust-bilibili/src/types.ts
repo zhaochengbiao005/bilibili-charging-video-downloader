@@ -13,10 +13,19 @@ export interface StreamOption {
   height?: number;
   frame_rate?: string;
   bandwidth?: number;
+  size_bytes?: number | null;
   requires_login: boolean;
   requires_vip: boolean;
   available: boolean;
   unavailable_reason?: string;
+}
+
+export interface AudioStreamOption {
+  id: string;
+  label: string;
+  bandwidth?: number | null;
+  size_bytes?: number | null;
+  available: boolean;
 }
 
 export interface VideoData {
@@ -31,6 +40,7 @@ export interface VideoData {
   pages: VideoPage[];
   qualities: string[];
   streams: StreamOption[];
+  audio_streams: AudioStreamOption[];
   is_charging?: boolean;
   is_vip?: boolean;
   vip_type?: number;     // 0=none, 1=monthly, 2=annual
@@ -101,6 +111,7 @@ export interface DashTrack {
   height?: number | null;
   frame_rate?: string | null;
   bandwidth?: number | null;
+  size_bytes?: number | null;
   mime_type?: string | null;
   base_url: string;
   backup_urls: string[];

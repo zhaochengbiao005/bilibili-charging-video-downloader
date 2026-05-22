@@ -1,8 +1,8 @@
 use std::time::Duration;
 
 use reqwest::header::{
-    HeaderMap, HeaderValue, ACCEPT, ACCEPT_LANGUAGE, COOKIE, ORIGIN, REFERER, SET_COOKIE,
-    USER_AGENT,
+    HeaderMap, HeaderValue, ACCEPT, ACCEPT_LANGUAGE, CONTENT_LENGTH, CONTENT_RANGE, COOKIE,
+    ORIGIN, RANGE, REFERER, SET_COOKIE, USER_AGENT,
 };
 use serde::Deserialize;
 
@@ -14,7 +14,7 @@ use crate::{
     error::{AppError, AppResult},
     models::{
         download::{DashStreams, DashTrack, DurlSegment, PlayUrlResponse},
-        video::{StreamOption, VideoData, VideoPage},
+        video::{AudioStreamOption, StreamOption, VideoData, VideoPage},
     },
 };
 
@@ -75,6 +75,11 @@ impl BilibiliClient {
         })?;
 
         let mut video = data.into_video_data();
+        if let Some(page) = video.pages.first() {
+            if let Ok(playurl) = self.playurl(bvid, page.cid, 80, cookies).await {
+                video.apply_playurl_sizes(&playurl);
+            }
+        }
         if let Some(login) = login {
             video.is_login = Some(login.is_login);
             video.login_name = login.username;
@@ -153,7 +158,9 @@ impl BilibiliClient {
             message: "B站响应缺少播放地址".to_string(),
         })?;
 
-        Ok(data.into_playurl_response())
+        let mut playurl = data.into_playurl_response();
+        self.enrich_playurl_track_sizes(&mut playurl, bvid).await;
+        Ok(playurl)
     }
 
     pub async fn start_qr_login(&self) -> AppResult<QrLoginStartResponse> {
@@ -242,6 +249,52 @@ impl BilibiliClient {
             cookies: (data.code == 0 && cookies.has_login_cookie()).then_some(cookies),
         })
     }
+
+    async fn enrich_playurl_track_sizes(&self, playurl: &mut PlayUrlResponse, bvid: &str) {
+        let Some(dash) = &mut playurl.dash else {
+            return;
+        };
+        let referer = format!("https://www.bilibili.com/video/{bvid}");
+
+        for track in dash.video.iter_mut().chain(dash.audio.iter_mut()) {
+            if track.size_bytes.is_some() {
+                continue;
+            }
+
+            let mut urls = std::iter::once(&track.base_url)
+                .chain(track.backup_urls.iter())
+                .filter(|url| !url.trim().is_empty());
+
+            for url in &mut urls {
+                if let Some(size) = self.probe_content_length(url, &referer).await {
+                    track.size_bytes = Some(size);
+                    break;
+                }
+            }
+        }
+    }
+
+    async fn probe_content_length(&self, url: &str, referer: &str) -> Option<u64> {
+        if let Ok(response) = self.client.head(url).header(REFERER, referer).send().await {
+            if response.status().is_success() {
+                if let Some(size) = header_content_length(response.headers()) {
+                    return Some(size);
+                }
+            }
+        }
+
+        let response = self
+            .client
+            .get(url)
+            .header(REFERER, referer)
+            .header(RANGE, "bytes=0-0")
+            .send()
+            .await
+            .ok()?;
+
+        header_content_range_total(response.headers())
+            .or_else(|| header_content_length(response.headers()))
+    }
 }
 
 fn default_headers() -> HeaderMap {
@@ -289,6 +342,26 @@ fn format_count(count: u64) -> String {
     } else {
         count.to_string()
     }
+}
+
+fn header_content_length(headers: &HeaderMap) -> Option<u64> {
+    headers
+        .get(CONTENT_LENGTH)?
+        .to_str()
+        .ok()?
+        .parse::<u64>()
+        .ok()
+}
+
+fn header_content_range_total(headers: &HeaderMap) -> Option<u64> {
+    headers
+        .get(CONTENT_RANGE)?
+        .to_str()
+        .ok()?
+        .rsplit('/')
+        .next()?
+        .parse::<u64>()
+        .ok()
 }
 
 #[derive(Debug, Deserialize)]
@@ -351,6 +424,7 @@ impl ViewData {
             pages,
             qualities,
             streams,
+            audio_streams: default_audio_stream_options(),
             is_charging: Some(is_charging),
             is_vip: Some(is_vip),
             vip_type: None,
@@ -361,6 +435,85 @@ impl ViewData {
             error: None,
         }
     }
+}
+
+impl VideoData {
+    fn apply_playurl_sizes(&mut self, playurl: &PlayUrlResponse) {
+        if let Some(dash) = &playurl.dash {
+            self.audio_streams = build_audio_stream_options(&dash.audio);
+
+            for stream in &mut self.streams {
+                let video_size = dash
+                    .video
+                    .iter()
+                    .filter(|track| track.id == stream.qn)
+                    .max_by_key(|track| (track.id, track.bandwidth.unwrap_or_default()))
+                    .and_then(|track| track.size_bytes);
+                let audio_size = dash
+                    .audio
+                    .iter()
+                    .max_by_key(|track| track.bandwidth.unwrap_or_default())
+                    .and_then(|track| track.size_bytes);
+                stream.size_bytes = match (video_size, audio_size) {
+                    (Some(video), Some(audio)) => Some(video.saturating_add(audio)),
+                    (Some(video), None) => Some(video),
+                    _ => None,
+                };
+            }
+        } else {
+            let durl_size = playurl
+                .durl
+                .iter()
+                .map(|segment| segment.size)
+                .sum::<u64>();
+            if durl_size > 0 {
+                for stream in &mut self.streams {
+                    if stream.qn == playurl.quality {
+                        stream.size_bytes = Some(durl_size);
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn default_audio_stream_options() -> Vec<AudioStreamOption> {
+    [
+        ("320kbps 高品质", 30280),
+        ("192kbps 标准", 30232),
+        ("128kbps 基础", 30216),
+    ]
+        .into_iter()
+        .map(|(label, id)| AudioStreamOption {
+            id: format!("audio_{id}"),
+            label: label.to_string(),
+            bandwidth: None,
+            size_bytes: None,
+            available: false,
+        })
+        .collect()
+}
+
+fn build_audio_stream_options(tracks: &[DashTrack]) -> Vec<AudioStreamOption> {
+    let audio_tiers = [
+        (30280, "320kbps 高品质"),
+        (30232, "192kbps 标准"),
+        (30216, "128kbps 基础"),
+    ];
+
+    audio_tiers
+        .into_iter()
+        .map(|(id, label)| {
+            let track = tracks.iter().find(|track| track.id == id);
+            AudioStreamOption {
+                id: format!("audio_{id}"),
+                label: label.to_string(),
+                bandwidth: track.and_then(|track| track.bandwidth),
+                size_bytes: track.and_then(|track| track.size_bytes),
+                available: track.is_some(),
+            }
+        })
+        .collect()
 }
 
 fn default_stream_options(is_charging: bool, is_vip: bool) -> Vec<StreamOption> {
@@ -384,6 +537,7 @@ fn default_stream_options(is_charging: bool, is_vip: bool) -> Vec<StreamOption> 
             height: None,
             frame_rate: None,
             bandwidth: None,
+            size_bytes: None,
             requires_login,
             requires_vip,
             available: !requires_vip,
@@ -552,6 +706,8 @@ struct DashTrackData {
     backup_url_camel: Vec<String>,
     #[serde(default)]
     backup_url: Vec<String>,
+    #[serde(default)]
+    size: Option<u64>,
 }
 
 impl DashTrackData {
@@ -564,6 +720,7 @@ impl DashTrackData {
             height: self.height,
             frame_rate: self.frame_rate.or(self.frame_rate_camel),
             bandwidth: self.bandwidth,
+            size_bytes: self.size,
             mime_type: self.mime_type.or(self.mime_type_camel),
             base_url,
             backup_urls: merge_url_lists(self.backup_url, self.backup_url_camel),
@@ -707,5 +864,81 @@ mod tests {
             status.avatar.as_deref(),
             Some("https://i0.hdslb.com/bfs/face/user.jpg")
         );
+    }
+
+    #[test]
+    fn playurl_sizes_map_to_stream_and_audio_options() {
+        let mut video = VideoData {
+            id: "BV1xx411c7mD".to_string(),
+            title: "demo".to_string(),
+            author: "UP主".to_string(),
+            author_avatar: String::new(),
+            thumbnail: String::new(),
+            views: "1".to_string(),
+            duration: "0:01".to_string(),
+            duration_sec: 1,
+            pages: vec![VideoPage {
+                cid: 1,
+                page: 1,
+                part: "P1".to_string(),
+            }],
+            qualities: vec!["1080P".to_string()],
+            streams: default_stream_options(false, false),
+            audio_streams: default_audio_stream_options(),
+            is_charging: Some(false),
+            is_vip: Some(false),
+            vip_type: None,
+            is_login: None,
+            login_name: None,
+            login_level: None,
+            desc: None,
+            error: None,
+        };
+        let playurl = PlayUrlResponse {
+            quality: 80,
+            timelength: 1,
+            accept_quality: vec![80],
+            dash: Some(DashStreams {
+                duration: 1,
+                video: vec![DashTrack {
+                    id: 80,
+                    codecs: "avc1".to_string(),
+                    width: Some(1920),
+                    height: Some(1080),
+                    frame_rate: Some("30".to_string()),
+                    bandwidth: Some(2_000_000),
+                    size_bytes: Some(20_000_000),
+                    mime_type: Some("video/mp4".to_string()),
+                    base_url: "https://example.test/video.m4s".to_string(),
+                    backup_urls: vec![],
+                }],
+                audio: vec![DashTrack {
+                    id: 30280,
+                    codecs: "mp4a".to_string(),
+                    width: None,
+                    height: None,
+                    frame_rate: None,
+                    bandwidth: Some(320_000),
+                    size_bytes: Some(3_200_000),
+                    mime_type: Some("audio/mp4".to_string()),
+                    base_url: "https://example.test/audio.m4s".to_string(),
+                    backup_urls: vec![],
+                }],
+            }),
+            durl: vec![],
+        };
+
+        video.apply_playurl_sizes(&playurl);
+
+        let stream_1080p = video
+            .streams
+            .iter()
+            .find(|stream| stream.qn == 80)
+            .expect("1080P stream should exist");
+        assert_eq!(stream_1080p.size_bytes, Some(23_200_000));
+        assert_eq!(video.audio_streams[0].label, "320kbps 高品质");
+        assert_eq!(video.audio_streams[0].size_bytes, Some(3_200_000));
+        assert!(video.audio_streams[0].available);
+        assert!(!video.audio_streams[1].available);
     }
 }

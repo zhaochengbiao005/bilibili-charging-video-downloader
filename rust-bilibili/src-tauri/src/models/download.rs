@@ -32,6 +32,7 @@ pub struct DashTrack {
     pub height: Option<u32>,
     pub frame_rate: Option<String>,
     pub bandwidth: Option<u64>,
+    pub size_bytes: Option<u64>,
     pub mime_type: Option<String>,
     pub base_url: String,
     pub backup_urls: Vec<String>,
