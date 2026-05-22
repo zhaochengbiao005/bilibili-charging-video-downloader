@@ -175,7 +175,7 @@ export function LoginModal({ isOpen, loginStatus, onLoginChange, onClose }: Logi
 
       <button
         onClick={onClose}
-        className="absolute right-3 top-3 z-20 h-9 w-9 rounded-full border border-white bg-white/85 text-gray-500 shadow-lg transition hover:scale-105 hover:text-bili-pink"
+        className="motion-button absolute right-3 top-3 z-20 h-9 w-9 rounded-full border border-white bg-white/85 text-gray-500 shadow-lg hover:text-bili-pink"
         aria-label="关闭登录"
       >
         <X className="mx-auto" size={18} />
@@ -235,7 +235,7 @@ export function LoginModal({ isOpen, loginStatus, onLoginChange, onClose }: Logi
             </div>
             <button
               onClick={handleLogout}
-              className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl border border-pink-100 bg-white px-5 py-3.5 text-base font-black text-bili-pink shadow-[0_12px_26px_rgba(255,143,179,0.16)] transition hover:scale-[1.01] hover:bg-pink-50"
+              className="motion-button mt-6 flex w-full items-center justify-center gap-2 rounded-2xl border border-pink-100 bg-white px-5 py-3.5 text-base font-black text-bili-pink shadow-[0_12px_26px_rgba(255,143,179,0.16)] hover:bg-pink-50"
             >
               <LogOut size={18} strokeWidth={2.5} />
               退出登录
@@ -246,7 +246,7 @@ export function LoginModal({ isOpen, loginStatus, onLoginChange, onClose }: Logi
             <div className="mx-6 mt-5 grid shrink-0 grid-cols-2 rounded-2xl bg-gray-100 p-1 sm:mx-7">
               <button
                 onClick={() => setMode('qr')}
-                className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-black transition ${
+                className={`motion-button flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-black ${
                   mode === 'qr' ? 'bg-white text-bili-pink shadow-md' : 'text-gray-500'
                 }`}
               >
@@ -255,7 +255,7 @@ export function LoginModal({ isOpen, loginStatus, onLoginChange, onClose }: Logi
               </button>
               <button
                 onClick={() => setMode('password')}
-                className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-black transition ${
+                className={`motion-button flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-black ${
                   mode === 'password' ? 'bg-white text-bili-pink shadow-md' : 'text-gray-500'
                 }`}
               >
@@ -295,7 +295,7 @@ export function LoginModal({ isOpen, loginStatus, onLoginChange, onClose }: Logi
             <button
               onClick={handleQrLogin}
               disabled={isQrLoading}
-              className="mt-5 flex items-center gap-2 rounded-full bg-gradient-to-r from-bili-pink to-bili-pink-hover px-7 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(255,143,179,0.32)] transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
+              className="motion-button mt-5 flex items-center gap-2 rounded-full bg-gradient-to-r from-bili-pink to-bili-pink-hover px-7 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(255,143,179,0.32)] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {qrData ? <RefreshCw size={16} /> : <Smartphone size={16} />}
               {qrData ? '刷新二维码' : isQrLoading ? '生成中...' : '重新生成二维码'}
@@ -303,7 +303,7 @@ export function LoginModal({ isOpen, loginStatus, onLoginChange, onClose }: Logi
             <button
               onClick={handleImportCookie}
               disabled={isImporting}
-              className="mt-3 flex items-center gap-2 rounded-full border border-pink-100 bg-white px-6 py-2.5 text-sm font-black text-bili-pink shadow-sm transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
+              className="motion-button mt-3 flex items-center gap-2 rounded-full border border-pink-100 bg-white px-6 py-2.5 text-sm font-black text-bili-pink shadow-sm disabled:cursor-not-allowed disabled:opacity-60"
             >
               <FileJson size={15} />
               {isImporting ? '导入中...' : '导入 Cookie 文件'}

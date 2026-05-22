@@ -1,16 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { Clock, Home, Info, Settings as SettingsIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, Home, Info, Settings as SettingsIcon } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import defaultLoginAvatar from '../assets/user-login-default.jpg';
 import type { LoginStatus } from '../types';
-import * as Bridge from '../bridge';
+import { getImageDataUrl } from '../imageCache';
 
 interface SidebarProps {
   loginStatus: LoginStatus | null;
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
   onLoginClick: () => void;
 }
 
-export function Sidebar({ loginStatus, onLoginClick }: SidebarProps) {
+export function Sidebar({ loginStatus, collapsed, onToggleCollapsed, onLoginClick }: SidebarProps) {
   const [avatarSrc, setAvatarSrc] = useState(defaultLoginAvatar);
 
   useEffect(() => {
@@ -22,7 +24,7 @@ export function Sidebar({ loginStatus, onLoginClick }: SidebarProps) {
       return;
     }
 
-    Bridge.fetchImageDataUrl(avatar)
+    getImageDataUrl(avatar)
       .then((src) => {
         if (!cancelled) setAvatarSrc(src || defaultLoginAvatar);
       })
@@ -36,17 +38,36 @@ export function Sidebar({ loginStatus, onLoginClick }: SidebarProps) {
   }, [loginStatus?.avatar, loginStatus?.is_login]);
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-4 px-4 py-3 rounded-2xl font-bold transition-all ${
+    `motion-button flex items-center gap-4 px-4 py-3 rounded-2xl font-bold transition-all ${
       isActive
         ? 'bg-white/76 text-bili-pink shadow-[0_10px_26px_rgba(255,143,179,0.14)] border border-white/70'
         : 'text-gray-600 hover:bg-white/48 border border-transparent'
     }`;
 
   return (
-    <aside className="w-[256px] bg-white/58 border-r border-white/80 h-full flex flex-col shrink-0 rounded-none shadow-none backdrop-blur-[24px]">
+    <aside
+      className={`relative h-full shrink-0 overflow-visible rounded-none border-r border-white/80 bg-white/58 shadow-none backdrop-blur-[24px] transition-[width,background-color,box-shadow] duration-[420ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
+        collapsed ? 'w-[64px]' : 'w-[256px]'
+      }`}
+    >
+      <button
+        type="button"
+        onClick={onToggleCollapsed}
+        className="motion-button absolute -right-4 top-8 z-30 flex h-9 w-9 items-center justify-center rounded-full border border-white/90 bg-white/90 text-bili-pink shadow-[0_12px_26px_rgba(255,143,179,0.18)] backdrop-blur-md"
+        aria-label={collapsed ? '显示侧边栏' : '隐藏侧边栏'}
+        title={collapsed ? '显示侧边栏' : '隐藏侧边栏'}
+      >
+        {collapsed ? <ChevronRight size={18} strokeWidth={2.8} /> : <ChevronLeft size={18} strokeWidth={2.8} />}
+      </button>
+
+      <div
+        className={`h-full min-w-[256px] flex flex-col transition-transform duration-[420ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          collapsed ? '-translate-x-[192px]' : 'translate-x-0'
+        }`}
+      >
       <button
         onClick={onLoginClick}
-        className="group px-8 pt-9 pb-7 flex items-center gap-3 text-left transition hover:bg-white/42"
+        className="motion-button group px-8 pt-9 pb-7 flex items-center gap-3 text-left transition hover:bg-white/42"
         title="登录哔哩哔哩"
       >
         <img
@@ -89,6 +110,7 @@ export function Sidebar({ loginStatus, onLoginClick }: SidebarProps) {
       </nav>
 
       <div className="pb-6 mt-auto" />
+      </div>
     </aside>
   );
 }

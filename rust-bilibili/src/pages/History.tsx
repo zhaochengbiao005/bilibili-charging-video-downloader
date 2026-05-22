@@ -76,7 +76,7 @@ export function History() {
             <button
               type="button"
               onClick={() => setNotice(null)}
-              className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/70 text-gray-400 shadow-sm transition-all hover:bg-white hover:text-bili-pink"
+              className="motion-button absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/70 text-gray-400 shadow-sm hover:bg-white hover:text-bili-pink"
               aria-label="关闭提示"
             >
               <X size={18} />
@@ -92,14 +92,14 @@ export function History() {
               <button
                 type="button"
                 onClick={() => setNotice(null)}
-                className="rounded-2xl border border-white/90 bg-white/70 px-5 py-2.5 text-sm font-bold text-gray-500 shadow-sm transition-all hover:bg-white hover:text-[#1F2937]"
+                className="motion-button rounded-2xl border border-white/90 bg-white/70 px-5 py-2.5 text-sm font-bold text-gray-500 shadow-sm hover:bg-white hover:text-[#1F2937]"
               >
                 知道了
               </button>
               <button
                 type="button"
                 onClick={handleRemoveMissing}
-                className="rounded-2xl bg-gradient-to-r from-[#FF9FC0] to-[#FF86B2] px-5 py-2.5 text-sm font-bold text-white shadow-[0_12px_26px_rgba(255,143,179,0.28)] transition-all hover:brightness-105 hover:shadow-[0_16px_34px_rgba(255,143,179,0.36)]"
+                className="motion-button rounded-2xl bg-gradient-to-r from-[#FF9FC0] to-[#FF86B2] px-5 py-2.5 text-sm font-bold text-white shadow-[0_12px_26px_rgba(255,143,179,0.28)] hover:shadow-[0_16px_34px_rgba(255,143,179,0.36)]"
               >
                 删除这条记录
               </button>
@@ -116,7 +116,7 @@ export function History() {
         {items.length > 0 && (
           <button
             onClick={handleClear}
-            className="px-5 py-2.5 rounded-2xl bg-white/60 border border-white/80 text-gray-500 hover:text-red-500 font-bold text-sm transition-all hover:bg-red-50/50"
+            className="motion-button px-5 py-2.5 rounded-2xl bg-white/60 border border-white/80 text-gray-500 hover:text-red-500 font-bold text-sm hover:bg-red-50/50"
           >
             清空历史
           </button>
@@ -166,14 +166,14 @@ export function History() {
               <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                   onClick={() => handleOpen(item)}
-                  className="w-9 h-9 rounded-xl bg-white/70 border border-white flex items-center justify-center text-gray-400 hover:text-bili-pink transition-all"
+                  className="motion-button w-9 h-9 rounded-xl bg-white/70 border border-white flex items-center justify-center text-gray-400 hover:text-bili-pink"
                   title="打开文件夹"
                 >
                   <FolderOpen size={16} />
                 </button>
                 <button
                   onClick={() => handleDelete(item.id)}
-                  className="w-9 h-9 rounded-xl bg-white/70 border border-white flex items-center justify-center text-gray-400 hover:text-red-500 transition-all"
+                  className="motion-button w-9 h-9 rounded-xl bg-white/70 border border-white flex items-center justify-center text-gray-400 hover:text-red-500"
                   title="删除记录"
                 >
                   <Trash2 size={16} />

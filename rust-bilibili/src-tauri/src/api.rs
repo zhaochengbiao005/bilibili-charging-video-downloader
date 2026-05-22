@@ -90,10 +90,12 @@ impl BilibiliClient {
         })?;
 
         let mut videos = data.into_video_data_list();
-        for video in &mut videos {
+        for (index, video) in videos.iter_mut().enumerate() {
             if let Some(page) = video.pages.first() {
-                if let Ok(playurl) = self.playurl(&video.id, page.cid, 127, cookies).await {
-                    video.apply_playurl_sizes(&playurl);
+                if index == 0 {
+                    if let Ok(playurl) = self.playurl(&video.id, page.cid, 127, cookies).await {
+                        video.apply_playurl_sizes(&playurl);
+                    }
                 }
             }
             if let Some(login) = &login {

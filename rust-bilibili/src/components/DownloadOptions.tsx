@@ -64,7 +64,7 @@ export function DownloadOptions({
         <div className="flex gap-3">
           <button
             onClick={() => handleFormatSwitch('video')}
-            className={`flex-1 py-3 rounded-2xl flex flex-col items-center justify-center gap-1.5 font-bold transition-all border-2 ${
+            className={`motion-button flex-1 py-3 rounded-2xl flex flex-col items-center justify-center gap-1.5 font-bold border-2 ${
               format === 'video'
                 ? 'border-bili-pink text-bili-pink bg-pink-50/80 shadow-sm'
                 : 'border-white bg-white/82 text-gray-600 hover:border-pink-200'
@@ -75,7 +75,7 @@ export function DownloadOptions({
           </button>
           <button
             onClick={() => handleFormatSwitch('audio')}
-            className={`flex-1 py-3 rounded-2xl flex flex-col items-center justify-center gap-1.5 font-bold transition-all border-2 ${
+            className={`motion-button flex-1 py-3 rounded-2xl flex flex-col items-center justify-center gap-1.5 font-bold border-2 ${
               format === 'audio'
                 ? 'border-bili-pink text-bili-pink bg-pink-50/80 shadow-sm'
                 : 'border-white bg-white/82 text-gray-600 hover:border-pink-200'
@@ -97,7 +97,7 @@ export function DownloadOptions({
             <button
               key={value}
               onClick={() => onThreadsChange(value)}
-              className={`min-h-11 rounded-xl text-sm font-black transition-all ${
+              className={`motion-button min-h-11 rounded-xl text-sm font-black ${
                 threads === value
                   ? 'bg-white text-bili-pink shadow-sm border border-pink-100'
                   : 'text-gray-500 hover:text-bili-pink hover:bg-white/50 border border-transparent'
@@ -137,7 +137,7 @@ export function DownloadOptions({
                   onClick={() => {
                     if (!disabled) onDanmakuModeChange(item.value);
                   }}
-                  className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl text-sm font-black transition-all ${
+                  className={`motion-button flex min-h-11 items-center justify-center gap-1.5 rounded-xl text-sm font-black ${
                     disabled
                       ? 'cursor-not-allowed border border-transparent text-gray-300'
                       : active
@@ -194,7 +194,7 @@ export function DownloadOptions({
             return (
               <label
                 key={q}
-                className={`group flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${
+                className={`motion-button group flex items-center justify-between p-4 rounded-2xl border-2 ${
                   isDisabled
                     ? 'cursor-not-allowed border-white/80 bg-white/70 opacity-60'
                     : isSelected
@@ -265,7 +265,7 @@ export function DownloadOptions({
 
       <button
         onClick={onDownload}
-        className="w-full mt-5 bg-gradient-to-r from-bili-pink to-bili-pink-hover text-white py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] shadow-[0_14px_30px_rgba(255,143,179,0.32)] active:scale-[0.98]"
+        className="motion-button w-full mt-5 bg-gradient-to-r from-bili-pink to-bili-pink-hover text-white py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-[0_14px_30px_rgba(255,143,179,0.32)]"
       >
         <Download size={20} strokeWidth={2.5} />
         {currentPageLabel ? `下载当前 ${currentPageLabel}` : '开始下载'}
@@ -274,7 +274,7 @@ export function DownloadOptions({
         <button
           type="button"
           onClick={onDownloadAll}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-pink-100 bg-white/84 py-3 text-sm font-black text-bili-pink shadow-sm transition-all hover:bg-pink-50/80 active:scale-[0.99]"
+          className="motion-button mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-pink-100 bg-white/84 py-3 text-sm font-black text-bili-pink shadow-sm hover:bg-pink-50/80"
         >
           <Download size={18} strokeWidth={2.5} />
           下载全部 {batchCount} 个视频

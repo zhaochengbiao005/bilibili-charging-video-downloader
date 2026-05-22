@@ -70,6 +70,8 @@ export function Home() {
     (total, video) => total + Math.max(video.pages.length, 1),
     0,
   );
+  const visibleVideoCount = videos.length > 80 ? 80 : videos.length;
+  const visibleVideos = videos.slice(0, visibleVideoCount);
 
   const handleParse = useCallback(async (url: string) => {
     setError(null);
@@ -291,21 +293,21 @@ export function Home() {
                   <button
                     type="button"
                     onClick={handleDownloadAll}
-                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#FF9FC0] to-[#FF86B2] px-4 text-sm font-black text-white shadow-[0_10px_22px_rgba(255,134,178,0.28)] transition-all hover:brightness-105 active:scale-[0.98]"
+                    className="motion-button inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#FF9FC0] to-[#FF86B2] px-4 text-sm font-black text-white shadow-[0_10px_22px_rgba(255,134,178,0.28)]"
                   >
                     <Download size={16} strokeWidth={2.6} />
                     下载全部
                   </button>
                 </div>
                 <div className="flex max-h-36 flex-col gap-2 overflow-y-auto pr-1 custom-scrollbar">
-                  {videos.map((video, index) => {
+                  {visibleVideos.map((video, index) => {
                     const selected = video.id === activeVideo.id;
                     return (
                       <button
                         key={video.id}
                         type="button"
                         onClick={() => handleSelectVideo(video)}
-                        className={`flex items-center gap-3 rounded-2xl border px-3 py-2.5 text-left transition-all ${
+                        className={`motion-button flex items-center gap-3 rounded-2xl border px-3 py-2.5 text-left ${
                           selected
                             ? 'border-pink-100 bg-white/86 text-bili-pink shadow-sm'
                             : 'border-white/70 bg-white/52 text-gray-600 hover:border-pink-100 hover:bg-white/78'
@@ -324,6 +326,11 @@ export function Home() {
                       </button>
                     );
                   })}
+                  {videos.length > visibleVideoCount && (
+                    <div className="px-4 py-2 text-center text-xs font-bold text-gray-400">
+                      已显示前 {visibleVideoCount} 个，下载全部仍会包含 {videos.length} 个视频
+                    </div>
+                  )}
                 </div>
               </div>
             )}

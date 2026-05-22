@@ -122,4 +122,40 @@ body {
     display: none;
     background: transparent;
   }
+
+  .motion-button {
+    transform: translateZ(0);
+    transition-property: transform, box-shadow, background-color, border-color, color, opacity, filter;
+    transition-duration: 220ms;
+    transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: transform;
+  }
+
+  .motion-button:hover:not(:disabled) {
+    transform: translateY(-2px) scale(1.025);
+    filter: brightness(1.03);
+  }
+
+  .motion-button:active:not(:disabled) {
+    transform: translateY(0) scale(0.975);
+  }
+
+  .motion-button:focus-visible {
+    outline: 3px solid rgba(255, 143, 179, 0.28);
+    outline-offset: 3px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
+
+  .motion-button,
+  .motion-button:hover:not(:disabled),
+  .motion-button:active:not(:disabled) {
+    transform: none;
+  }
 }

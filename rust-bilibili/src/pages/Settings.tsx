@@ -124,7 +124,7 @@ export function Settings() {
             <button
               onClick={handleInstallFfmpeg}
               disabled={installingFfmpeg}
-              className="px-6 py-3 bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-2xl font-bold shadow-md hover:shadow-lg transition-all disabled:opacity-60"
+              className="motion-button px-6 py-3 bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-2xl font-bold shadow-md hover:shadow-lg disabled:opacity-60"
             >
               {installingFfmpeg ? '安装中...' : '下载 FFmpeg 兜底组件'}
             </button>
@@ -171,7 +171,7 @@ export function Settings() {
               />
               <button
                 onClick={handleChooseOutdir}
-                className="px-5 py-3 bg-white/60 border border-white/80 rounded-2xl text-gray-500 hover:text-bili-pink font-bold transition-all"
+                className="motion-button px-5 py-3 bg-white/60 border border-white/80 rounded-2xl text-gray-500 hover:text-bili-pink font-bold"
                 title="选择输出目录"
               >
                 <FolderOpen size={20} />
@@ -196,7 +196,7 @@ export function Settings() {
 
         <button
           onClick={handleSave}
-          className="self-end px-8 py-3 bg-gradient-to-r from-bili-pink to-bili-pink-hover text-white rounded-2xl font-bold shadow-[0_12px_28px_rgba(255,143,179,0.24)] hover:shadow-[0_16px_34px_rgba(255,143,179,0.32)] hover:scale-[1.02] transition-all"
+          className="motion-button self-end px-8 py-3 bg-gradient-to-r from-bili-pink to-bili-pink-hover text-white rounded-2xl font-bold shadow-[0_12px_28px_rgba(255,143,179,0.24)] hover:shadow-[0_16px_34px_rgba(255,143,179,0.32)]"
         >
           {saved ? '已保存' : '保存设置'}
         </button>

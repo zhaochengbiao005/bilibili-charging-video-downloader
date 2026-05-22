@@ -13,6 +13,7 @@ function Root() {
   const location = useLocation();
   const navigate = useNavigate();
   const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [loginStatus, setLoginStatus] = useState<LoginStatus | null>(null);
   const activeModal = location.pathname === '/history'
     ? 'history'
@@ -56,7 +57,12 @@ function Root() {
           hasOverlay ? 'scale-[0.985] opacity-55 pointer-events-none saturate-75' : ''
         }`}
       >
-        <Sidebar loginStatus={loginStatus} onLoginClick={() => setIsLoginOpen(true)} />
+        <Sidebar
+          loginStatus={loginStatus}
+          collapsed={isSidebarCollapsed}
+          onToggleCollapsed={() => setIsSidebarCollapsed(value => !value)}
+          onLoginClick={() => setIsLoginOpen(true)}
+        />
         <main className="app-main-scrollbar min-h-0 flex-1 flex flex-col overflow-y-auto relative z-10">
           <Home />
         </main>
@@ -98,7 +104,7 @@ function Root() {
         >
           <button
             onClick={() => navigate('/')}
-            className="absolute top-6 right-6 w-10 h-10 bg-white/60 hover:bg-white text-gray-500 hover:text-bili-pink hover:scale-110 rounded-full flex items-center justify-center shadow-sm border border-white transition-all z-20"
+            className="motion-button absolute top-6 right-6 w-10 h-10 bg-white/60 hover:bg-white text-gray-500 hover:text-bili-pink rounded-full flex items-center justify-center shadow-sm border border-white z-20"
             aria-label="关闭"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>

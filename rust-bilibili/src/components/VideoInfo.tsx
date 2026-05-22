@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, Eye, Clock, Layers, AlertTriangle, Crown } from 'lucide-react';
 import type { VideoData, VideoPage } from '../types';
-import * as Bridge from '../bridge';
-
-const imageCache = new Map<string, string>();
+import { getCachedImageDataUrl, getImageDataUrl, prefetchImageDataUrls } from '../imageCache';
 
 interface VideoInfoProps {
   data: VideoData | null;
@@ -37,7 +35,7 @@ export function VideoInfo({
       return;
     }
 
-    const cached = imageCache.get(thumbnailUrl);
+    const cached = getCachedImageDataUrl(thumbnailUrl);
     if (cached) {
       setThumbnailSrc(cached);
       return;
@@ -45,9 +43,8 @@ export function VideoInfo({
 
     setThumbnailSrc(thumbnailUrl);
 
-    Bridge.fetchImageDataUrl(thumbnailUrl)
+    getImageDataUrl(thumbnailUrl)
       .then((src) => {
-        imageCache.set(thumbnailUrl, src);
         if (!cancelled) setThumbnailSrc(src);
       })
       .catch(() => {
@@ -62,24 +59,21 @@ export function VideoInfo({
   }, [data?.thumbnail, currentPage?.thumbnail]);
 
   useEffect(() => {
-    const urls = (data?.pages ?? [])
-      .map((page) => page.thumbnail)
-      .filter((url): url is string => Boolean(url && !imageCache.has(url)))
-      .slice(0, 8);
-
-    urls.forEach((url) => {
-      Bridge.fetchImageDataUrl(url)
-        .then((src) => imageCache.set(url, src))
-        .catch(() => imageCache.set(url, url));
-    });
-  }, [data?.id, data?.pages]);
+    const pages = data?.pages ?? [];
+    prefetchImageDataUrls([
+      pages[currentPageIndex - 1]?.thumbnail,
+      pages[currentPageIndex]?.thumbnail,
+      pages[currentPageIndex + 1]?.thumbnail,
+      data?.thumbnail,
+    ], 4);
+  }, [data?.id, data?.thumbnail, data?.pages, currentPageIndex]);
 
   useEffect(() => {
     let cancelled = false;
     setAuthorAvatarFailed(false);
 
     if (!data?.author_avatar) return;
-    const cached = imageCache.get(data.author_avatar);
+    const cached = getCachedImageDataUrl(data.author_avatar);
     if (cached) {
       setAuthorAvatarSrc(cached);
       return;
@@ -87,9 +81,8 @@ export function VideoInfo({
 
     setAuthorAvatarSrc(data.author_avatar);
 
-    Bridge.fetchImageDataUrl(data.author_avatar)
+    getImageDataUrl(data.author_avatar)
       .then((src) => {
-        imageCache.set(data.author_avatar, src);
         if (!cancelled) setAuthorAvatarSrc(src);
       })
       .catch(() => {
@@ -116,7 +109,7 @@ export function VideoInfo({
           <button
             type="button"
             onClick={onPrevPage}
-            className="absolute left-0 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/90 bg-white/84 text-bili-pink shadow-[0_12px_28px_rgba(255,143,179,0.18)] transition-all hover:bg-pink-50 hover:shadow-[0_16px_36px_rgba(255,143,179,0.28)] active:scale-95"
+            className="motion-button absolute left-0 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/90 bg-white/84 text-bili-pink shadow-[0_12px_28px_rgba(255,143,179,0.18)] hover:bg-pink-50 hover:shadow-[0_16px_36px_rgba(255,143,179,0.28)]"
             aria-label="上一个分P"
           >
             <ChevronLeft size={24} strokeWidth={2.8} />
@@ -148,7 +141,7 @@ export function VideoInfo({
           <button
             type="button"
             onClick={onNextPage}
-            className="absolute right-0 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/90 bg-white/84 text-bili-pink shadow-[0_12px_28px_rgba(255,143,179,0.18)] transition-all hover:bg-pink-50 hover:shadow-[0_16px_36px_rgba(255,143,179,0.28)] active:scale-95"
+            className="motion-button absolute right-0 top-1/2 z-10 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/90 bg-white/84 text-bili-pink shadow-[0_12px_28px_rgba(255,143,179,0.18)] hover:bg-pink-50 hover:shadow-[0_16px_36px_rgba(255,143,179,0.28)]"
             aria-label="下一个分P"
           >
             <ChevronRight size={24} strokeWidth={2.8} />
@@ -224,7 +217,7 @@ export function VideoInfo({
                   key={p.cid}
                   type="button"
                   onClick={() => onSelectPage?.(p)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-left text-xs transition-all ${
+                  className={`motion-button flex items-center gap-2 px-3 py-1.5 rounded-lg text-left text-xs ${
                     index === currentPageIndex
                       ? 'bg-pink-50 text-bili-pink'
                       : 'bg-white/40 text-gray-600 hover:bg-white/72 hover:text-bili-pink'

@@ -39,7 +39,7 @@ export function UrlInput({ onParse, isParsing, error }: UrlInputProps) {
           <button
             type="submit"
             disabled={isParsing || !url.trim()}
-            className="flex h-[62px] shrink-0 items-center justify-center gap-2 rounded-[2rem] bg-gradient-to-r from-[#FF9FC0] to-[#FF86B2] px-5 text-[16px] font-black text-white shadow-[0_12px_28px_rgba(255,134,178,0.36),inset_0_1px_0_rgba(255,255,255,0.24)] transition-all duration-300 hover:brightness-105 hover:shadow-[0_18px_42px_rgba(255,134,178,0.5),0_0_24px_rgba(255,159,192,0.18),inset_0_1px_0_rgba(255,255,255,0.3)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:brightness-100 disabled:hover:shadow-[0_12px_28px_rgba(255,134,178,0.36),inset_0_1px_0_rgba(255,255,255,0.24)] sm:min-w-[220px] sm:gap-3 sm:px-10 sm:text-[18px]"
+            className="motion-button flex h-[62px] shrink-0 items-center justify-center gap-2 rounded-[2rem] bg-gradient-to-r from-[#FF9FC0] to-[#FF86B2] px-5 text-[16px] font-black text-white shadow-[0_12px_28px_rgba(255,134,178,0.36),inset_0_1px_0_rgba(255,255,255,0.24)] hover:shadow-[0_18px_42px_rgba(255,134,178,0.5),0_0_24px_rgba(255,159,192,0.18),inset_0_1px_0_rgba(255,255,255,0.3)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:shadow-[0_12px_28px_rgba(255,134,178,0.36),inset_0_1px_0_rgba(255,255,255,0.24)] sm:min-w-[220px] sm:gap-3 sm:px-10 sm:text-[18px]"
           >
             {isParsing ? (
               <>
