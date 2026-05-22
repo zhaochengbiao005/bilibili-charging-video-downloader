@@ -3,6 +3,7 @@ import { AlertCircle, CheckCircle2, FileJson, Loader2, Lock, LogOut, QrCode, Ref
 import * as Bridge from '../bridge';
 import mascot22 from '../assets/mascot-22.png';
 import mascot33 from '../assets/mascot-33.png';
+import defaultLoginAvatar from '../assets/user-login-default.jpg';
 import type { LoginStatus, QrLoginStartResponse } from '../types';
 
 interface LoginModalProps {
@@ -18,6 +19,7 @@ export function LoginModal({ isOpen, loginStatus, onLoginChange, onClose }: Logi
   const [qrData, setQrData] = useState<QrLoginStartResponse | null>(null);
   const [isQrLoading, setIsQrLoading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [avatarSrc, setAvatarSrc] = useState(defaultLoginAvatar);
   const qrRequestInFlight = useRef(false);
 
   useEffect(() => {
@@ -89,6 +91,28 @@ export function LoginModal({ isOpen, loginStatus, onLoginChange, onClose }: Logi
     };
   }, [isOpen, loginStatus?.is_login, mode, qrData]);
 
+  useEffect(() => {
+    let cancelled = false;
+    const avatar = loginStatus?.is_login ? loginStatus.avatar?.trim() : '';
+
+    if (!avatar) {
+      setAvatarSrc(defaultLoginAvatar);
+      return;
+    }
+
+    Bridge.fetchImageDataUrl(avatar)
+      .then((src) => {
+        if (!cancelled) setAvatarSrc(src || defaultLoginAvatar);
+      })
+      .catch(() => {
+        if (!cancelled) setAvatarSrc(avatar);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loginStatus?.avatar, loginStatus?.is_login]);
+
   const handleQrLogin = async () => {
     if (qrRequestInFlight.current) return;
     setMessage('');
@@ -159,7 +183,9 @@ export function LoginModal({ isOpen, loginStatus, onLoginChange, onClose }: Logi
 
       <section className="relative flex w-full max-h-[calc(100vh-1.5rem)] flex-col overflow-hidden rounded-[22px] border border-pink-100 bg-white/92 shadow-[0_24px_70px_rgba(31,38,135,0.22)] backdrop-blur-[28px]">
         <div className="shrink-0 px-6 pt-5 text-center sm:px-7">
-          <h2 className="text-[26px] font-black tracking-tight text-bili-pink">登录哔哩哔哩</h2>
+          <h2 className="text-[26px] font-black tracking-tight text-bili-pink">
+            {loginStatus?.is_login ? '账号信息' : '登录哔哩哔哩'}
+          </h2>
           <p className="mt-1 text-xs font-medium text-gray-400">
             {loginStatus?.is_login
               ? `${loginStatus.username || '已登录'} · LV${loginStatus.level ?? 0}`
@@ -167,44 +193,78 @@ export function LoginModal({ isOpen, loginStatus, onLoginChange, onClose }: Logi
           </p>
         </div>
 
-        {loginStatus?.is_login && (
-          <div className="mx-6 mt-4 flex shrink-0 items-center justify-between rounded-2xl border border-green-100 bg-green-50 px-4 py-3 text-sm sm:mx-7">
-            <span className="flex min-w-0 items-center gap-2 font-black text-green-600">
-              <CheckCircle2 size={16} />
-              <span className="truncate">已登录：{loginStatus.username}</span>
-            </span>
+        {loginStatus?.is_login ? (
+          <div className="flex min-h-[390px] flex-1 flex-col items-center justify-center px-7 pb-8 pt-6">
+            <div className="relative">
+              <img
+                src={avatarSrc}
+                alt="用户头像"
+                className="h-24 w-24 rounded-full border-4 border-white object-cover shadow-[0_16px_38px_rgba(255,143,179,0.24)]"
+                referrerPolicy="no-referrer"
+                onError={() => setAvatarSrc(defaultLoginAvatar)}
+              />
+              <span className="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full border-4 border-white bg-green-400 text-white shadow-sm">
+                <CheckCircle2 size={16} strokeWidth={3} />
+              </span>
+            </div>
+            <h3 className="mt-5 max-w-full truncate text-center text-2xl font-black text-gray-900">
+              {loginStatus.username || '已登录用户'}
+            </h3>
+            <div className="mt-3 flex flex-wrap justify-center gap-2 text-xs font-black text-gray-500">
+              {loginStatus.level !== null && loginStatus.level !== undefined && (
+                <span className="rounded-full border border-pink-100 bg-pink-50 px-3 py-1.5 text-bili-pink">
+                  LV{loginStatus.level}
+                </span>
+              )}
+              {loginStatus.uid !== null && loginStatus.uid !== undefined && (
+                <span className="rounded-full border border-blue-100 bg-blue-50 px-3 py-1.5 text-bili-blue">
+                  UID {loginStatus.uid}
+                </span>
+              )}
+              {loginStatus.vip_type !== null && loginStatus.vip_type !== undefined && loginStatus.vip_type > 0 && (
+                <span className="rounded-full border border-yellow-100 bg-yellow-50 px-3 py-1.5 text-yellow-600">
+                  大会员
+                </span>
+              )}
+            </div>
+            <div className="mt-6 w-full rounded-3xl border border-green-100 bg-green-50 px-5 py-4 text-center">
+              <p className="flex items-center justify-center gap-2 text-sm font-black text-green-600">
+                <CheckCircle2 size={17} strokeWidth={2.5} />
+                当前已登录，可以直接解析和下载需要登录权限的视频
+              </p>
+            </div>
             <button
               onClick={handleLogout}
-              className="flex shrink-0 items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-xs font-black text-gray-500 shadow-sm transition hover:text-bili-pink"
+              className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl border border-pink-100 bg-white px-5 py-3.5 text-base font-black text-bili-pink shadow-[0_12px_26px_rgba(255,143,179,0.16)] transition hover:scale-[1.01] hover:bg-pink-50"
             >
-              <LogOut size={13} />
-              退出
+              <LogOut size={18} strokeWidth={2.5} />
+              退出登录
             </button>
           </div>
-        )}
+        ) : (
+          <>
+            <div className="mx-6 mt-5 grid shrink-0 grid-cols-2 rounded-2xl bg-gray-100 p-1 sm:mx-7">
+              <button
+                onClick={() => setMode('qr')}
+                className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-black transition ${
+                  mode === 'qr' ? 'bg-white text-bili-pink shadow-md' : 'text-gray-500'
+                }`}
+              >
+                <QrCode size={16} />
+                扫码 / Cookie
+              </button>
+              <button
+                onClick={() => setMode('password')}
+                className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-black transition ${
+                  mode === 'password' ? 'bg-white text-bili-pink shadow-md' : 'text-gray-500'
+                }`}
+              >
+                <Lock size={16} />
+                密码 / 短信登录
+              </button>
+            </div>
 
-        <div className="mx-6 mt-5 grid shrink-0 grid-cols-2 rounded-2xl bg-gray-100 p-1 sm:mx-7">
-          <button
-            onClick={() => setMode('qr')}
-            className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-black transition ${
-              mode === 'qr' ? 'bg-white text-bili-pink shadow-md' : 'text-gray-500'
-            }`}
-          >
-            <QrCode size={16} />
-            扫码 / Cookie
-          </button>
-          <button
-            onClick={() => setMode('password')}
-            className={`flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-black transition ${
-              mode === 'password' ? 'bg-white text-bili-pink shadow-md' : 'text-gray-500'
-            }`}
-          >
-            <Lock size={16} />
-            密码 / 短信登录
-          </button>
-        </div>
-
-        {mode === 'qr' ? (
+            {mode === 'qr' ? (
           <div className="custom-scrollbar flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-6 pb-6 pt-6 sm:px-7">
             {qrData ? (
               <div
@@ -268,6 +328,8 @@ export function LoginModal({ isOpen, loginStatus, onLoginChange, onClose }: Logi
               返回扫码 / Cookie 登录
             </button>
           </div>
+            )}
+          </>
         )}
 
         {message && (

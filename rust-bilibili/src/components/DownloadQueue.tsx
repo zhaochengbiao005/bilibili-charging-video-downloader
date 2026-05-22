@@ -40,7 +40,7 @@ export function DownloadQueue({ tasks, onRemove, onCancel }: DownloadQueueProps)
         下载队列 ({tasks.length})
       </h3>
 
-      <div className="flex flex-col gap-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+      <div className="flex flex-col gap-3 pr-2">
         {tasks.map((task) => {
           const cfg = statusConfig[task.status] || statusConfig.downloading;
 

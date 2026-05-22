@@ -147,12 +147,12 @@ export function Home() {
   );
 
   return (
-    <div className="relative w-full min-h-full px-6 md:px-10 xl:px-14 2xl:px-16 py-8 md:py-10 flex flex-col gap-7 md:gap-8 overflow-hidden">
+    <div className="relative w-full min-h-full px-6 md:px-10 xl:px-14 2xl:px-16 py-8 md:py-10 flex flex-col gap-7 md:gap-8 overflow-x-hidden overflow-y-visible">
       <img
         src={homeBg}
         alt=""
         aria-hidden="true"
-        className="pointer-events-none absolute right-[-88px] bottom-[-132px] z-0 w-[520px] max-w-[54vw] opacity-70 drop-shadow-[0_22px_52px_rgba(123,207,255,0.18)] sm:w-[600px] xl:w-[690px] 2xl:w-[760px]"
+        className="pointer-events-none absolute right-0 bottom-0 z-0 h-[min(62vh,620px)] w-auto max-w-[46vw] object-contain object-bottom opacity-68 drop-shadow-[0_22px_52px_rgba(123,207,255,0.16)] xl:h-[min(68vh,720px)] 2xl:h-[min(72vh,820px)]"
       />
       <div className="text-center flex flex-col items-center shrink-0 relative">
         <div className="bili-soft-pattern absolute -top-4 left-1/2 h-24 w-[420px] -translate-x-1/2 rounded-full opacity-45 blur-[0.2px]" />

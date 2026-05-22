@@ -38,48 +38,48 @@ export function DownloadOptions({
   };
 
   return (
-    <div className="glass-panel rounded-[2rem] p-7 2xl:p-8 flex flex-col h-full shrink-0">
-      <div className="flex items-center gap-3 mb-6">
+    <div className="rounded-[1.75rem] border border-white/95 bg-white/92 p-5 shadow-[0_18px_52px_rgba(31,41,55,0.08),0_12px_34px_rgba(255,143,179,0.12)] backdrop-blur-[20px] flex flex-col shrink-0">
+      <div className="flex items-center gap-3 mb-5">
         <div className="text-bili-pink flex items-center justify-center">
           <SlidersHorizontal size={24} strokeWidth={2.5} />
         </div>
         <h3 className="text-xl font-black text-gray-900">下载设置</h3>
       </div>
 
-      <div className="mb-5">
+      <div className="mb-4">
         <label className="block text-sm font-black text-gray-600 mb-3">格式</label>
         <div className="flex gap-3">
           <button
             onClick={() => handleFormatSwitch('video')}
-            className={`flex-1 py-4 rounded-2xl flex flex-col items-center justify-center gap-2 font-bold transition-all border-2 ${
+            className={`flex-1 py-3 rounded-2xl flex flex-col items-center justify-center gap-1.5 font-bold transition-all border-2 ${
               format === 'video'
-                ? 'border-bili-pink text-bili-pink bg-pink-50/50 shadow-sm'
-                : 'border-white bg-white/50 text-gray-600 hover:border-pink-200'
+                ? 'border-bili-pink text-bili-pink bg-pink-50/80 shadow-sm'
+                : 'border-white bg-white/82 text-gray-600 hover:border-pink-200'
             }`}
           >
-            <Film size={24} />
+            <Film size={22} />
             视频 (MP4)
           </button>
           <button
             onClick={() => handleFormatSwitch('audio')}
-            className={`flex-1 py-4 rounded-2xl flex flex-col items-center justify-center gap-2 font-bold transition-all border-2 ${
+            className={`flex-1 py-3 rounded-2xl flex flex-col items-center justify-center gap-1.5 font-bold transition-all border-2 ${
               format === 'audio'
-                ? 'border-bili-pink text-bili-pink bg-pink-50/50 shadow-sm'
-                : 'border-white bg-white/50 text-gray-600 hover:border-pink-200'
+                ? 'border-bili-pink text-bili-pink bg-pink-50/80 shadow-sm'
+                : 'border-white bg-white/82 text-gray-600 hover:border-pink-200'
             }`}
           >
-            <Music size={24} />
+            <Music size={22} />
             音频 (MP3)
           </button>
         </div>
       </div>
 
-      <div className="mb-5">
+      <div className="mb-4">
         <label className="flex items-center gap-2 text-sm font-black text-gray-600 mb-3">
           <Cpu size={16} />
           下载线程
         </label>
-        <div className="grid grid-cols-4 gap-2 rounded-2xl bg-white/35 border border-white/70 p-1.5">
+        <div className="grid grid-cols-4 gap-2 rounded-2xl bg-white/82 border border-pink-50 p-1.5">
           {[4, 8, 16, 32].map((value) => (
             <button
               key={value}
@@ -122,10 +122,10 @@ export function DownloadOptions({
                 key={q}
                 className={`group flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${
                   isDisabled
-                    ? 'cursor-not-allowed border-white/60 bg-white/25 opacity-60'
+                    ? 'cursor-not-allowed border-white/80 bg-white/70 opacity-60'
                     : isSelected
-                      ? 'cursor-pointer border-bili-pink bg-pink-50/30'
-                      : 'cursor-pointer border-white bg-white/40 hover:border-pink-200'
+                      ? 'cursor-pointer border-bili-pink bg-pink-50/80'
+                      : 'cursor-pointer border-white bg-white/82 hover:border-pink-200'
                 }`}
               >
                 <div className="flex items-center gap-4">
@@ -191,7 +191,7 @@ export function DownloadOptions({
 
       <button
         onClick={onDownload}
-        className="w-full mt-6 bg-gradient-to-r from-bili-pink to-bili-pink-hover text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] shadow-[0_14px_30px_rgba(255,143,179,0.32)] active:scale-[0.98]"
+        className="w-full mt-5 bg-gradient-to-r from-bili-pink to-bili-pink-hover text-white py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] shadow-[0_14px_30px_rgba(255,143,179,0.32)] active:scale-[0.98]"
       >
         <Download size={20} strokeWidth={2.5} />
         开始下载
