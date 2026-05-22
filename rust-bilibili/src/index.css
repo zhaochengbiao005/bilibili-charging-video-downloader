@@ -90,4 +90,20 @@ body {
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: linear-gradient(180deg, rgba(255, 143, 179, 0.5), rgba(123, 207, 255, 0.42));
   }
+
+  .app-main-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .app-main-scrollbar::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+  .app-main-scrollbar::-webkit-scrollbar-track,
+  .app-main-scrollbar::-webkit-scrollbar-thumb,
+  .app-main-scrollbar::-webkit-scrollbar-button,
+  .app-main-scrollbar::-webkit-scrollbar-corner {
+    display: none;
+    background: transparent;
+  }
 }

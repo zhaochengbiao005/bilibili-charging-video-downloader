@@ -153,7 +153,7 @@ export async function fetchImageDataUrl(url: string): Promise<string> {
 
 export async function startDownload(
   bvid: string, quality: string, fmt: string,
-  outdir: string, cookiePath = '', skipMerge = false, threads = 8
+  outdir: string, cookiePath = '', skipMerge = false, threads = 8, downloadDanmaku = false
 ): Promise<string> {
   if (!isTauriRuntime()) throw missingRuntimeError();
   await ensureEventListeners();
@@ -164,6 +164,7 @@ export async function startDownload(
     outdir,
     cookie_path: cookiePath || null,
     skip_merge: skipMerge,
+    download_danmaku: downloadDanmaku,
     threads,
   };
   const res = await callCommand<StartDownloadResponse>('start_download', {

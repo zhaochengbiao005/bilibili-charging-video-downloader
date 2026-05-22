@@ -7,6 +7,7 @@ use tokio::sync::RwLock;
 
 use crate::{
     api::BilibiliClient,
+    danmaku::DanmakuClient,
     downloader::DownloadClient,
     error::AppResult,
     ffmpeg::FfmpegManager,
@@ -22,6 +23,7 @@ pub struct AppState {
     pub history_store: HistoryStore,
     pub cookie_store: CookieStore,
     pub ffmpeg: FfmpegManager,
+    pub danmaku: DanmakuClient,
 }
 
 impl AppState {
@@ -39,6 +41,7 @@ impl AppState {
             history_store,
             cookie_store,
             ffmpeg: FfmpegManager::new(),
+            danmaku: DanmakuClient::new(),
         })
     }
 }

@@ -25,6 +25,7 @@ anyhow = "1"
 thiserror = "2"
 clap = { version = "4", features = ["derive"] }
 qrcode = "0.14"
+quick-xml = "0.39"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4"] }
 dirs = "6"

@@ -55,6 +55,8 @@ pub struct StartDownloadRequest {
     pub outdir: String,
     pub cookie_path: Option<String>,
     pub skip_merge: bool,
+    #[serde(default)]
+    pub download_danmaku: bool,
     #[serde(default = "default_threads")]
     pub threads: usize,
 }

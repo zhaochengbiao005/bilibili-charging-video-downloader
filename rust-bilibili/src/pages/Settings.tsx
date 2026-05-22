@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Database, FolderOpen, HardDrive, History, Wrench } from 'lucide-react';
+import { Database, FolderOpen, HardDrive, Wrench } from 'lucide-react';
 import type { AppConfig } from '../types';
 import * as Bridge from '../bridge';
 import type { FfmpegStatus } from '../types';
@@ -214,15 +214,6 @@ export function Settings() {
         </p>
       </div>
 
-      <div className="bg-pink-50/50 border border-pink-100 rounded-2xl p-5 text-sm text-pink-700">
-        <p className="font-bold mb-1 flex items-center gap-2">
-          <History size={16} />
-          下载参数说明
-        </p>
-        <p className="text-pink-600/80">
-          画质、格式和任务下载按钮只会在首页解析视频成功后显示，避免在未选择视频时提前出现下载设置。
-        </p>
-      </div>
     </div>
   );
 }

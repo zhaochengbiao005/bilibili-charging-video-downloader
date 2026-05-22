@@ -3,6 +3,7 @@ use std::{fs::OpenOptions, io::Write, panic};
 mod api;
 mod auth;
 mod commands;
+mod danmaku;
 mod downloader;
 mod error;
 mod ffmpeg;

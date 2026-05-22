@@ -1,8 +1,8 @@
 use std::time::Duration;
 
 use reqwest::header::{
-    HeaderMap, HeaderValue, ACCEPT, ACCEPT_LANGUAGE, CONTENT_LENGTH, CONTENT_RANGE, COOKIE,
-    ORIGIN, RANGE, REFERER, SET_COOKIE, USER_AGENT,
+    HeaderMap, HeaderValue, ACCEPT, ACCEPT_LANGUAGE, CONTENT_LENGTH, CONTENT_RANGE, COOKIE, ORIGIN,
+    RANGE, REFERER, SET_COOKIE, USER_AGENT,
 };
 use serde::Deserialize;
 
@@ -461,11 +461,7 @@ impl VideoData {
                 };
             }
         } else {
-            let durl_size = playurl
-                .durl
-                .iter()
-                .map(|segment| segment.size)
-                .sum::<u64>();
+            let durl_size = playurl.durl.iter().map(|segment| segment.size).sum::<u64>();
             if durl_size > 0 {
                 for stream in &mut self.streams {
                     if stream.qn == playurl.quality {
@@ -483,15 +479,15 @@ fn default_audio_stream_options() -> Vec<AudioStreamOption> {
         ("192kbps 标准", 30232),
         ("128kbps 基础", 30216),
     ]
-        .into_iter()
-        .map(|(label, id)| AudioStreamOption {
-            id: format!("audio_{id}"),
-            label: label.to_string(),
-            bandwidth: None,
-            size_bytes: None,
-            available: false,
-        })
-        .collect()
+    .into_iter()
+    .map(|(label, id)| AudioStreamOption {
+        id: format!("audio_{id}"),
+        label: label.to_string(),
+        bandwidth: None,
+        size_bytes: None,
+        available: false,
+    })
+    .collect()
 }
 
 fn build_audio_stream_options(tracks: &[DashTrack]) -> Vec<AudioStreamOption> {
@@ -597,7 +593,10 @@ impl NavData {
         LoginStatus {
             is_login: self.is_login,
             username: self.is_login.then_some(self.uname),
-            avatar: self.is_login.then_some(self.face).filter(|face| !face.is_empty()),
+            avatar: self
+                .is_login
+                .then_some(self.face)
+                .filter(|face| !face.is_empty()),
             uid: self.is_login.then_some(self.mid),
             level: self.is_login.then_some(self.level_info.current_level),
             vip_type: self.is_login.then_some(self.vip_type),

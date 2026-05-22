@@ -1,5 +1,5 @@
 import React from 'react';
-import { SlidersHorizontal, Film, Music, Download, AlertTriangle, Cpu } from 'lucide-react';
+import { SlidersHorizontal, Film, Music, Download, AlertTriangle, Cpu, MessageSquareText } from 'lucide-react';
 import type { VideoData } from '../types';
 
 interface DownloadOptionsProps {
@@ -11,12 +11,15 @@ interface DownloadOptionsProps {
   onFormatChange: (f: 'video' | 'audio') => void;
   threads: number;
   onThreadsChange: (threads: number) => void;
+  downloadDanmaku: boolean;
+  onDownloadDanmakuChange: (enabled: boolean) => void;
   ffmpegAvailable?: boolean;
 }
 
 export function DownloadOptions({
   data, selectedQuality, onSelectQuality, onDownload,
-  format, onFormatChange, threads, onThreadsChange, ffmpegAvailable = true,
+  format, onFormatChange, threads, onThreadsChange,
+  downloadDanmaku, onDownloadDanmakuChange, ffmpegAvailable = true,
 }: DownloadOptionsProps) {
   if (!data) return null;
 
@@ -95,6 +98,29 @@ export function DownloadOptions({
           ))}
         </div>
       </div>
+
+      {format === 'video' && (
+        <label className="mb-4 flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-[#FFE1EC] bg-white/82 p-4 transition-all hover:border-pink-200 hover:bg-pink-50/50">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EAF7FF] text-bili-blue">
+              <MessageSquareText size={19} strokeWidth={2.4} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-black text-gray-700">下载弹幕文件</p>
+              <p className="mt-0.5 text-xs font-medium text-gray-400">生成同名 ASS 弹幕，播放器会自动加载</p>
+            </div>
+          </div>
+          <input
+            type="checkbox"
+            className="peer sr-only"
+            checked={downloadDanmaku}
+            onChange={(event) => onDownloadDanmakuChange(event.target.checked)}
+          />
+          <span className="relative h-7 w-12 shrink-0 rounded-full bg-gray-200 shadow-inner transition-all peer-checked:bg-gradient-to-r peer-checked:from-[#FF9FC0] peer-checked:to-[#FF86B2]">
+            <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-all ${downloadDanmaku ? 'left-6' : 'left-1'}`} />
+          </span>
+        </label>
+      )}
 
       <div className="flex-1">
         <label className="block text-sm font-black text-gray-600 mb-3">

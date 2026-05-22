@@ -63,7 +63,7 @@ function Root() {
         }`}
       >
         <Sidebar loginStatus={loginStatus} onLoginClick={() => setIsLoginOpen(true)} />
-        <main className="min-h-0 flex-1 flex flex-col overflow-y-auto custom-scrollbar relative z-10">
+        <main className="app-main-scrollbar min-h-0 flex-1 flex flex-col overflow-y-auto relative z-10">
           <Home />
         </main>
       </div>

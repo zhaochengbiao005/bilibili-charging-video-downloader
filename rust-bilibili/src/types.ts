@@ -65,6 +65,7 @@ export type DownloadStage =
   | 'resolving'
   | 'downloading_video'
   | 'downloading_audio'
+  | 'downloading_danmaku'
   | 'downloading_segments'
   | 'merging'
   | 'converting_audio'
@@ -80,6 +81,7 @@ export interface StartDownloadRequest {
   outdir: string;
   cookie_path?: string | null;
   skip_merge: boolean;
+  download_danmaku: boolean;
   threads: number;
 }
 

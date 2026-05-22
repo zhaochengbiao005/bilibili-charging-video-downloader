@@ -19,6 +19,7 @@ export function Home() {
   const [outdir, setOutdir] = useState('downloads');
   const [format, setFormat] = useState<'video' | 'audio'>('video');
   const [threads, setThreads] = useState(8);
+  const [downloadDanmaku, setDownloadDanmaku] = useState(false);
   const [ffmpegAvailable, setFfmpegAvailable] = useState(false);
 
   useEffect(() => {
@@ -104,7 +105,8 @@ export function Home() {
       const taskId = await Bridge.startDownload(
         videoData.id, selectedQuality, format,
         outdir, cookiePath, format === 'audio',
-        threads
+        threads,
+        format === 'video' && downloadDanmaku
       );
       const newTask: DownloadTask = {
         id: taskId,
@@ -120,7 +122,7 @@ export function Home() {
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     }
-  }, [videoData, selectedQuality, format, outdir, cookiePath, threads]);
+  }, [videoData, selectedQuality, format, outdir, cookiePath, threads, downloadDanmaku]);
 
   const handleCancel = useCallback(async (taskId: string) => {
     await Bridge.cancelDownload(taskId);
@@ -147,7 +149,7 @@ export function Home() {
   );
 
   return (
-    <div className="relative w-full min-h-full px-6 md:px-10 xl:px-14 2xl:px-16 py-8 md:py-10 flex flex-col gap-7 md:gap-8 overflow-x-hidden overflow-y-visible">
+    <div className="relative w-full min-h-full px-6 md:px-10 xl:px-14 2xl:px-16 py-8 md:py-10 flex flex-col gap-7 md:gap-8">
       <img
         src={homeBg}
         alt=""
@@ -204,6 +206,8 @@ export function Home() {
               onFormatChange={handleFormatChange}
               threads={threads}
               onThreadsChange={setThreads}
+              downloadDanmaku={downloadDanmaku}
+              onDownloadDanmakuChange={setDownloadDanmaku}
               ffmpegAvailable={ffmpegAvailable}
             />
           </div>

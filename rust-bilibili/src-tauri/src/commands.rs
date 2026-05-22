@@ -114,6 +114,7 @@ pub async fn start_download(
         .await
         .insert(task_id.clone(), cancel.clone());
     let client = state.client.clone();
+    let danmaku = state.danmaku.clone();
     let downloader = state.downloader.clone();
     let ffmpeg = state.ffmpeg.clone();
     let app_dir = state.config_store.app_dir().to_path_buf();
@@ -131,6 +132,7 @@ pub async fn start_download(
             input,
             app_for_task.clone(),
             client,
+            danmaku,
             downloader,
             ffmpeg,
             app_dir,
@@ -365,6 +367,11 @@ pub fn open_path(path: String, app: AppHandle) -> AppResult<()> {
         });
     }
     let path = PathBuf::from(path.trim());
+    if !path.exists() {
+        return Err(AppError::Io {
+            message: format!("文件已不存在：{}", path.to_string_lossy()),
+        });
+    }
     let path_to_open = if path.is_file() {
         path.parent()
             .map(Path::to_path_buf)
@@ -483,6 +490,7 @@ async fn run_download_task(
     input: StartDownloadRequest,
     app: AppHandle,
     client: crate::api::BilibiliClient,
+    danmaku: crate::danmaku::DanmakuClient,
     downloader: crate::downloader::DownloadClient,
     ffmpeg: crate::ffmpeg::FfmpegManager,
     app_dir: PathBuf,
@@ -524,10 +532,11 @@ async fn run_download_task(
             task_id: Some(task_id.clone()),
             message: "没有找到 DASH 音频流".to_string(),
         })?;
-        let track = select_audio_track(&dash.audio, &input.quality).ok_or_else(|| AppError::Download {
-            task_id: Some(task_id.clone()),
-            message: "没有可下载音频流".to_string(),
-        })?;
+        let track =
+            select_audio_track(&dash.audio, &input.quality).ok_or_else(|| AppError::Download {
+                task_id: Some(task_id.clone()),
+                message: "没有可下载音频流".to_string(),
+            })?;
         let raw_audio_path = output_dir.join(format!("{safe_title}.m4a"));
         let result = downloader
             .download_file(
@@ -640,6 +649,17 @@ async fn run_download_task(
                     &merged_path,
                 )
                 .await?;
+            let danmaku_path = write_danmaku_if_requested(
+                &danmaku,
+                &input,
+                page.cid,
+                &merged_path,
+                cookies.as_ref(),
+                &progress,
+                &task_id,
+            )
+            .await?;
+            let completion_message = completion_message("MP4 下载完成", danmaku_path.as_deref());
             let _ = tokio::fs::remove_file(&video_result.output_path).await;
             let _ = tokio::fs::remove_file(&audio_path).await;
             write_history_record(
@@ -657,11 +677,25 @@ async fn run_download_task(
                 bytes_done: video_result.bytes_written,
                 bytes_total: video_result.bytes_written,
                 speed_bytes_per_sec: 0,
-                message: Some("MP4 下载完成".to_string()),
+                message: Some(completion_message),
             });
             return Ok(merged_path);
         }
 
+        let danmaku_path = write_danmaku_if_requested(
+            &danmaku,
+            &input,
+            page.cid,
+            &video_result.output_path,
+            cookies.as_ref(),
+            &progress,
+            &task_id,
+        )
+        .await?;
+        let completion_message = completion_message(
+            "原始 DASH 流下载完成，已按请求跳过 MP4 合并",
+            danmaku_path.as_deref(),
+        );
         progress(DownloadProgressEvent {
             task_id,
             stage: "completed".to_string(),
@@ -669,7 +703,7 @@ async fn run_download_task(
             bytes_done: video_result.bytes_written,
             bytes_total: video_result.bytes_written,
             speed_bytes_per_sec: 0,
-            message: Some("原始 DASH 流下载完成，已按请求跳过 MP4 合并".to_string()),
+            message: Some(completion_message),
         });
         write_history_record(
             &history_store,
@@ -696,6 +730,17 @@ async fn run_download_task(
             cookie_header.clone(),
         )
         .await?;
+        let danmaku_path = write_danmaku_if_requested(
+            &danmaku,
+            &input,
+            page.cid,
+            &output_path,
+            cookies.as_ref(),
+            &progress,
+            &task_id,
+        )
+        .await?;
+        let completion_message = completion_message("DURL 分段下载完成", danmaku_path.as_deref());
         emit_progress(
             &progress,
             &task_id,
@@ -703,7 +748,7 @@ async fn run_download_task(
             1,
             1,
             started,
-            Some("DURL 分段下载完成".to_string()),
+            Some(completion_message),
         );
         write_history_record(
             &history_store,
@@ -747,6 +792,42 @@ fn write_history_record(
     );
     items.truncate(max_history);
     history_store.save(&items)
+}
+
+fn completion_message(base: &str, danmaku_path: Option<&Path>) -> String {
+    match danmaku_path {
+        Some(path) => format!("{base}，弹幕文件：{}", path.to_string_lossy()),
+        None => base.to_string(),
+    }
+}
+
+async fn write_danmaku_if_requested(
+    danmaku: &crate::danmaku::DanmakuClient,
+    input: &StartDownloadRequest,
+    cid: u64,
+    output_path: &Path,
+    cookies: Option<&crate::auth::CookieSet>,
+    progress: &ProgressSender,
+    task_id: &str,
+) -> AppResult<Option<PathBuf>> {
+    if !input.download_danmaku || input.format != "video" {
+        return Ok(None);
+    }
+
+    progress(DownloadProgressEvent {
+        task_id: task_id.to_string(),
+        stage: "downloading_danmaku".to_string(),
+        percent: 99.0,
+        bytes_done: 0,
+        bytes_total: 0,
+        speed_bytes_per_sec: 0,
+        message: Some("正在下载弹幕文件".to_string()),
+    });
+
+    let ass_path = danmaku
+        .download_ass(cid, &input.bvid, output_path, cookies)
+        .await?;
+    Ok(Some(ass_path))
 }
 
 async fn download_durl_segments(
@@ -914,8 +995,17 @@ mod tests {
             dash_audio_track(30216, 128_000),
         ];
 
-        assert_eq!(select_audio_track(&tracks, "320kbps 高品质").unwrap().id, 30280);
-        assert_eq!(select_audio_track(&tracks, "192kbps 标准").unwrap().id, 30232);
-        assert_eq!(select_audio_track(&tracks, "128kbps 基础").unwrap().id, 30216);
+        assert_eq!(
+            select_audio_track(&tracks, "320kbps 高品质").unwrap().id,
+            30280
+        );
+        assert_eq!(
+            select_audio_track(&tracks, "192kbps 标准").unwrap().id,
+            30232
+        );
+        assert_eq!(
+            select_audio_track(&tracks, "128kbps 基础").unwrap().id,
+            30216
+        );
     }
 }
