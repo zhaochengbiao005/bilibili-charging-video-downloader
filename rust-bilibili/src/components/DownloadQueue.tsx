@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Download, AlertCircle, CheckCircle, PauseCircle } from 'lucide-react';
+import { X, Download, AlertCircle, CheckCircle, MessageSquareText, PauseCircle } from 'lucide-react';
 import type { DownloadTask } from '../types';
 
 interface DownloadQueueProps {
@@ -92,9 +92,18 @@ export function DownloadQueue({ tasks, onRemove, onCancel }: DownloadQueueProps)
                 </div>
                 <div className="flex items-center justify-between text-[10px] text-gray-500 font-medium px-1">
                   <span>{task.speed || (task.status === 'downloading' ? '等待后端进度...' : '')}</span>
-                  <span>{task.quality} · {task.format?.toUpperCase()}</span>
+                  <span>{task.quality} · {task.format?.toUpperCase()}{task.danmaku_mode === 'burn' ? ' · 烧录弹幕' : ''}</span>
                 </div>
               </div>
+
+              {(task.download_danmaku || task.message) && (
+                <div className="flex items-start gap-2 rounded-lg border border-[#FFE1EC] bg-white/70 px-3 py-2 text-xs font-medium text-gray-500">
+                  <MessageSquareText size={14} className="mt-0.5 shrink-0 text-bili-blue" />
+                  <span className="min-w-0 break-words">
+                    {task.message || (task.danmaku_mode === 'burn' ? '已选择烧录弹幕' : '已选择外挂弹幕')}
+                  </span>
+                </div>
+              )}
 
               {/* 错误信息 */}
               {task.status === 'error' && task.error_message && (

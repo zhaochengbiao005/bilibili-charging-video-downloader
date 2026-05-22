@@ -57,8 +57,33 @@ pub struct StartDownloadRequest {
     pub skip_merge: bool,
     #[serde(default)]
     pub download_danmaku: bool,
+    #[serde(default)]
+    pub danmaku_mode: DanmakuMode,
     #[serde(default = "default_threads")]
     pub threads: usize,
+}
+
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DanmakuMode {
+    #[default]
+    None,
+    Ass,
+    Burn,
+}
+
+impl StartDownloadRequest {
+    pub fn effective_danmaku_mode(&self) -> DanmakuMode {
+        if self.format != "video" {
+            DanmakuMode::None
+        } else if self.danmaku_mode != DanmakuMode::None {
+            self.danmaku_mode
+        } else if self.download_danmaku {
+            DanmakuMode::Ass
+        } else {
+            DanmakuMode::None
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize)]

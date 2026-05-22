@@ -265,7 +265,7 @@ export function LoginModal({ isOpen, loginStatus, onLoginChange, onClose }: Logi
             </div>
 
             {mode === 'qr' ? (
-          <div className="custom-scrollbar flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-6 pb-6 pt-6 sm:px-7">
+          <div className="scrollbar-hidden flex min-h-0 flex-1 flex-col items-center overflow-y-auto px-6 pb-6 pt-6 sm:px-7">
             {qrData ? (
               <div
                 className="grid h-[212px] w-[212px] shrink-0 place-items-center rounded-[1.75rem] border border-pink-100 bg-white p-3 shadow-inner [&_svg]:block [&_svg]:h-full [&_svg]:w-full"
@@ -310,7 +310,7 @@ export function LoginModal({ isOpen, loginStatus, onLoginChange, onClose }: Logi
             </button>
           </div>
         ) : (
-          <div className="custom-scrollbar min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-6 sm:px-7">
+          <div className="scrollbar-hidden min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-6 sm:px-7">
             <div className="rounded-3xl border border-pink-100 bg-pink-50/70 p-5 text-center">
               <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-bili-pink shadow-sm">
                 <AlertCircle size={22} />

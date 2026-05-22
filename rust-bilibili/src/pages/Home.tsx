@@ -4,7 +4,7 @@ import { UrlInput } from '../components/UrlInput';
 import { VideoInfo } from '../components/VideoInfo';
 import { DownloadOptions } from '../components/DownloadOptions';
 import { DownloadQueue } from '../components/DownloadQueue';
-import type { VideoData, DownloadTask } from '../types';
+import type { DanmakuMode, VideoData, DownloadTask } from '../types';
 import * as Bridge from '../bridge';
 import homeBg from '../assets/home-bg.png';
 
@@ -19,7 +19,7 @@ export function Home() {
   const [outdir, setOutdir] = useState('downloads');
   const [format, setFormat] = useState<'video' | 'audio'>('video');
   const [threads, setThreads] = useState(8);
-  const [downloadDanmaku, setDownloadDanmaku] = useState(false);
+  const [danmakuMode, setDanmakuMode] = useState<DanmakuMode>('none');
   const [ffmpegAvailable, setFfmpegAvailable] = useState(false);
 
   useEffect(() => {
@@ -34,9 +34,9 @@ export function Home() {
 
   // ── 注册 Rust 后端事件回调 ──
   useEffect(() => {
-    Bridge.setOnProgress((taskId, percent, speed) => {
+    Bridge.setOnProgress((taskId, percent, speed, event) => {
       setTasks(prev => prev.map(t =>
-        t.id === taskId ? { ...t, progress: percent, speed } : t
+        t.id === taskId ? { ...t, progress: percent, speed, message: event.message || t.message } : t
       ));
     });
 
@@ -47,18 +47,7 @@ export function Home() {
 
     Bridge.setOnTaskDone((taskId, result) => {
       setTasks(prev => prev.map(t =>
-        t.id === taskId
-          ? {
-              ...t,
-              status: result.status === 'completed'
-                ? 'completed' as const
-                : result.status === 'cancelled'
-                  ? 'cancelled' as const
-                  : 'error' as const,
-              progress: result.status === 'completed' ? 100 : t.progress,
-              error_message: result.status === 'failed' ? result.message : undefined,
-            }
-          : t
+        t.id === taskId ? finishTask(t, result) : t
       ));
     });
 
@@ -106,8 +95,9 @@ export function Home() {
         videoData.id, selectedQuality, format,
         outdir, cookiePath, format === 'audio',
         threads,
-        format === 'video' && downloadDanmaku
+        format === 'video' ? danmakuMode : 'none'
       );
+      const effectiveDanmakuMode = format === 'video' ? danmakuMode : 'none';
       const newTask: DownloadTask = {
         id: taskId,
         bvid: videoData.id,
@@ -117,12 +107,15 @@ export function Home() {
         progress: 0,
         status: 'downloading',
         output_dir: outdir,
+        download_danmaku: effectiveDanmakuMode !== 'none',
+        danmaku_mode: effectiveDanmakuMode,
+        message: danmakuTaskMessage(effectiveDanmakuMode),
       };
       setTasks(prev => [newTask, ...prev]);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
     }
-  }, [videoData, selectedQuality, format, outdir, cookiePath, threads, downloadDanmaku]);
+  }, [videoData, selectedQuality, format, outdir, cookiePath, threads, danmakuMode]);
 
   const handleCancel = useCallback(async (taskId: string) => {
     await Bridge.cancelDownload(taskId);
@@ -154,7 +147,7 @@ export function Home() {
         src={homeBg}
         alt=""
         aria-hidden="true"
-        className="pointer-events-none absolute right-0 bottom-0 z-0 h-[min(62vh,620px)] w-auto max-w-[46vw] object-contain object-bottom opacity-68 drop-shadow-[0_22px_52px_rgba(123,207,255,0.16)] xl:h-[min(68vh,720px)] 2xl:h-[min(72vh,820px)]"
+        className="pointer-events-none fixed bottom-0 right-0 z-0 h-[min(68vh,680px)] w-auto max-w-[46vw] object-contain object-bottom opacity-68 drop-shadow-[0_22px_52px_rgba(123,207,255,0.16)] xl:h-[min(74vh,780px)] 2xl:h-[min(78vh,880px)]"
       />
       <div className="text-center flex flex-col items-center shrink-0 relative">
         <div className="bili-soft-pattern absolute -top-4 left-1/2 h-24 w-[420px] -translate-x-1/2 rounded-full opacity-45 blur-[0.2px]" />
@@ -206,8 +199,8 @@ export function Home() {
               onFormatChange={handleFormatChange}
               threads={threads}
               onThreadsChange={setThreads}
-              downloadDanmaku={downloadDanmaku}
-              onDownloadDanmakuChange={setDownloadDanmaku}
+              danmakuMode={danmakuMode}
+              onDanmakuModeChange={setDanmakuMode}
               ffmpegAvailable={ffmpegAvailable}
             />
           </div>
@@ -215,6 +208,32 @@ export function Home() {
       ) : null}
     </div>
   );
+}
+
+function finishTask(task: DownloadTask, result: { status: string; message?: string }): DownloadTask {
+  const status = result.status === 'completed'
+    ? 'completed' as const
+    : result.status === 'cancelled'
+      ? 'cancelled' as const
+      : 'error' as const;
+  const shouldKeepDanmakuMessage =
+    task.download_danmaku &&
+    task.message &&
+    (task.message.includes('弹幕文件') || task.message.includes('弹幕'));
+
+  return {
+    ...task,
+    status,
+    progress: result.status === 'completed' ? 100 : task.progress,
+    error_message: result.status === 'failed' ? result.message : undefined,
+    message: shouldKeepDanmakuMessage ? task.message : result.message || task.message,
+  };
+}
+
+function danmakuTaskMessage(mode: DanmakuMode): string | undefined {
+  if (mode === 'ass') return '已选择外挂弹幕';
+  if (mode === 'burn') return '已选择烧录弹幕';
+  return undefined;
 }
 
 function extractBvid(text: string): string | null {

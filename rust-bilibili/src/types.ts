@@ -66,6 +66,7 @@ export type DownloadStage =
   | 'downloading_video'
   | 'downloading_audio'
   | 'downloading_danmaku'
+  | 'burning_danmaku'
   | 'downloading_segments'
   | 'merging'
   | 'converting_audio'
@@ -82,8 +83,11 @@ export interface StartDownloadRequest {
   cookie_path?: string | null;
   skip_merge: boolean;
   download_danmaku: boolean;
+  danmaku_mode: DanmakuMode;
   threads: number;
 }
+
+export type DanmakuMode = 'none' | 'ass' | 'burn';
 
 export interface PlayUrlRequest {
   bvid: string;
@@ -158,6 +162,9 @@ export interface DownloadTask {
   speed?: string;
   output_dir?: string;
   error_message?: string;
+  message?: string;
+  download_danmaku?: boolean;
+  danmaku_mode?: DanmakuMode;
 }
 
 export interface HistoryItem {

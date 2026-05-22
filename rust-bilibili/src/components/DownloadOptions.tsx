@@ -1,6 +1,6 @@
 import React from 'react';
-import { SlidersHorizontal, Film, Music, Download, AlertTriangle, Cpu, MessageSquareText } from 'lucide-react';
-import type { VideoData } from '../types';
+import { SlidersHorizontal, Film, Music, Download, AlertTriangle, Cpu, MessageSquareText, Flame } from 'lucide-react';
+import type { DanmakuMode, VideoData } from '../types';
 
 interface DownloadOptionsProps {
   data: VideoData | null;
@@ -11,15 +11,15 @@ interface DownloadOptionsProps {
   onFormatChange: (f: 'video' | 'audio') => void;
   threads: number;
   onThreadsChange: (threads: number) => void;
-  downloadDanmaku: boolean;
-  onDownloadDanmakuChange: (enabled: boolean) => void;
+  danmakuMode: DanmakuMode;
+  onDanmakuModeChange: (mode: DanmakuMode) => void;
   ffmpegAvailable?: boolean;
 }
 
 export function DownloadOptions({
   data, selectedQuality, onSelectQuality, onDownload,
   format, onFormatChange, threads, onThreadsChange,
-  downloadDanmaku, onDownloadDanmakuChange, ffmpegAvailable = true,
+  danmakuMode, onDanmakuModeChange, ffmpegAvailable = true,
 }: DownloadOptionsProps) {
   if (!data) return null;
 
@@ -100,26 +100,48 @@ export function DownloadOptions({
       </div>
 
       {format === 'video' && (
-        <label className="mb-4 flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-[#FFE1EC] bg-white/82 p-4 transition-all hover:border-pink-200 hover:bg-pink-50/50">
-          <div className="flex min-w-0 items-center gap-3">
+        <div className="mb-4 rounded-2xl border border-[#FFE1EC] bg-white/82 p-4">
+          <div className="mb-3 flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EAF7FF] text-bili-blue">
               <MessageSquareText size={19} strokeWidth={2.4} />
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-black text-gray-700">下载弹幕文件</p>
-              <p className="mt-0.5 text-xs font-medium text-gray-400">生成同名 ASS 弹幕，播放器会自动加载</p>
+              <p className="text-sm font-black text-gray-700">弹幕处理</p>
+              <p className="mt-0.5 text-xs font-medium text-gray-400">外挂可关闭，烧录播放更流畅</p>
             </div>
           </div>
-          <input
-            type="checkbox"
-            className="peer sr-only"
-            checked={downloadDanmaku}
-            onChange={(event) => onDownloadDanmakuChange(event.target.checked)}
-          />
-          <span className="relative h-7 w-12 shrink-0 rounded-full bg-gray-200 shadow-inner transition-all peer-checked:bg-gradient-to-r peer-checked:from-[#FF9FC0] peer-checked:to-[#FF86B2]">
-            <span className={`absolute top-1 h-5 w-5 rounded-full bg-white shadow-sm transition-all ${downloadDanmaku ? 'left-6' : 'left-1'}`} />
-          </span>
-        </label>
+          <div className="grid grid-cols-3 gap-2 rounded-2xl bg-[#F6F9FE] p-1.5">
+            {[
+              { value: 'none' as const, label: '关闭', icon: MessageSquareText },
+              { value: 'ass' as const, label: '外挂', icon: MessageSquareText },
+              { value: 'burn' as const, label: '烧录', icon: Flame },
+            ].map((item) => {
+              const Icon = item.icon;
+              const active = danmakuMode === item.value;
+              return (
+                <button
+                  key={item.value}
+                  type="button"
+                  onClick={() => onDanmakuModeChange(item.value)}
+                  className={`flex min-h-11 items-center justify-center gap-1.5 rounded-xl text-sm font-black transition-all ${
+                    active
+                      ? 'bg-white text-bili-pink shadow-sm border border-pink-100'
+                      : 'border border-transparent text-gray-500 hover:bg-white/60 hover:text-bili-pink'
+                  }`}
+                >
+                  <Icon size={15} />
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+          {danmakuMode === 'ass' && (
+            <p className="mt-2 text-xs font-medium text-gray-400">生成同名 ASS 文件，播放器可手动开关。</p>
+          )}
+          {danmakuMode === 'burn' && (
+            <p className="mt-2 text-xs font-medium text-gray-400">生成带弹幕的 MP4，播放更顺滑但弹幕不可关闭。</p>
+          )}
+        </div>
       )}
 
       <div className="flex-1">
@@ -197,7 +219,7 @@ export function DownloadOptions({
       {format === 'video' && !ffmpegAvailable && (
         <div className="mt-4 flex items-center gap-2 text-xs text-orange-500 bg-orange-50 rounded-xl px-4 py-2.5 border border-orange-100">
           <AlertTriangle size={14} />
-          MP4 合并需要 FFmpeg，未检测到时下载会提示安装
+          MP4 合并和弹幕烧录需要 FFmpeg，未检测到时下载会提示安装
         </div>
       )}
 

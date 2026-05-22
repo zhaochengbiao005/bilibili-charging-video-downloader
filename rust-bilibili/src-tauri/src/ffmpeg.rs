@@ -191,6 +191,68 @@ impl FfmpegManager {
         Ok(())
     }
 
+    pub async fn burn_ass_subtitles(
+        &self,
+        app_dir: &Path,
+        resource_dir: Option<&Path>,
+        input_path: &Path,
+        ass_path: &Path,
+        output_path: &Path,
+    ) -> AppResult<()> {
+        if let Some(parent) = output_path.parent() {
+            tokio::fs::create_dir_all(parent).await?;
+        }
+        let executable = self.resolve_executable(app_dir, resource_dir)?;
+        let temp_path = temp_output_path(output_path);
+        let filter = format!("subtitles={}", ffmpeg_filter_path(ass_path));
+
+        let output = Command::new(executable)
+            .arg("-y")
+            .arg("-hide_banner")
+            .arg("-loglevel")
+            .arg("error")
+            .arg("-i")
+            .arg(input_path)
+            .arg("-vf")
+            .arg(filter)
+            .arg("-c:v")
+            .arg("libx264")
+            .arg("-preset")
+            .arg("veryfast")
+            .arg("-crf")
+            .arg("20")
+            .arg("-c:a")
+            .arg("copy")
+            .arg("-movflags")
+            .arg("+faststart")
+            .arg(&temp_path)
+            .output()
+            .await
+            .map_err(|err| {
+                if err.kind() == std::io::ErrorKind::NotFound {
+                    AppError::FfmpegNotFound
+                } else {
+                    AppError::Io {
+                        message: err.to_string(),
+                    }
+                }
+            })?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            let message = if stderr.is_empty() {
+                format!("FFmpeg 退出码 {}", output.status)
+            } else {
+                stderr
+            };
+            let _ = tokio::fs::remove_file(&temp_path).await;
+            return Err(AppError::Merge { message });
+        }
+
+        replace_file(&temp_path, output_path).await?;
+        Ok(())
+    }
+
     pub fn resolve_executable(
         &self,
         app_dir: &Path,
@@ -283,6 +345,15 @@ fn temp_output_path(output_path: &Path) -> PathBuf {
     }
 }
 
+fn ffmpeg_filter_path(path: &Path) -> String {
+    let normalized = path.to_string_lossy().replace('\\', "/");
+    let escaped = normalized
+        .replace('\\', "\\\\")
+        .replace(':', "\\:")
+        .replace('\'', "\\'");
+    format!("'{escaped}'")
+}
+
 async fn replace_file(temp_path: &Path, output_path: &Path) -> AppResult<()> {
     if output_path.exists() {
         tokio::fs::remove_file(output_path).await?;
@@ -319,6 +390,14 @@ mod tests {
         assert_eq!(
             temp_output_path(Path::new("C:/Videos/demo.mp3")),
             PathBuf::from("C:/Videos/demo.tmp.mp3")
+        );
+    }
+
+    #[test]
+    fn escapes_windows_path_for_subtitles_filter() {
+        assert_eq!(
+            ffmpeg_filter_path(Path::new("C:/Videos/demo subtitle.ass")),
+            "'C\\:/Videos/demo subtitle.ass'"
         );
     }
 }

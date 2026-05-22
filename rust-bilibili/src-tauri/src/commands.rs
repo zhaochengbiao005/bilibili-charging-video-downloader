@@ -21,8 +21,8 @@ use crate::{
     models::{
         config::{ConfigResponse, SaveConfigRequest},
         download::{
-            DashTrack, DownloadDoneEvent, DownloadProgressEvent, DurlSegment, PlayUrlRequest,
-            PlayUrlResponse, StartDownloadRequest, StartDownloadResponse,
+            DanmakuMode, DashTrack, DownloadDoneEvent, DownloadProgressEvent, DurlSegment,
+            PlayUrlRequest, PlayUrlResponse, StartDownloadRequest, StartDownloadResponse,
         },
         history::HistoryItem,
         video::{FetchInfoRequest, FetchInfoResponse},
@@ -509,7 +509,7 @@ async fn run_download_task(
         bytes_done: 0,
         bytes_total: 0,
         speed_bytes_per_sec: 0,
-        message: Some("正在解析播放地址".to_string()),
+        message: Some(format!("正在解析播放地址{}", danmaku_mode_suffix(&input))),
     });
 
     let video = client.video_info(&input.bvid, cookies.as_ref()).await?;
@@ -649,17 +649,20 @@ async fn run_download_task(
                     &merged_path,
                 )
                 .await?;
-            let danmaku_path = write_danmaku_if_requested(
+            let danmaku_result = process_danmaku_if_requested(
                 &danmaku,
+                &ffmpeg,
                 &input,
                 page.cid,
                 &merged_path,
+                &app_dir,
+                resource_dir.as_deref(),
                 cookies.as_ref(),
                 &progress,
                 &task_id,
             )
-            .await?;
-            let completion_message = completion_message("MP4 下载完成", danmaku_path.as_deref());
+            .await;
+            let completion_message = completion_message("MP4 下载完成", danmaku_result);
             let _ = tokio::fs::remove_file(&video_result.output_path).await;
             let _ = tokio::fs::remove_file(&audio_path).await;
             write_history_record(
@@ -682,19 +685,22 @@ async fn run_download_task(
             return Ok(merged_path);
         }
 
-        let danmaku_path = write_danmaku_if_requested(
+        let danmaku_result = process_danmaku_if_requested(
             &danmaku,
+            &ffmpeg,
             &input,
             page.cid,
             &video_result.output_path,
+            &app_dir,
+            resource_dir.as_deref(),
             cookies.as_ref(),
             &progress,
             &task_id,
         )
-        .await?;
+        .await;
         let completion_message = completion_message(
             "原始 DASH 流下载完成，已按请求跳过 MP4 合并",
-            danmaku_path.as_deref(),
+            danmaku_result,
         );
         progress(DownloadProgressEvent {
             task_id,
@@ -730,17 +736,20 @@ async fn run_download_task(
             cookie_header.clone(),
         )
         .await?;
-        let danmaku_path = write_danmaku_if_requested(
+        let danmaku_result = process_danmaku_if_requested(
             &danmaku,
+            &ffmpeg,
             &input,
             page.cid,
             &output_path,
+            &app_dir,
+            resource_dir.as_deref(),
             cookies.as_ref(),
             &progress,
             &task_id,
         )
-        .await?;
-        let completion_message = completion_message("DURL 分段下载完成", danmaku_path.as_deref());
+        .await;
+        let completion_message = completion_message("DURL 分段下载完成", danmaku_result);
         emit_progress(
             &progress,
             &task_id,
@@ -794,24 +803,41 @@ fn write_history_record(
     history_store.save(&items)
 }
 
-fn completion_message(base: &str, danmaku_path: Option<&Path>) -> String {
-    match danmaku_path {
-        Some(path) => format!("{base}，弹幕文件：{}", path.to_string_lossy()),
+#[derive(Debug)]
+struct DanmakuProcessResult {
+    ass_path: PathBuf,
+    burned_into_video: bool,
+}
+
+fn completion_message(
+    base: &str,
+    danmaku_result: Option<Result<DanmakuProcessResult, String>>,
+) -> String {
+    match danmaku_result {
+        Some(Ok(result)) if result.burned_into_video => {
+            format!("{base}，弹幕已烧录到视频")
+        }
+        Some(Ok(result)) => format!("{base}，弹幕文件：{}", result.ass_path.to_string_lossy()),
+        Some(Err(message)) => format!("{base}，但弹幕文件下载失败：{message}"),
         None => base.to_string(),
     }
 }
 
-async fn write_danmaku_if_requested(
+async fn process_danmaku_if_requested(
     danmaku: &crate::danmaku::DanmakuClient,
+    ffmpeg: &crate::ffmpeg::FfmpegManager,
     input: &StartDownloadRequest,
     cid: u64,
     output_path: &Path,
+    app_dir: &Path,
+    resource_dir: Option<&Path>,
     cookies: Option<&crate::auth::CookieSet>,
     progress: &ProgressSender,
     task_id: &str,
-) -> AppResult<Option<PathBuf>> {
-    if !input.download_danmaku || input.format != "video" {
-        return Ok(None);
+) -> Option<Result<DanmakuProcessResult, String>> {
+    let mode = input.effective_danmaku_mode();
+    if mode == DanmakuMode::None {
+        return None;
     }
 
     progress(DownloadProgressEvent {
@@ -821,13 +847,98 @@ async fn write_danmaku_if_requested(
         bytes_done: 0,
         bytes_total: 0,
         speed_bytes_per_sec: 0,
-        message: Some("正在下载弹幕文件".to_string()),
+        message: Some(match mode {
+            DanmakuMode::Ass => "正在下载弹幕文件".to_string(),
+            DanmakuMode::Burn => "正在下载弹幕文件，稍后烧录到视频".to_string(),
+            DanmakuMode::None => unreachable!(),
+        }),
     });
 
-    let ass_path = danmaku
+    let result = match danmaku
         .download_ass(cid, &input.bvid, output_path, cookies)
-        .await?;
-    Ok(Some(ass_path))
+        .await
+    {
+        Ok(ass_path)
+            if mode == DanmakuMode::Burn
+                && output_path
+                    .extension()
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("mp4")) =>
+        {
+            progress(DownloadProgressEvent {
+                task_id: task_id.to_string(),
+                stage: "burning_danmaku".to_string(),
+                percent: 99.6,
+                bytes_done: 0,
+                bytes_total: 1,
+                speed_bytes_per_sec: 0,
+                message: Some("正在烧录弹幕到视频".to_string()),
+            });
+            match ffmpeg
+                .burn_ass_subtitles(app_dir, resource_dir, output_path, &ass_path, output_path)
+                .await
+            {
+                Ok(()) => {
+                    let _ = tokio::fs::remove_file(&ass_path).await;
+                    Ok(DanmakuProcessResult {
+                        ass_path,
+                        burned_into_video: true,
+                    })
+                }
+                Err(err) => Err(format!("弹幕烧录失败：{err}")),
+            }
+        }
+        Ok(ass_path) if mode == DanmakuMode::Burn => Ok(DanmakuProcessResult {
+            ass_path,
+            burned_into_video: false,
+        }),
+        Ok(ass_path) => Ok(DanmakuProcessResult {
+            ass_path,
+            burned_into_video: false,
+        }),
+        Err(err) => Err(err.to_string()),
+    };
+
+    match &result {
+        Ok(result) if result.burned_into_video => progress(DownloadProgressEvent {
+            task_id: task_id.to_string(),
+            stage: "burning_danmaku".to_string(),
+            percent: 99.9,
+            bytes_done: 1,
+            bytes_total: 1,
+            speed_bytes_per_sec: 0,
+            message: Some("弹幕已烧录到视频".to_string()),
+        }),
+        Ok(result) => progress(DownloadProgressEvent {
+            task_id: task_id.to_string(),
+            stage: "downloading_danmaku".to_string(),
+            percent: 99.5,
+            bytes_done: 1,
+            bytes_total: 1,
+            speed_bytes_per_sec: 0,
+            message: Some(format!(
+                "弹幕文件已保存：{}",
+                result.ass_path.to_string_lossy()
+            )),
+        }),
+        Err(message) => progress(DownloadProgressEvent {
+            task_id: task_id.to_string(),
+            stage: "downloading_danmaku".to_string(),
+            percent: 99.5,
+            bytes_done: 0,
+            bytes_total: 1,
+            speed_bytes_per_sec: 0,
+            message: Some(format!("弹幕文件下载失败：{message}")),
+        }),
+    }
+    Some(result)
+}
+
+fn danmaku_mode_suffix(input: &StartDownloadRequest) -> &'static str {
+    match input.effective_danmaku_mode() {
+        DanmakuMode::None => "",
+        DanmakuMode::Ass => "，已选择外挂弹幕",
+        DanmakuMode::Burn => "，已选择烧录弹幕",
+    }
 }
 
 async fn download_durl_segments(

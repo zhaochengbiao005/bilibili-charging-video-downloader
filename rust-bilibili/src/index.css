@@ -106,4 +106,20 @@ body {
     display: none;
     background: transparent;
   }
+
+  .scrollbar-hidden {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-hidden::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+  }
+  .scrollbar-hidden::-webkit-scrollbar-track,
+  .scrollbar-hidden::-webkit-scrollbar-thumb,
+  .scrollbar-hidden::-webkit-scrollbar-button,
+  .scrollbar-hidden::-webkit-scrollbar-corner {
+    display: none;
+    background: transparent;
+  }
 }

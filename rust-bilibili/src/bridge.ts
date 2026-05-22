@@ -7,6 +7,7 @@ import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type {
   AppConfig,
   ConfigResponse,
+  DanmakuMode,
   DownloadDoneEvent,
   DownloadProgressEvent,
   FetchInfoResponse,
@@ -23,7 +24,7 @@ import type {
   AppErrorPayload,
 } from './types';
 
-export type ProgressHandler = (taskId: string, percent: number, speed: string) => void;
+export type ProgressHandler = (taskId: string, percent: number, speed: string, event: DownloadProgressEvent) => void;
 export type LogHandler = (msg: string) => void;
 export type TaskDoneHandler = (taskId: string, result: any) => void;
 
@@ -114,6 +115,7 @@ function ensureEventListeners(): Promise<UnlistenFn[]> {
         payload.task_id,
         payload.percent,
         formatSpeed(payload.speed_bytes_per_sec),
+        payload,
       ));
       if (payload.message) logHandlers.forEach((handler) => handler(payload.message!));
     }),
@@ -153,18 +155,21 @@ export async function fetchImageDataUrl(url: string): Promise<string> {
 
 export async function startDownload(
   bvid: string, quality: string, fmt: string,
-  outdir: string, cookiePath = '', skipMerge = false, threads = 8, downloadDanmaku = false
+  outdir: string, cookiePath = '', skipMerge = false, threads = 8, danmakuMode: DanmakuMode = 'none'
 ): Promise<string> {
   if (!isTauriRuntime()) throw missingRuntimeError();
   await ensureEventListeners();
+  const isVideo = fmt !== 'audio';
+  const effectiveDanmakuMode = isVideo ? danmakuMode : 'none';
   const input: StartDownloadRequest = {
     bvid,
     quality,
-    format: fmt === 'audio' ? 'audio' : 'video',
+    format: isVideo ? 'video' : 'audio',
     outdir,
     cookie_path: cookiePath || null,
     skip_merge: skipMerge,
-    download_danmaku: downloadDanmaku,
+    download_danmaku: effectiveDanmakuMode !== 'none',
+    danmaku_mode: effectiveDanmakuMode,
     threads,
   };
   const res = await callCommand<StartDownloadResponse>('start_download', {
