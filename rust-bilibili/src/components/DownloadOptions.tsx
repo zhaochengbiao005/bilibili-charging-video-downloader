@@ -170,7 +170,7 @@ export function DownloadOptions({
 
       <button
         onClick={onDownload}
-        className="w-full mt-6 bg-gradient-to-r from-[#fb7299] to-[#ff85a8] text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] shadow-lg shadow-pink-300/40 active:scale-[0.98]"
+        className="w-full mt-6 bg-gradient-to-r from-bili-pink to-bili-pink-hover text-white py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-transform hover:scale-[1.02] shadow-[0_14px_30px_rgba(255,143,179,0.32)] active:scale-[0.98]"
       >
         <Download size={20} strokeWidth={2.5} />
         开始下载

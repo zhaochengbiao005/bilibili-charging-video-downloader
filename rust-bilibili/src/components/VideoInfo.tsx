@@ -10,6 +10,8 @@ interface VideoInfoProps {
 export function VideoInfo({ data }: VideoInfoProps) {
   const [thumbnailSrc, setThumbnailSrc] = useState('');
   const [thumbnailFailed, setThumbnailFailed] = useState(false);
+  const [authorAvatarSrc, setAuthorAvatarSrc] = useState('');
+  const [authorAvatarFailed, setAuthorAvatarFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -33,11 +35,33 @@ export function VideoInfo({ data }: VideoInfoProps) {
     };
   }, [data?.thumbnail]);
 
+  useEffect(() => {
+    let cancelled = false;
+    setAuthorAvatarFailed(false);
+    setAuthorAvatarSrc('');
+
+    if (!data?.author_avatar) return;
+
+    Bridge.fetchImageDataUrl(data.author_avatar)
+      .then((src) => {
+        if (!cancelled) setAuthorAvatarSrc(src);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setAuthorAvatarSrc(data.author_avatar);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [data?.author_avatar]);
+
   if (!data) return null;
 
   return (
-    <div className="glass-panel rounded-[2rem] p-7 md:p-8 2xl:p-10 flex flex-col gap-7">
-      <div className="w-full aspect-video rounded-[1.75rem] overflow-hidden relative shadow-[0_24px_70px_rgba(20,32,70,0.12)] bg-gray-100">
+    <div className="glass-panel rounded-[2rem] p-6 md:p-7 2xl:p-8 flex flex-col gap-6">
+      <div className="w-full max-w-[760px] mx-auto aspect-video rounded-[1.5rem] overflow-hidden relative shadow-[0_20px_58px_rgba(20,32,70,0.11)] bg-gray-100">
         {thumbnailSrc && !thumbnailFailed ? (
           <img
             src={thumbnailSrc}
@@ -56,7 +80,7 @@ export function VideoInfo({ data }: VideoInfoProps) {
       </div>
 
       <div className="flex flex-col gap-4">
-        <h2 className="text-[28px] 2xl:text-[32px] font-black text-gray-900 leading-snug">
+        <h2 className="text-[26px] 2xl:text-[30px] font-black text-gray-900 leading-snug">
           {data.title}
         </h2>
 
@@ -82,9 +106,19 @@ export function VideoInfo({ data }: VideoInfoProps) {
 
         <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500">
           <div className="flex items-center gap-1.5 font-medium">
-            <div className="w-7 h-7 rounded-full bg-gradient-to-br from-bili-pink to-pink-300 flex items-center justify-center text-white text-[10px] font-bold">
-              {data.author.charAt(0)}
-            </div>
+            {authorAvatarSrc && !authorAvatarFailed ? (
+              <img
+                src={authorAvatarSrc}
+                alt={`${data.author} 的头像`}
+                className="h-7 w-7 rounded-full border border-white object-cover shadow-sm"
+                referrerPolicy="no-referrer"
+                onError={() => setAuthorAvatarFailed(true)}
+              />
+            ) : (
+              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-bili-pink to-bili-pink-hover flex items-center justify-center text-white text-[10px] font-bold">
+                {data.author.charAt(0)}
+              </div>
+            )}
             {data.author}
           </div>
           <div className="flex items-center gap-1.5">

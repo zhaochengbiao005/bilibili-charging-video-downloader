@@ -1,6 +1,6 @@
 [package]
 name = "bilibili-downloader"
-version = "1.0.0"
+version = "1.0.4"
 edition = "2021"
 description = "B站充电视频下载器 - Rust/tauri 全栈版"
 
@@ -15,6 +15,7 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"
+tauri-plugin-log = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 reqwest = { version = "0.12", features = ["cookies", "json", "stream", "gzip", "brotli"] }
@@ -29,4 +30,4 @@ uuid = { version = "1", features = ["v4"] }
 dirs = "6"
 sanitize-filename = "0.5"
 tracing = "0.1"
-tracing-subscriber = "0.3"
+zip = { version = "2", default-features = false, features = ["deflate"] }

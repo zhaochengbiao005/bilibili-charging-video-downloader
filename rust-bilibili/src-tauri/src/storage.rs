@@ -144,10 +144,13 @@ impl CookieStore {
 }
 
 pub fn app_data_dir() -> AppResult<PathBuf> {
-    let base = dirs::data_dir().ok_or_else(|| AppError::Io {
-        message: "无法定位系统数据目录".to_string(),
+    let exe_path = std::env::current_exe().map_err(|err| AppError::Io {
+        message: format!("无法定位程序安装目录：{err}"),
     })?;
-    Ok(base.join("BilibiliDownloader"))
+    let exe_dir = exe_path.parent().ok_or_else(|| AppError::Io {
+        message: "无法定位程序安装目录".to_string(),
+    })?;
+    Ok(exe_dir.to_path_buf())
 }
 
 fn write_json_atomic<T: serde::Serialize + ?Sized>(path: &Path, value: &T) -> AppResult<()> {

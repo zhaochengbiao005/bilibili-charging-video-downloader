@@ -355,11 +355,12 @@ FFmpeg 管理和合并。
 目录建议：
 
 ```text
-%APPDATA%/BilibiliDownloader/
+<程序所在目录>/
   config.json
   history.json
   cookies.json
   ffmpeg/ffmpeg.exe
+  downloads/
   logs/app.log
   tasks/
 ```
@@ -717,33 +718,54 @@ tracing-subscriber = "0.3"
 
 ### Phase 4: FFmpeg 和一站式体验
 
-- [ ] 实现 FFmpeg 检测。
-- [ ] 实现一键安装 FFmpeg。
-- [ ] 实现 DASH 音视频合并。
-- [ ] 实现音频 MP3 转换。
-- [ ] 实现下载历史写入。
+- [x] 实现 FFmpeg 检测。
+- [x] 实现一键安装 FFmpeg。
+- [x] 实现 DASH 音视频合并。
+- [x] 实现音频 MP3 转换。
+- [x] 实现下载历史写入。
 
 验收：
 
-- [ ] 无 FFmpeg 时设置页提示安装。
+- [x] 无 FFmpeg 时设置页提示安装。
 - [ ] 安装完成后可直接合并。
 - [ ] 下载完成后历史页出现记录。
-- [ ] 历史页可打开输出目录。
+- [x] 历史页可打开输出目录。
+
+阶段记录（2026-05-21）：
+
+- `check_ffmpeg` 已按“打包内置资源 -> 程序所在目录缓存 -> 系统 PATH”的顺序检测 FFmpeg；设置页能显示可用状态和实际路径。
+- `npm run prepare:ffmpeg` 会从构建期 `ffmpeg-static` 复制 `ffmpeg.exe` 与对应 LICENSE/README 到 `src-tauri/resources/ffmpeg/`；`tauri build` 前会自动执行，安装包可携带开箱即用的合并/转码能力。
+- `install_ffmpeg` 从 gyan.dev 下载 Windows essentials ZIP，提取前只接受安全的 `bin/ffmpeg.exe` 条目，并通过下载进度事件驱动设置页进度条。
+- 视频下载默认输出 MP4：DASH 视频/音频下载完成后调用 FFmpeg copy 合并，成功后清理 `.m4s/.m4a` 临时原始流。
+- 音频下载默认输出 MP3：先拉取 DASH 音频流，再通过 FFmpeg 转码为 `.mp3`。
+- 下载完成会写入程序所在目录的 `history.json`，默认下载目录为程序所在目录下的 `downloads/`，并按配置中的 `max_history` 截断；历史页可读取、删除、清空记录，打开按钮会打开输出文件所在目录。
+- 合并临时文件名已改为 `*.tmp.mp4` / `*.tmp.mp3`，避免 FFmpeg 因 `*.mp4.tmp` 这类不可识别扩展报错。
+- 验证通过：`npm run prepare:ffmpeg`、`npm run lint`、`cargo test`。安装完成后合并与历史出现记录仍需在真实 Tauri 窗口中用实际下载任务复验。
 
 ### Phase 5: 打包和发布质量
 
-- [ ] 配置 Tauri Windows 打包。
-- [ ] 图标、应用名、版本号、安装目录确认。
-- [ ] 日志文件和崩溃信息落盘。
-- [ ] 清理前端 AI Studio 残留依赖。
-- [ ] 编写最终 README。
+- [x] 配置 Tauri Windows 打包。
+- [x] 图标、应用名、版本号、安装目录确认。
+- [x] 日志文件和崩溃信息落盘。
+- [x] 清理前端 AI Studio 残留依赖。
+- [x] 编写最终 README。
 
 验收：
 
 - [ ] 全新 Windows 环境可安装/启动。
-- [ ] 不依赖 Python。
-- [ ] 常见错误有用户可理解提示。
-- [ ] 发布包包含完整一站式能力。
+- [x] 不依赖 Python。
+- [x] 常见错误有用户可理解提示。
+- [x] 发布包包含完整一站式能力。
+
+阶段记录（2026-05-21 / 2026-05-22）：
+
+- Tauri 打包目标收敛为 Windows NSIS：`bundle.targets = ["nsis"]`，产品名和窗口标题改为“B站充电视频下载器”，安装模式为当前用户安装，安装器语言为简体中文。
+- 打包图标使用 `src-tauri/icons/icon.ico`，版本号更新为 `1.0.4`，主程序名为 `BilibiliChargingDownloader104.exe`，安装包会包含 `resources/ffmpeg/` 中的 FFmpeg 资源。
+- 新增 NSIS hook，安装完成后重写桌面/开始菜单快捷方式图标和卸载项 `DisplayIcon`，避免继续显示旧白底默认图标。
+- 新增 `tauri-plugin-log`，运行日志写入程序所在目录的 `logs/`；README 中同步记录应用数据、日志、打包产物和验收步骤。
+- 前端运行依赖保持为 Tauri API、React、路由、动画和图标库；AI Studio 云端模板依赖未进入 `rust-bilibili/package.json`。
+- 已补齐真实二维码登录、登录成功后弹窗关闭、侧栏真实头像、视频 UP 主头像、Q版 22/33 看板娘、安装/卸载图标和快捷方式图标修正。
+- 验收项中“全新 Windows 环境可安装/启动”已经进入实机验收；后续仍需继续覆盖更多真实受限视频和异常网络场景。
 
 ## 13. 测试策略
 

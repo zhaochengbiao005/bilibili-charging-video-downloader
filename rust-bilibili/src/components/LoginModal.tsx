@@ -1,21 +1,24 @@
-import React, { useEffect, useState } from 'react';
-import { AlertCircle, CheckCircle2, FileJson, Lock, LogOut, QrCode, Smartphone, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { AlertCircle, CheckCircle2, FileJson, Loader2, Lock, LogOut, QrCode, RefreshCw, Smartphone, X } from 'lucide-react';
 import * as Bridge from '../bridge';
-import { Mascot22, Mascot33, QrGlyph } from './Mascots';
+import mascot22 from '../assets/mascot-22.png';
+import mascot33 from '../assets/mascot-33.png';
 import type { LoginStatus, QrLoginStartResponse } from '../types';
 
 interface LoginModalProps {
+  isOpen: boolean;
   loginStatus: LoginStatus | null;
   onLoginChange: (status: LoginStatus) => void;
   onClose: () => void;
 }
 
-export function LoginModal({ loginStatus, onLoginChange, onClose }: LoginModalProps) {
+export function LoginModal({ isOpen, loginStatus, onLoginChange, onClose }: LoginModalProps) {
   const [mode, setMode] = useState<'qr' | 'password'>('qr');
   const [message, setMessage] = useState('');
   const [qrData, setQrData] = useState<QrLoginStartResponse | null>(null);
   const [isQrLoading, setIsQrLoading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const qrRequestInFlight = useRef(false);
 
   useEffect(() => {
     if (!qrData) return;
@@ -30,6 +33,7 @@ export function LoginModal({ loginStatus, onLoginChange, onClose }: LoginModalPr
           onLoginChange(result.login);
           window.clearInterval(timer);
           setQrData(null);
+          window.setTimeout(onClose, 450);
         }
         if (result.status === 'expired') {
           window.clearInterval(timer);
@@ -48,8 +52,48 @@ export function LoginModal({ loginStatus, onLoginChange, onClose }: LoginModalPr
     };
   }, [onLoginChange, qrData]);
 
-  const handleQrLogin = async () => {
+  useEffect(() => {
+    if (!isOpen) {
+      qrRequestInFlight.current = false;
+      setMode('qr');
+      setMessage('');
+      setQrData(null);
+      setIsQrLoading(false);
+      return;
+    }
+
+    if (mode !== 'qr' || loginStatus?.is_login || qrData || qrRequestInFlight.current) return;
+
+    let stopped = false;
+    qrRequestInFlight.current = true;
     setMessage('');
+    setIsQrLoading(true);
+
+    Bridge.startQrLogin()
+      .then((data) => {
+        if (stopped) return;
+        setQrData(data);
+        setMessage('二维码已生成，请在哔哩哔哩客户端确认登录。');
+      })
+      .catch((err) => {
+        if (stopped) return;
+        setMessage(err instanceof Error ? err.message : '扫码登录启动失败。');
+      })
+      .finally(() => {
+        qrRequestInFlight.current = false;
+        if (!stopped) setIsQrLoading(false);
+      });
+
+    return () => {
+      stopped = true;
+    };
+  }, [isOpen, loginStatus?.is_login, mode, qrData]);
+
+  const handleQrLogin = async () => {
+    if (qrRequestInFlight.current) return;
+    setMessage('');
+    setQrData(null);
+    qrRequestInFlight.current = true;
     setIsQrLoading(true);
     try {
       const data = await Bridge.startQrLogin();
@@ -58,6 +102,7 @@ export function LoginModal({ loginStatus, onLoginChange, onClose }: LoginModalPr
     } catch (err) {
       setMessage(err instanceof Error ? err.message : '扫码登录启动失败。');
     } finally {
+      qrRequestInFlight.current = false;
       setIsQrLoading(false);
     }
   };
@@ -71,6 +116,7 @@ export function LoginModal({ loginStatus, onLoginChange, onClose }: LoginModalPr
       const status = await Bridge.checkCookie(path);
       onLoginChange(status);
       setMessage(status.is_login ? 'Cookie 登录成功。' : status.message || 'Cookie 未登录或已失效。');
+      if (status.is_login) window.setTimeout(onClose, 450);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Cookie 导入失败。');
     } finally {
@@ -91,11 +137,17 @@ export function LoginModal({ loginStatus, onLoginChange, onClose }: LoginModalPr
   };
 
   return (
-    <div className="relative flex w-full max-h-[calc(100vh-1.5rem)] pt-10 sm:pt-12">
-      <div className="absolute left-1/2 top-0 z-10 flex -translate-x-1/2 items-end gap-10">
-        <Mascot22 className="h-12 w-16 sm:h-14 sm:w-[4.5rem] drop-shadow-[0_14px_20px_rgba(37,99,235,0.18)]" />
-        <Mascot33 className="h-12 w-16 sm:h-14 sm:w-[4.5rem] drop-shadow-[0_14px_20px_rgba(251,114,153,0.2)]" />
-      </div>
+    <div className="relative flex w-full max-h-[calc(100vh-1.5rem)]">
+      <img
+        src={mascot22}
+        alt="22娘"
+        className="pointer-events-none absolute -left-24 top-20 z-20 hidden h-40 w-32 object-contain drop-shadow-[0_22px_34px_rgba(37,99,235,0.22)] sm:block md:-left-32 md:top-16 md:h-52 md:w-40"
+      />
+      <img
+        src={mascot33}
+        alt="33娘"
+        className="pointer-events-none absolute -right-24 top-20 z-20 hidden h-40 w-32 object-contain drop-shadow-[0_22px_34px_rgba(255,143,179,0.24)] sm:block md:-right-32 md:top-16 md:h-52 md:w-40"
+      />
 
       <button
         onClick={onClose}
@@ -160,21 +212,33 @@ export function LoginModal({ loginStatus, onLoginChange, onClose }: LoginModalPr
                 dangerouslySetInnerHTML={{ __html: qrData.qrcode_svg }}
               />
             ) : (
-              <QrGlyph className="h-[168px] w-[168px] shrink-0 sm:h-[188px] sm:w-[188px]" />
+              <div className="grid h-[212px] w-[212px] shrink-0 place-items-center rounded-[1.75rem] border border-pink-100 bg-white p-4 text-center shadow-inner">
+                {isQrLoading ? (
+                  <div className="flex flex-col items-center gap-3 text-bili-pink">
+                    <Loader2 className="animate-spin" size={34} />
+                    <span className="text-sm font-black">正在生成真实二维码</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-3 text-gray-400">
+                    <AlertCircle size={34} />
+                    <span className="text-sm font-black">二维码未生成</span>
+                  </div>
+                )}
+              </div>
             )}
             <p className="mt-4 text-sm font-bold text-gray-600">
               请使用 <span className="text-bili-pink">哔哩哔哩客户端</span> 扫码登录
             </p>
             <p className="mt-1 text-xs text-gray-400">
-              {qrData ? `二维码约 ${Math.round(qrData.expires_in_sec / 60)} 分钟后过期` : '也可以直接导入 Cookie 文件'}
+              {qrData ? `二维码约 ${Math.round(qrData.expires_in_sec / 60)} 分钟后过期` : '打开登录后会自动获取真实扫码二维码'}
             </p>
             <button
               onClick={handleQrLogin}
               disabled={isQrLoading}
-              className="mt-5 flex items-center gap-2 rounded-full bg-gradient-to-r from-bili-pink to-pink-500 px-7 py-3 text-sm font-black text-white shadow-lg shadow-pink-200 transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-5 flex items-center gap-2 rounded-full bg-gradient-to-r from-bili-pink to-bili-pink-hover px-7 py-3 text-sm font-black text-white shadow-[0_14px_30px_rgba(255,143,179,0.32)] transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <Smartphone size={16} />
-              {qrData ? '刷新二维码' : isQrLoading ? '生成中...' : '生成扫码二维码'}
+              {qrData ? <RefreshCw size={16} /> : <Smartphone size={16} />}
+              {qrData ? '刷新二维码' : isQrLoading ? '生成中...' : '重新生成二维码'}
             </button>
             <button
               onClick={handleImportCookie}
@@ -199,7 +263,7 @@ export function LoginModal({ loginStatus, onLoginChange, onClose }: LoginModalPr
 
             <button
               onClick={() => setMode('qr')}
-              className="mt-5 w-full rounded-2xl bg-gradient-to-r from-bili-pink to-pink-500 py-3.5 text-base font-black text-white shadow-lg shadow-pink-200"
+              className="mt-5 w-full rounded-2xl bg-gradient-to-r from-bili-pink to-bili-pink-hover py-3.5 text-base font-black text-white shadow-[0_14px_30px_rgba(255,143,179,0.32)]"
             >
               返回扫码 / Cookie 登录
             </button>

@@ -12,7 +12,7 @@ const statusConfig: Record<string, { icon: React.ReactNode; color: string; bg: s
   downloading: {
     icon: <Download size={14} />,
     color: 'text-bili-pink',
-    bg: 'bg-gradient-to-r from-[#fb7299] to-[#ff85a8]',
+    bg: 'bg-gradient-to-r from-bili-pink to-bili-pink-hover',
   },
   completed: {
     icon: <CheckCircle size={14} />,
@@ -40,7 +40,7 @@ export function DownloadQueue({ tasks, onRemove, onCancel }: DownloadQueueProps)
         下载队列 ({tasks.length})
       </h3>
 
-      <div className="flex flex-col gap-3 max-h-72 overflow-y-auto pr-2 custom-scrollbar">
+      <div className="flex flex-col gap-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
         {tasks.map((task) => {
           const cfg = statusConfig[task.status] || statusConfig.downloading;
 

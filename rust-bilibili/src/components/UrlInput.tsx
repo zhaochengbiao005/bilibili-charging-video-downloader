@@ -34,7 +34,7 @@ export function UrlInput({ onParse, isParsing, error }: UrlInputProps) {
           <button
             type="submit"
             disabled={isParsing || !url.trim()}
-            className="bg-gradient-to-r from-[#fb7299] to-[#ff85a8] text-white px-8 py-3.5 rounded-full font-bold shadow-md shadow-pink-200 hover:shadow-lg hover:shadow-pink-300 transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 m-1 shrink-0"
+            className="bg-gradient-to-r from-bili-pink to-bili-pink-hover text-white px-8 py-3.5 rounded-full font-bold shadow-[0_10px_24px_rgba(255,143,179,0.34)] hover:shadow-[0_14px_30px_rgba(255,143,179,0.42)] transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center gap-2 m-1 shrink-0"
           >
             {isParsing ? '解析中...' : <>解析 <span className="text-xl leading-none">→</span></>}
           </button>

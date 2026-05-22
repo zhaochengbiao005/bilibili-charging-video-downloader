@@ -17,6 +17,7 @@ pub struct CookieSet {
 pub struct LoginStatus {
     pub is_login: bool,
     pub username: Option<String>,
+    pub avatar: Option<String>,
     pub uid: Option<u64>,
     pub level: Option<u32>,
     pub vip_type: Option<u32>,
@@ -88,6 +89,7 @@ impl LoginStatus {
         Self {
             is_login: false,
             username: None,
+            avatar: None,
             uid: None,
             level: None,
             vip_type: None,

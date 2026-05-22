@@ -21,7 +21,7 @@ export function Home() {
   const [ffmpegAvailable, setFfmpegAvailable] = useState(false);
 
   useEffect(() => {
-    Bridge.checkFfmpeg().then(setFfmpegAvailable);
+    Bridge.checkFfmpeg().then(status => setFfmpegAvailable(status.available));
     Bridge.getDefaultOutdir().then(setOutdir);
     // Restore cookie path
     Bridge.getConfig().then(cfg => {
@@ -147,13 +147,14 @@ export function Home() {
 
   return (
     <div className="w-full min-h-full px-6 md:px-10 xl:px-14 2xl:px-16 py-8 md:py-10 flex flex-col gap-8 md:gap-10">
-      <div className="text-center flex flex-col items-center shrink-0">
-        <h1 className="text-[34px] font-black tracking-tight text-gray-900 drop-shadow-sm">下载你喜欢的视频</h1>
+      <div className="text-center flex flex-col items-center shrink-0 relative">
+        <div className="bili-soft-pattern absolute -top-4 left-1/2 h-24 w-[420px] -translate-x-1/2 rounded-full opacity-45 blur-[0.2px]" />
+        <h1 className="relative text-[34px] font-black tracking-tight text-[#1F2937] drop-shadow-sm">下载你喜欢的视频</h1>
         <p className="mt-3 text-base text-gray-500 font-medium">粘贴 B站视频链接，快速解析并下载高清视频与音频</p>
       </div>
 
       <div className="flex justify-center shrink-0">
-        <div className="w-full max-w-[770px] glass-panel rounded-full p-2 pl-6 relative">
+        <div className="w-full max-w-[770px] bili-input-panel rounded-full p-2 pl-6 relative backdrop-blur-[24px]">
           <UrlInput
             onParse={handleParse}
             isParsing={isParsing}
@@ -163,9 +164,28 @@ export function Home() {
       </div>
 
       {videoData ? (
-        <div className="grid grid-cols-1 xl:grid-cols-[minmax(620px,1fr)_430px] 2xl:grid-cols-[minmax(760px,1fr)_460px] gap-10 xl:gap-16 2xl:gap-20 pb-10 items-start flex-1">
-          <div className="min-w-0">
+        <div className="grid grid-cols-1 xl:grid-cols-[minmax(560px,880px)_430px] 2xl:grid-cols-[minmax(640px,940px)_460px] gap-8 xl:gap-14 2xl:gap-16 pb-10 items-start justify-center flex-1">
+          <div className="min-w-0 flex flex-col gap-6">
             <VideoInfo data={videoData} />
+            {tasks.length > 0 && (
+              <div className="flex flex-col gap-4">
+                <div className="relative">
+                  <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="搜索下载记录..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-white/68 border border-white/90 rounded-2xl py-3 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-bili-pink/25 text-sm shadow-[0_10px_28px_rgba(255,143,179,0.12)] backdrop-blur-sm text-[#1F2937] font-medium placeholder-gray-400"
+                  />
+                </div>
+                <DownloadQueue
+                  tasks={filteredTasks}
+                  onRemove={handleRemove}
+                  onCancel={handleCancel}
+                />
+              </div>
+            )}
           </div>
           <div className="flex flex-col gap-8 xl:sticky xl:top-10">
             <DownloadOptions
@@ -179,25 +199,6 @@ export function Home() {
               onThreadsChange={setThreads}
               ffmpegAvailable={ffmpegAvailable}
             />
-            {tasks.length > 0 && (
-              <div className="flex flex-col gap-4">
-                <div className="relative">
-                  <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="搜索下载记录..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-white/50 border border-white/80 rounded-2xl py-3 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-bili-pink/30 text-sm shadow-sm backdrop-blur-sm text-gray-700 font-medium placeholder-gray-400"
-                  />
-                </div>
-                <DownloadQueue
-                  tasks={filteredTasks}
-                  onRemove={handleRemove}
-                  onCancel={handleCancel}
-                />
-              </div>
-            )}
           </div>
         </div>
       ) : null}

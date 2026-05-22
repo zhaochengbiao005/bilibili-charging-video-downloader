@@ -343,6 +343,7 @@ impl ViewData {
             id: self.bvid,
             title: self.title,
             author: self.owner.name,
+            author_avatar: self.owner.face,
             thumbnail: self.pic,
             views: format_count(self.stat.view),
             duration: format_duration(self.duration),
@@ -396,6 +397,8 @@ fn default_stream_options(is_charging: bool, is_vip: bool) -> Vec<StreamOption> 
 struct Owner {
     #[serde(default)]
     name: String,
+    #[serde(default)]
+    face: String,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -426,6 +429,8 @@ struct NavData {
     #[serde(default)]
     uname: String,
     #[serde(default)]
+    face: String,
+    #[serde(default)]
     mid: u64,
     #[serde(default)]
     level_info: LevelInfo,
@@ -438,6 +443,7 @@ impl NavData {
         LoginStatus {
             is_login: self.is_login,
             username: self.is_login.then_some(self.uname),
+            avatar: self.is_login.then_some(self.face).filter(|face| !face.is_empty()),
             uid: self.is_login.then_some(self.mid),
             level: self.is_login.then_some(self.level_info.current_level),
             vip_type: self.is_login.then_some(self.vip_type),
@@ -658,5 +664,48 @@ mod tests {
             .unwrap_or_default();
         assert!(dash_count > 0 || !playurl.durl.is_empty());
         Ok(())
+    }
+
+    #[test]
+    fn view_data_maps_owner_face_to_author_avatar() {
+        let raw = r#"{
+            "bvid": "BV1xx411c7mD",
+            "title": "demo",
+            "owner": { "name": "UP主", "face": "https://i0.hdslb.com/bfs/face/demo.jpg" },
+            "pic": "https://i0.hdslb.com/bfs/archive/demo.jpg",
+            "stat": { "view": 1524000 },
+            "duration": 188,
+            "pages": [{ "cid": 1, "page": 1, "part": "P1" }],
+            "rights": {},
+            "desc": ""
+        }"#;
+        let data: ViewData = serde_json::from_str(raw).expect("view data should parse");
+        let video = data.into_video_data();
+
+        assert_eq!(video.author, "UP主");
+        assert_eq!(
+            video.author_avatar,
+            "https://i0.hdslb.com/bfs/face/demo.jpg"
+        );
+    }
+
+    #[test]
+    fn nav_data_maps_face_to_login_avatar() {
+        let raw = r#"{
+            "isLogin": true,
+            "uname": "潮汕英豪-胡培强",
+            "face": "https://i0.hdslb.com/bfs/face/user.jpg",
+            "mid": 42,
+            "level_info": { "current_level": 5 },
+            "vipType": 0
+        }"#;
+        let data: NavData = serde_json::from_str(raw).expect("nav data should parse");
+        let status = data.into_login_status(String::new());
+
+        assert!(status.is_login);
+        assert_eq!(
+            status.avatar.as_deref(),
+            Some("https://i0.hdslb.com/bfs/face/user.jpg")
+        );
     }
 }

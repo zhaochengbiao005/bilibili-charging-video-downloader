@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Database, FolderOpen, HardDrive, History, Wrench } from 'lucide-react';
 import type { AppConfig } from '../types';
 import * as Bridge from '../bridge';
+import type { FfmpegStatus } from '../types';
 
 export function Settings() {
   const [cfg, setCfg] = useState<AppConfig>({
@@ -13,13 +14,20 @@ export function Settings() {
   });
   const [saved, setSaved] = useState(false);
   const [appDir, setAppDir] = useState('');
-  const [ffmpegOk, setFfmpegOk] = useState(false);
+  const [ffmpegStatus, setFfmpegStatus] = useState<FfmpegStatus>({ available: false });
+  const [ffmpegChecked, setFfmpegChecked] = useState(false);
   const [installingFfmpeg, setInstallingFfmpeg] = useState(false);
+  const [ffmpegTaskId, setFfmpegTaskId] = useState<string | null>(null);
+  const [ffmpegInstallProgress, setFfmpegInstallProgress] = useState(0);
+  const [ffmpegInstallError, setFfmpegInstallError] = useState('');
 
   useEffect(() => {
     Bridge.getConfig().then(setCfg);
     Bridge.getAppDir().then(setAppDir);
-    Bridge.checkFfmpeg().then(setFfmpegOk);
+    Bridge.checkFfmpeg().then(status => {
+      setFfmpegStatus(status);
+      setFfmpegChecked(true);
+    });
   }, []);
 
   const handleSave = async () => {
@@ -30,9 +38,33 @@ export function Settings() {
 
   const handleInstallFfmpeg = async () => {
     setInstallingFfmpeg(true);
-    await Bridge.installFfmpeg();
-    setInstallingFfmpeg(false);
-    setFfmpegOk(true);
+    setFfmpegInstallProgress(0);
+    setFfmpegInstallError('');
+    try {
+      const taskId = await Bridge.installFfmpeg();
+      setFfmpegTaskId(taskId);
+      const removeProgress = Bridge.addProgressListener((eventTaskId, percent) => {
+        if (eventTaskId === taskId) setFfmpegInstallProgress(percent);
+      });
+      const removeDone = Bridge.addTaskDoneListener(async (eventTaskId, result) => {
+        if (eventTaskId !== taskId) return;
+        removeProgress();
+        removeDone();
+        setInstallingFfmpeg(false);
+        setFfmpegTaskId(null);
+        if (result.status === 'completed') {
+          setFfmpegInstallProgress(100);
+          setFfmpegStatus(await Bridge.checkFfmpeg());
+          setFfmpegChecked(true);
+        } else {
+          setFfmpegInstallError(result.message || 'FFmpeg 安装失败');
+        }
+      });
+    } catch (err) {
+      setInstallingFfmpeg(false);
+      setFfmpegTaskId(null);
+      setFfmpegInstallError(err instanceof Error ? err.message : String(err));
+    }
   };
 
   const handleChooseOutdir = async () => {
@@ -52,7 +84,7 @@ export function Settings() {
       {/* 程序信息 */}
       <div className="glass-panel rounded-[2rem] p-6 md:p-8 flex flex-col gap-5">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center">
+          <div className="w-10 h-10 bg-[#E7F6FF] text-bili-blue rounded-xl flex items-center justify-center">
             <Wrench size={20} />
           </div>
           <h2 className="text-lg font-bold text-gray-900">程序信息</h2>
@@ -65,28 +97,56 @@ export function Settings() {
           <div className="bg-white/40 rounded-2xl p-4 border border-white/60">
             <span className="text-gray-500 font-medium">FFmpeg 状态</span>
             <p className="font-bold mt-1">
-              {ffmpegOk ? (
+              {!ffmpegChecked ? (
+                <span className="inline-flex items-center gap-2 text-gray-500">
+                  <span className="h-2 w-2 rounded-full bg-gray-300" />
+                  正在检测
+                </span>
+              ) : ffmpegStatus.available ? (
                 <span className="inline-flex items-center gap-2 text-green-600">
                   <span className="h-2 w-2 rounded-full bg-green-500" />
-                  已安装
+                  可用，可直接合并
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-2 text-orange-500">
                   <span className="h-2 w-2 rounded-full bg-orange-400" />
-                  未安装
+                  未找到
                 </span>
               )}
             </p>
+            {ffmpegStatus.path && (
+              <p className="text-xs text-gray-500 mt-2 truncate">{ffmpegStatus.path}</p>
+            )}
           </div>
         </div>
-        {!ffmpegOk && (
-          <button
-            onClick={handleInstallFfmpeg}
-            disabled={installingFfmpeg}
-            className="self-start px-6 py-3 bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-2xl font-bold shadow-md hover:shadow-lg transition-all disabled:opacity-60"
-          >
-            {installingFfmpeg ? '安装中...' : '安装 FFmpeg'}
-          </button>
+        {ffmpegChecked && !ffmpegStatus.available && (
+          <div className="flex flex-col items-start gap-3">
+            <button
+              onClick={handleInstallFfmpeg}
+              disabled={installingFfmpeg}
+              className="px-6 py-3 bg-gradient-to-r from-orange-400 to-orange-500 text-white rounded-2xl font-bold shadow-md hover:shadow-lg transition-all disabled:opacity-60"
+            >
+              {installingFfmpeg ? '安装中...' : '下载 FFmpeg 兜底组件'}
+            </button>
+            {installingFfmpeg && (
+              <div className="w-full max-w-md">
+                <div className="h-2 bg-orange-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-orange-400 transition-all"
+                    style={{ width: `${Math.max(3, ffmpegInstallProgress)}%` }}
+                  />
+                </div>
+                <p className="mt-1 text-xs font-bold text-orange-500">
+                  {ffmpegTaskId ? `正在下载并安装 FFmpeg · ${Math.round(ffmpegInstallProgress)}%` : '正在准备安装'}
+                </p>
+              </div>
+            )}
+            {ffmpegInstallError && (
+              <p className="text-xs font-bold text-red-500 bg-red-50 border border-red-100 rounded-xl px-4 py-2">
+                {ffmpegInstallError}
+              </p>
+            )}
+          </div>
         )}
       </div>
 
@@ -136,21 +196,21 @@ export function Settings() {
 
         <button
           onClick={handleSave}
-          className="self-end px-8 py-3 bg-gradient-to-r from-bili-pink to-pink-400 text-white rounded-2xl font-bold shadow-md hover:shadow-lg hover:scale-[1.02] transition-all"
+          className="self-end px-8 py-3 bg-gradient-to-r from-bili-pink to-bili-pink-hover text-white rounded-2xl font-bold shadow-[0_12px_28px_rgba(255,143,179,0.24)] hover:shadow-[0_16px_34px_rgba(255,143,179,0.32)] hover:scale-[1.02] transition-all"
         >
           {saved ? '已保存' : '保存设置'}
         </button>
       </div>
 
       {/* 数据存储说明 */}
-      <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-5 text-sm text-blue-700">
+      <div className="bg-[#EAF7FF]/70 border border-[#D8E4F0] rounded-2xl p-5 text-sm text-[#2377A6]">
         <p className="font-bold mb-1 flex items-center gap-2">
           <Database size={16} />
           数据存储说明
         </p>
-        <p className="text-blue-600/80">
-          程序配置、Cookie 和下载历史保存在 <strong>{appDir}/data/</strong> 目录中。
-          下载的视频保存在输出目录（默认 <strong>{appDir}/downloads/</strong>），卸载程序时视频文件不会被删除。
+        <p className="text-[#2377A6]/80">
+          程序配置、Cookie、下载历史和兜底 FFmpeg 都保存在 <strong>{appDir}</strong> 目录中。
+          下载的视频默认保存在 <strong>{appDir}/downloads/</strong>，避免文件散落到系统数据目录或用户视频目录。
         </p>
       </div>
 

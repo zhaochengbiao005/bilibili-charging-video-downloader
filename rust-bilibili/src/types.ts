@@ -23,6 +23,7 @@ export interface VideoData {
   id: string;            // BVID
   title: string;
   author: string;
+  author_avatar: string;
   thumbnail: string;
   views: string;
   duration: string;      // "12:45" format
@@ -192,6 +193,7 @@ export interface AppErrorPayload {
 export interface LoginStatus {
   is_login: boolean;
   username?: string | null;
+  avatar?: string | null;
   uid?: number | null;
   level?: number | null;
   vip_type?: number | null;

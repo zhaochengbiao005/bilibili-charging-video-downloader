@@ -27,16 +27,35 @@ export type ProgressHandler = (taskId: string, percent: number, speed: string) =
 export type LogHandler = (msg: string) => void;
 export type TaskDoneHandler = (taskId: string, result: any) => void;
 
-let onProgress: ProgressHandler | null = null;
-let onLog: LogHandler | null = null;
-let onTaskDone: TaskDoneHandler | null = null;
+const progressHandlers = new Set<ProgressHandler>();
+const logHandlers = new Set<LogHandler>();
+const taskDoneHandlers = new Set<TaskDoneHandler>();
 
-export function setOnProgress(h: ProgressHandler | null) { onProgress = h; }
-export function setOnLog(h: LogHandler | null) { onLog = h; }
-export function setOnTaskDone(h: TaskDoneHandler | null) { onTaskDone = h; }
+export function setOnProgress(h: ProgressHandler | null) {
+  progressHandlers.clear();
+  if (h) progressHandlers.add(h);
+}
+export function setOnLog(h: LogHandler | null) {
+  logHandlers.clear();
+  if (h) logHandlers.add(h);
+}
+export function setOnTaskDone(h: TaskDoneHandler | null) {
+  taskDoneHandlers.clear();
+  if (h) taskDoneHandlers.add(h);
+}
+export function addProgressListener(h: ProgressHandler): () => void {
+  progressHandlers.add(h);
+  return () => progressHandlers.delete(h);
+}
+export function addTaskDoneListener(h: TaskDoneHandler): () => void {
+  taskDoneHandlers.add(h);
+  return () => taskDoneHandlers.delete(h);
+}
 
 let eventListeners: Promise<UnlistenFn[]> | null = null;
 let cachedConfigResponse: ConfigResponse | null = null;
+let cachedFfmpegStatus: FfmpegStatus | null = null;
+let cachedHistory: HistoryItem[] | null = null;
 
 function isTauriRuntime(): boolean {
   return Boolean((window as any).__TAURI_INTERNALS__?.invoke);
@@ -91,19 +110,27 @@ function ensureEventListeners(): Promise<UnlistenFn[]> {
   eventListeners = Promise.all([
     listen<DownloadProgressEvent>('download://progress', (event) => {
       const payload = event.payload;
-      onProgress?.(
+      progressHandlers.forEach((handler) => handler(
         payload.task_id,
         payload.percent,
         formatSpeed(payload.speed_bytes_per_sec),
-      );
-      if (payload.message) onLog?.(payload.message);
+      ));
+      if (payload.message) logHandlers.forEach((handler) => handler(payload.message!));
     }),
-    listen<string>('download://log', (event) => onLog?.(event.payload)),
+    listen<string>('download://log', (event) => {
+      logHandlers.forEach((handler) => handler(event.payload));
+    }),
     listen<DownloadDoneEvent>('download://completed', (event) => {
-      onTaskDone?.(event.payload.task_id, { ...event.payload, status: 'completed' });
+      taskDoneHandlers.forEach((handler) => handler(
+        event.payload.task_id,
+        { ...event.payload, status: 'completed' },
+      ));
     }),
     listen<DownloadDoneEvent>('download://failed', (event) => {
-      onTaskDone?.(event.payload.task_id, { ...event.payload, status: 'failed' });
+      taskDoneHandlers.forEach((handler) => handler(
+        event.payload.task_id,
+        { ...event.payload, status: 'failed' },
+      ));
     }),
   ]);
 
@@ -118,6 +145,8 @@ export async function fetchInfo(bvid: string, cookiePath = ''): Promise<VideoDat
 }
 
 export async function fetchImageDataUrl(url: string): Promise<string> {
+  if (!url.trim()) return '';
+  if (url.startsWith('data:')) return url;
   if (!isTauriRuntime()) return url;
   return callCommand<string>('fetch_image_data_url', { url });
 }
@@ -140,6 +169,7 @@ export async function startDownload(
   const res = await callCommand<StartDownloadResponse>('start_download', {
     input,
   });
+  cachedHistory = null;
   return res.task_id;
 }
 
@@ -156,15 +186,20 @@ export async function fetchPlayurl(
 
 export async function getHistory(): Promise<HistoryItem[]> {
   if (!isTauriRuntime()) return [];
-  return callCommand<HistoryItem[]>('get_history');
+  if (cachedHistory) return cachedHistory;
+  const items = await callCommand<HistoryItem[]>('get_history');
+  cachedHistory = items;
+  return items;
 }
 
 export async function clearHistory(): Promise<void> {
   await callCommand<void>('clear_history');
+  cachedHistory = [];
 }
 
 export async function deleteHistoryItem(id: string): Promise<boolean> {
   await callCommand<void>('delete_history_item', { id });
+  if (cachedHistory) cachedHistory = cachedHistory.filter(item => item.id !== id);
   return true;
 }
 
@@ -190,15 +225,18 @@ export async function saveConfig(cfg: AppConfig): Promise<boolean> {
   return true;
 }
 
-export async function checkFfmpeg(): Promise<boolean> {
-  if (!isTauriRuntime()) return false;
-  const res = await callCommand<FfmpegStatus>('check_ffmpeg');
-  return res.available;
+export async function checkFfmpeg(): Promise<FfmpegStatus> {
+  if (!isTauriRuntime()) return { available: false };
+  if (cachedFfmpegStatus) return cachedFfmpegStatus;
+  const status = await callCommand<FfmpegStatus>('check_ffmpeg');
+  cachedFfmpegStatus = status;
+  return status;
 }
 
 export async function installFfmpeg(): Promise<string> {
   if (!isTauriRuntime()) throw missingRuntimeError();
   await ensureEventListeners();
+  cachedFfmpegStatus = null;
   const res = await callCommand<StartDownloadResponse>('install_ffmpeg');
   return res.task_id;
 }
@@ -248,7 +286,7 @@ export async function openPath(path: string): Promise<void> {
 
 export async function checkLogin(): Promise<LoginStatus> {
   if (!isTauriRuntime()) {
-    return { is_login: false, message: '此功能需要在 Tauri 桌面应用中运行' };
+    return { is_login: false, avatar: null, message: '此功能需要在 Tauri 桌面应用中运行' };
   }
   return callCommand<LoginStatus>('check_login');
 }

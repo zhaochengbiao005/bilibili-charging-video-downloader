@@ -25,3 +25,9 @@ rust-bilibili/node_modules/
 rust-bilibili/dist/
 rust-bilibili/src-tauri/gen/
 rust-bilibili/src-tauri/target/
+rust-bilibili/src-tauri/resources/ffmpeg/ffmpeg.exe
+rust-bilibili/src-tauri/resources/ffmpeg/ffmpeg.exe.LICENSE
+rust-bilibili/src-tauri/resources/ffmpeg/ffmpeg.exe.README
+
+# Local design/source images copied into committed app assets as needed
+Image/

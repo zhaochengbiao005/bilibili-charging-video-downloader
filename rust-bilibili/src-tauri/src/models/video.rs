@@ -39,6 +39,7 @@ pub struct VideoData {
     pub id: String,
     pub title: String,
     pub author: String,
+    pub author_avatar: String,
     pub thumbnail: String,
     pub views: String,
     pub duration: String,

@@ -9,7 +9,7 @@ use std::{
 
 use base64::{engine::general_purpose::STANDARD as BASE64_STANDARD, Engine};
 use reqwest::header::{CONTENT_TYPE, REFERER};
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 use uuid::Uuid;
@@ -116,6 +116,10 @@ pub async fn start_download(
     let client = state.client.clone();
     let downloader = state.downloader.clone();
     let ffmpeg = state.ffmpeg.clone();
+    let app_dir = state.config_store.app_dir().to_path_buf();
+    let resource_dir = app.path().resource_dir().ok();
+    let history_store = state.history_store.clone();
+    let config_store = state.config_store.clone();
     let cancel_tokens = state.cancel_tokens.clone();
     let cookies = load_cookies_for_request(input.cookie_path.as_deref(), &state)?;
     let event_task_id = task_id.clone();
@@ -129,6 +133,10 @@ pub async fn start_download(
             client,
             downloader,
             ffmpeg,
+            app_dir,
+            resource_dir,
+            history_store,
+            config_store,
             cookies,
             cancel,
         )
@@ -251,31 +259,73 @@ pub fn get_app_dir(state: State<'_, AppState>) -> String {
 }
 
 #[tauri::command]
-pub fn check_ffmpeg(state: State<'_, AppState>) -> crate::ffmpeg::FfmpegStatus {
-    state.ffmpeg.check()
+pub fn check_ffmpeg(app: AppHandle, state: State<'_, AppState>) -> crate::ffmpeg::FfmpegStatus {
+    let resource_dir = app.path().resource_dir().ok();
+    state
+        .ffmpeg
+        .check(state.config_store.app_dir(), resource_dir.as_deref())
 }
 
 #[tauri::command]
-pub async fn install_ffmpeg(app: AppHandle) -> StartDownloadResponse {
+pub async fn install_ffmpeg(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<StartDownloadResponse> {
     let task_id = format!("ffmpeg_{}", Uuid::new_v4());
     let event_task_id = task_id.clone();
+    let ffmpeg = state.ffmpeg.clone();
+    let app_dir = state.config_store.app_dir().to_path_buf();
 
     tauri::async_runtime::spawn(async move {
-        let _ = app.emit(
-            "download://log",
-            "FFmpeg 自动安装将在 Phase 4 接入，当前先完成命令链路".to_string(),
-        );
-        let _ = app.emit(
-            "download://failed",
-            DownloadDoneEvent {
-                task_id: event_task_id,
-                status: "failed".to_string(),
-                message: Some("FFmpeg 自动安装尚未接入".to_string()),
-            },
-        );
+        let progress_task_id = event_task_id.clone();
+        let progress_app = app.clone();
+        let result = ffmpeg
+            .install_release(&app_dir, move |downloaded, total| {
+                let percent = if total > 0 {
+                    (downloaded as f32 / total as f32 * 100.0).clamp(0.0, 100.0)
+                } else {
+                    0.0
+                };
+                let _ = progress_app.emit(
+                    "download://progress",
+                    DownloadProgressEvent {
+                        task_id: progress_task_id.clone(),
+                        stage: "downloading_segments".to_string(),
+                        percent,
+                        bytes_done: downloaded,
+                        bytes_total: total,
+                        speed_bytes_per_sec: 0,
+                        message: Some("正在安装 FFmpeg".to_string()),
+                    },
+                );
+            })
+            .await;
+
+        match result {
+            Ok(path) => {
+                let _ = app.emit(
+                    "download://completed",
+                    DownloadDoneEvent {
+                        task_id: event_task_id,
+                        status: "completed".to_string(),
+                        message: Some(format!("FFmpeg 已安装：{}", path.to_string_lossy())),
+                    },
+                );
+            }
+            Err(err) => {
+                let _ = app.emit(
+                    "download://failed",
+                    DownloadDoneEvent {
+                        task_id: event_task_id,
+                        status: "failed".to_string(),
+                        message: Some(err.to_string()),
+                    },
+                );
+            }
+        }
     });
 
-    StartDownloadResponse { task_id }
+    Ok(StartDownloadResponse { task_id })
 }
 
 #[tauri::command]
@@ -314,9 +364,17 @@ pub fn open_path(path: String, app: AppHandle) -> AppResult<()> {
             message: "路径不能为空".to_string(),
         });
     }
+    let path = PathBuf::from(path.trim());
+    let path_to_open = if path.is_file() {
+        path.parent()
+            .map(Path::to_path_buf)
+            .unwrap_or_else(|| path.clone())
+    } else {
+        path
+    };
 
     app.opener()
-        .open_path(path, None::<String>)
+        .open_path(path_to_open.to_string_lossy().into_owned(), None::<String>)
         .map_err(|err| AppError::Io {
             message: err.to_string(),
         })?;
@@ -427,6 +485,10 @@ async fn run_download_task(
     client: crate::api::BilibiliClient,
     downloader: crate::downloader::DownloadClient,
     ffmpeg: crate::ffmpeg::FfmpegManager,
+    app_dir: PathBuf,
+    resource_dir: Option<PathBuf>,
+    history_store: crate::storage::HistoryStore,
+    config_store: crate::storage::ConfigStore,
     cookies: Option<crate::auth::CookieSet>,
     cancel: Arc<AtomicBool>,
 ) -> AppResult<PathBuf> {
@@ -466,14 +528,14 @@ async fn run_download_task(
             task_id: Some(task_id.clone()),
             message: "没有可下载音频流".to_string(),
         })?;
-        let output_path = output_dir.join(format!("{safe_title}.m4a"));
+        let raw_audio_path = output_dir.join(format!("{safe_title}.m4a"));
         let result = downloader
             .download_file(
                 FileDownloadSpec {
                     task_id: task_id.clone(),
                     stage: "downloading_audio".to_string(),
                     url: first_url(&track.base_url, &track.backup_urls)?,
-                    output_path,
+                    output_path: raw_audio_path.clone(),
                     referer,
                     max_workers,
                     cookie_header: cookie_header.clone(),
@@ -482,7 +544,34 @@ async fn run_download_task(
                 progress.clone(),
             )
             .await?;
-        return Ok(result.output_path);
+        progress(DownloadProgressEvent {
+            task_id: task_id.clone(),
+            stage: "converting_audio".to_string(),
+            percent: 98.0,
+            bytes_done: result.bytes_written,
+            bytes_total: result.bytes_written,
+            speed_bytes_per_sec: 0,
+            message: Some("正在转换 MP3".to_string()),
+        });
+        let mp3_path = output_dir.join(format!("{safe_title}.mp3"));
+        ffmpeg
+            .convert_audio_to_mp3(
+                &app_dir,
+                resource_dir.as_deref(),
+                &raw_audio_path,
+                &mp3_path,
+            )
+            .await?;
+        let _ = tokio::fs::remove_file(&raw_audio_path).await;
+        write_history_record(
+            &history_store,
+            &config_store,
+            &input,
+            &video.title,
+            &mp3_path,
+            "completed",
+        )?;
+        return Ok(mp3_path);
     }
 
     if let Some(dash) = playurl.dash {
@@ -543,10 +632,24 @@ async fn run_download_task(
             });
             let merged_path = output_dir.join(format!("{safe_title}.mp4"));
             ffmpeg
-                .merge_video_audio(&video_result.output_path, &audio_path, &merged_path)
+                .merge_video_audio(
+                    &app_dir,
+                    resource_dir.as_deref(),
+                    &video_result.output_path,
+                    &audio_path,
+                    &merged_path,
+                )
                 .await?;
             let _ = tokio::fs::remove_file(&video_result.output_path).await;
             let _ = tokio::fs::remove_file(&audio_path).await;
+            write_history_record(
+                &history_store,
+                &config_store,
+                &input,
+                &video.title,
+                &merged_path,
+                "completed",
+            )?;
             progress(DownloadProgressEvent {
                 task_id,
                 stage: "completed".to_string(),
@@ -568,6 +671,14 @@ async fn run_download_task(
             speed_bytes_per_sec: 0,
             message: Some("原始 DASH 流下载完成，已按请求跳过 MP4 合并".to_string()),
         });
+        write_history_record(
+            &history_store,
+            &config_store,
+            &input,
+            &video.title,
+            &video_result.output_path,
+            "completed",
+        )?;
         return Ok(video_result.output_path);
     }
 
@@ -594,6 +705,14 @@ async fn run_download_task(
             started,
             Some("DURL 分段下载完成".to_string()),
         );
+        write_history_record(
+            &history_store,
+            &config_store,
+            &input,
+            &video.title,
+            &output_path,
+            "completed",
+        )?;
         return Ok(output_path);
     }
 
@@ -601,6 +720,33 @@ async fn run_download_task(
         task_id: Some(task_id),
         message: "没有找到可下载的视频流".to_string(),
     })
+}
+
+fn write_history_record(
+    history_store: &crate::storage::HistoryStore,
+    config_store: &crate::storage::ConfigStore,
+    input: &StartDownloadRequest,
+    title: &str,
+    output_path: &Path,
+    status: &str,
+) -> AppResult<()> {
+    let max_history = config_store.load()?.max_history.max(1);
+    let mut items = history_store.load()?;
+    items.insert(
+        0,
+        HistoryItem {
+            id: format!("hist_{}", Uuid::new_v4()),
+            bvid: input.bvid.clone(),
+            title: title.to_string(),
+            quality: input.quality.clone(),
+            format: input.format.clone(),
+            output_path: output_path.to_string_lossy().into_owned(),
+            timestamp: chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+            status: status.to_string(),
+        },
+    );
+    items.truncate(max_history);
+    history_store.save(&items)
 }
 
 async fn download_durl_segments(
