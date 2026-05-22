@@ -147,6 +147,13 @@ export async function fetchInfo(bvid: string, cookiePath = ''): Promise<VideoDat
   return res.video;
 }
 
+export async function fetchInfoList(bvid: string, cookiePath = ''): Promise<VideoData[]> {
+  const res = await callCommand<FetchInfoResponse>('fetch_info', {
+    input: { bvid, cookie_path: cookiePath || null },
+  });
+  return res.videos && res.videos.length > 0 ? res.videos : [res.video];
+}
+
 export async function fetchImageDataUrl(url: string): Promise<string> {
   if (!url.trim()) return '';
   if (url.startsWith('data:')) return url;

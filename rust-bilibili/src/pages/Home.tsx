@@ -87,11 +87,12 @@ export function Home() {
 
       for (const bvid of bvids) {
         try {
-          const result = await Bridge.fetchInfo(bvid, cookiePath);
-          if (result.error) {
-            failures.push(`${bvid}：${result.error}`);
+          const results = await Bridge.fetchInfoList(bvid, cookiePath);
+          const validResults = results.filter(result => !result.error);
+          if (validResults.length === 0) {
+            failures.push(`${bvid}：${results[0]?.error || '获取视频信息失败'}`);
           } else {
-            parsedVideos.push(result);
+            parsedVideos.push(...validResults);
           }
         } catch (err: unknown) {
           const message = err instanceof Error ? err.message : '获取视频信息失败';
@@ -106,12 +107,13 @@ export function Home() {
         return;
       }
 
-      setVideos(parsedVideos);
-      setSelectedVideoId(parsedVideos[0].id);
-      setSelectedPageByVideo(Object.fromEntries(parsedVideos.map(video => [video.id, 0])));
-      setSelectedQuality(firstQualityForFormat(parsedVideos[0], format, selectedQuality));
+      const uniqueVideos = dedupeVideos(parsedVideos);
+      setVideos(uniqueVideos);
+      setSelectedVideoId(uniqueVideos[0].id);
+      setSelectedPageByVideo(Object.fromEntries(uniqueVideos.map(video => [video.id, 0])));
+      setSelectedQuality(firstQualityForFormat(uniqueVideos[0], format, selectedQuality));
       if (failures.length > 0) {
-        setNotice(`已解析 ${parsedVideos.length} 个，失败 ${failures.length} 个`);
+        setNotice(`已解析 ${uniqueVideos.length} 个，失败 ${failures.length} 个`);
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : '获取视频信息失败');
@@ -437,4 +439,13 @@ function firstQualityForFormat(
 function extractBvids(text: string): string[] {
   const matches = text.match(/BV[a-zA-Z0-9]{10,}/g) ?? [];
   return [...new Set(matches)];
+}
+
+function dedupeVideos(videos: VideoData[]): VideoData[] {
+  return videos.reduce<VideoData[]>((unique, video) => {
+    if (!unique.some(item => item.id === video.id)) {
+      unique.push(video);
+    }
+    return unique;
+  }, []);
 }

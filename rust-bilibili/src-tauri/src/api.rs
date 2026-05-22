@@ -42,6 +42,21 @@ impl BilibiliClient {
         bvid: &str,
         cookies: Option<&CookieSet>,
     ) -> AppResult<VideoData> {
+        self.video_info_list(bvid, cookies)
+            .await?
+            .into_iter()
+            .next()
+            .ok_or_else(|| AppError::Api {
+                code: -1,
+                message: "B站响应缺少视频信息".to_string(),
+            })
+    }
+
+    pub async fn video_info_list(
+        &self,
+        bvid: &str,
+        cookies: Option<&CookieSet>,
+    ) -> AppResult<Vec<VideoData>> {
         let login = match cookies {
             Some(cookies) => Some(self.check_login(cookies).await?),
             None => None,
@@ -74,18 +89,20 @@ impl BilibiliClient {
             message: "B站响应缺少视频信息".to_string(),
         })?;
 
-        let mut video = data.into_video_data();
-        if let Some(page) = video.pages.first() {
-            if let Ok(playurl) = self.playurl(bvid, page.cid, 127, cookies).await {
-                video.apply_playurl_sizes(&playurl);
+        let mut videos = data.into_video_data_list();
+        for video in &mut videos {
+            if let Some(page) = video.pages.first() {
+                if let Ok(playurl) = self.playurl(&video.id, page.cid, 127, cookies).await {
+                    video.apply_playurl_sizes(&playurl);
+                }
+            }
+            if let Some(login) = &login {
+                video.is_login = Some(login.is_login);
+                video.login_name = login.username.clone();
+                video.login_level = login.level;
             }
         }
-        if let Some(login) = login {
-            video.is_login = Some(login.is_login);
-            video.login_name = login.username;
-            video.login_level = login.level;
-        }
-        Ok(video)
+        Ok(videos)
     }
 
     pub async fn check_login(&self, cookies: &CookieSet) -> AppResult<LoginStatus> {
@@ -387,13 +404,15 @@ struct ViewData {
     #[serde(default)]
     pages: Vec<ViewPage>,
     #[serde(default)]
+    ugc_season: Option<UgcSeason>,
+    #[serde(default)]
     rights: Rights,
     #[serde(default)]
     desc: String,
 }
 
 impl ViewData {
-    fn into_video_data(self) -> VideoData {
+    fn into_video_data_list(self) -> Vec<VideoData> {
         let is_charging = self.rights.elec_high == 1;
         let is_vip = self.rights.vip_free == 1;
         let streams = default_stream_options(is_charging, is_vip);
@@ -402,7 +421,7 @@ impl ViewData {
             .filter(|stream| stream.available)
             .map(|stream| stream.label.clone())
             .collect();
-        let pages = self
+        let pages: Vec<VideoPage> = self
             .pages
             .into_iter()
             .map(|page| VideoPage {
@@ -419,7 +438,7 @@ impl ViewData {
             })
             .collect();
 
-        VideoData {
+        let base_video = VideoData {
             id: self.bvid,
             title: self.title,
             author: self.owner.name,
@@ -440,8 +459,31 @@ impl ViewData {
             login_level: None,
             desc: Some(self.desc),
             error: None,
+        };
+
+        let Some(ugc_season) = self.ugc_season else {
+            return vec![base_video];
+        };
+
+        let mut videos = ugc_season.into_video_data_list(&base_video, is_charging, is_vip);
+        if videos.is_empty() {
+            vec![base_video]
+        } else {
+            if !videos.iter().any(|video| video.id == base_video.id) {
+                videos.insert(0, base_video);
+            }
+            dedupe_videos_by_bvid(videos)
         }
     }
+}
+
+fn dedupe_videos_by_bvid(videos: Vec<VideoData>) -> Vec<VideoData> {
+    videos.into_iter().fold(Vec::new(), |mut unique, video| {
+        if !unique.iter().any(|item: &VideoData| item.id == video.id) {
+            unique.push(video);
+        }
+        unique
+    })
 }
 
 impl VideoData {
@@ -730,6 +772,139 @@ struct ViewPage {
 }
 
 #[derive(Debug, Default, Deserialize)]
+struct UgcSeason {
+    #[serde(default)]
+    sections: Vec<UgcSection>,
+}
+
+impl UgcSeason {
+    fn into_video_data_list(
+        self,
+        base: &VideoData,
+        is_charging: bool,
+        is_vip: bool,
+    ) -> Vec<VideoData> {
+        self.sections
+            .into_iter()
+            .flat_map(|section| section.episodes)
+            .filter_map(|episode| episode.into_video_data(base, is_charging, is_vip))
+            .collect()
+    }
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct UgcSection {
+    #[serde(default)]
+    episodes: Vec<UgcEpisode>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct UgcEpisode {
+    #[serde(default)]
+    bvid: String,
+    #[serde(default)]
+    cid: u64,
+    #[serde(default)]
+    title: String,
+    #[serde(default)]
+    arc: Option<UgcArc>,
+}
+
+impl UgcEpisode {
+    fn into_video_data(
+        self,
+        base: &VideoData,
+        is_charging: bool,
+        is_vip: bool,
+    ) -> Option<VideoData> {
+        let bvid = if self.bvid.trim().is_empty() {
+            self.arc.as_ref()?.bvid.clone()
+        } else {
+            self.bvid
+        };
+        if bvid.trim().is_empty() {
+            return None;
+        }
+
+        let arc = self.arc.unwrap_or_default();
+        let cid = if self.cid != 0 { self.cid } else { arc.cid };
+        if cid == 0 {
+            return None;
+        }
+
+        let title = first_non_empty_string([
+            self.title,
+            arc.title,
+            base.title.clone(),
+        ]);
+        let duration_sec = arc.duration;
+        let thumbnail = first_non_empty_string([arc.pic, base.thumbnail.clone()]);
+        let owner_name = first_non_empty_string([arc.author.name, base.author.clone()]);
+        let owner_face = first_non_empty_string([arc.author.face, base.author_avatar.clone()]);
+        let streams = default_stream_options(is_charging, is_vip);
+        let qualities = streams
+            .iter()
+            .filter(|stream| stream.available)
+            .map(|stream| stream.label.clone())
+            .collect();
+
+        Some(VideoData {
+            id: bvid,
+            title: title.clone(),
+            author: owner_name,
+            author_avatar: owner_face,
+            thumbnail: thumbnail.clone(),
+            views: format_count(arc.stat.view),
+            duration: format_duration(duration_sec),
+            duration_sec,
+            pages: vec![VideoPage {
+                cid,
+                page: 1,
+                part: title,
+                duration: format_duration(duration_sec),
+                duration_sec,
+                thumbnail: if thumbnail.trim().is_empty() {
+                    None
+                } else {
+                    Some(thumbnail)
+                },
+            }],
+            qualities,
+            streams,
+            audio_streams: default_audio_stream_options(),
+            is_charging: Some(is_charging),
+            is_vip: Some(is_vip),
+            vip_type: base.vip_type,
+            is_login: base.is_login,
+            login_name: base.login_name.clone(),
+            login_level: base.login_level,
+            desc: Some(first_non_empty_string([arc.desc, base.desc.clone().unwrap_or_default()])),
+            error: None,
+        })
+    }
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct UgcArc {
+    #[serde(default)]
+    bvid: String,
+    #[serde(default)]
+    cid: u64,
+    #[serde(default)]
+    title: String,
+    #[serde(default)]
+    pic: String,
+    #[serde(default)]
+    duration: u64,
+    #[serde(default)]
+    author: Owner,
+    #[serde(default)]
+    stat: Stat,
+    #[serde(default)]
+    desc: String,
+}
+
+#[derive(Debug, Default, Deserialize)]
 struct NavData {
     #[serde(default, rename = "isLogin")]
     is_login: bool,
@@ -993,13 +1168,76 @@ mod tests {
             "desc": ""
         }"#;
         let data: ViewData = serde_json::from_str(raw).expect("view data should parse");
-        let video = data.into_video_data();
+        let video = data
+            .into_video_data_list()
+            .into_iter()
+            .next()
+            .expect("view data should map to one video");
 
         assert_eq!(video.author, "UP主");
         assert_eq!(
             video.author_avatar,
             "https://i0.hdslb.com/bfs/face/demo.jpg"
         );
+    }
+
+    #[test]
+    fn view_data_expands_ugc_season_episodes() {
+        let raw = r#"{
+            "bvid": "BVcurrent111",
+            "title": "当前视频",
+            "owner": { "name": "UP主", "face": "https://i0.hdslb.com/bfs/face/up.jpg" },
+            "pic": "https://i0.hdslb.com/bfs/archive/current.jpg",
+            "stat": { "view": 100 },
+            "duration": 188,
+            "pages": [{ "cid": 11, "page": 1, "part": "当前P" }],
+            "rights": {},
+            "desc": "合集简介",
+            "ugc_season": {
+                "sections": [{
+                    "episodes": [
+                        {
+                            "bvid": "BVcurrent111",
+                            "cid": 11,
+                            "title": "当前视频",
+                            "arc": {
+                                "bvid": "BVcurrent111",
+                                "cid": 11,
+                                "title": "当前视频",
+                                "pic": "https://i0.hdslb.com/bfs/archive/current.jpg",
+                                "duration": 188,
+                                "author": { "name": "UP主", "face": "https://i0.hdslb.com/bfs/face/up.jpg" },
+                                "stat": { "view": 100 },
+                                "desc": "当前简介"
+                            }
+                        },
+                        {
+                            "bvid": "BVnext22222",
+                            "cid": 22,
+                            "title": "合集第二集",
+                            "arc": {
+                                "bvid": "BVnext22222",
+                                "cid": 22,
+                                "title": "合集第二集",
+                                "pic": "https://i0.hdslb.com/bfs/archive/next.jpg",
+                                "duration": 567,
+                                "author": { "name": "UP主2", "face": "https://i0.hdslb.com/bfs/face/up2.jpg" },
+                                "stat": { "view": 200 },
+                                "desc": "第二集简介"
+                            }
+                        }
+                    ]
+                }]
+            }
+        }"#;
+        let data: ViewData = serde_json::from_str(raw).expect("view data should parse");
+        let videos = data.into_video_data_list();
+
+        assert_eq!(videos.len(), 2);
+        assert_eq!(videos[0].id, "BVcurrent111");
+        assert_eq!(videos[1].id, "BVnext22222");
+        assert_eq!(videos[1].pages[0].cid, 22);
+        assert_eq!(videos[1].pages[0].thumbnail.as_deref(), Some("https://i0.hdslb.com/bfs/archive/next.jpg"));
     }
 
     #[test]

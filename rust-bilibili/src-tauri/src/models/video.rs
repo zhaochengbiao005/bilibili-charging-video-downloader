@@ -9,6 +9,7 @@ pub struct FetchInfoRequest {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct FetchInfoResponse {
     pub video: VideoData,
+    pub videos: Vec<VideoData>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

@@ -43,8 +43,12 @@ pub async fn fetch_info(
     }
 
     let cookies = load_cookies_for_request(input.cookie_path.as_deref(), &state)?;
-    let video = state.client.video_info(bvid, cookies.as_ref()).await?;
-    Ok(FetchInfoResponse { video })
+    let videos = state.client.video_info_list(bvid, cookies.as_ref()).await?;
+    let video = videos.first().cloned().ok_or_else(|| AppError::Api {
+        code: -1,
+        message: "B站响应缺少视频信息".to_string(),
+    })?;
+    Ok(FetchInfoResponse { video, videos })
 }
 
 #[tauri::command]

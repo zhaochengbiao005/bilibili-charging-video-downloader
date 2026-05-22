@@ -3,6 +3,8 @@ import { ChevronLeft, ChevronRight, Eye, Clock, Layers, AlertTriangle, Crown } f
 import type { VideoData, VideoPage } from '../types';
 import * as Bridge from '../bridge';
 
+const imageCache = new Map<string, string>();
+
 interface VideoInfoProps {
   data: VideoData | null;
   currentPage?: VideoPage | null;
@@ -28,13 +30,24 @@ export function VideoInfo({
   useEffect(() => {
     let cancelled = false;
     setThumbnailFailed(false);
-    setThumbnailSrc('');
 
     const thumbnailUrl = currentPage?.thumbnail || data?.thumbnail || '';
-    if (!thumbnailUrl) return;
+    if (!thumbnailUrl) {
+      setThumbnailSrc('');
+      return;
+    }
+
+    const cached = imageCache.get(thumbnailUrl);
+    if (cached) {
+      setThumbnailSrc(cached);
+      return;
+    }
+
+    setThumbnailSrc(thumbnailUrl);
 
     Bridge.fetchImageDataUrl(thumbnailUrl)
       .then((src) => {
+        imageCache.set(thumbnailUrl, src);
         if (!cancelled) setThumbnailSrc(src);
       })
       .catch(() => {
@@ -49,14 +62,34 @@ export function VideoInfo({
   }, [data?.thumbnail, currentPage?.thumbnail]);
 
   useEffect(() => {
+    const urls = (data?.pages ?? [])
+      .map((page) => page.thumbnail)
+      .filter((url): url is string => Boolean(url && !imageCache.has(url)))
+      .slice(0, 8);
+
+    urls.forEach((url) => {
+      Bridge.fetchImageDataUrl(url)
+        .then((src) => imageCache.set(url, src))
+        .catch(() => imageCache.set(url, url));
+    });
+  }, [data?.id, data?.pages]);
+
+  useEffect(() => {
     let cancelled = false;
     setAuthorAvatarFailed(false);
-    setAuthorAvatarSrc('');
 
     if (!data?.author_avatar) return;
+    const cached = imageCache.get(data.author_avatar);
+    if (cached) {
+      setAuthorAvatarSrc(cached);
+      return;
+    }
+
+    setAuthorAvatarSrc(data.author_avatar);
 
     Bridge.fetchImageDataUrl(data.author_avatar)
       .then((src) => {
+        imageCache.set(data.author_avatar, src);
         if (!cancelled) setAuthorAvatarSrc(src);
       })
       .catch(() => {

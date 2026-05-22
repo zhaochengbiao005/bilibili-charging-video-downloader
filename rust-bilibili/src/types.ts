@@ -61,6 +61,7 @@ export interface FetchInfoRequest {
 
 export interface FetchInfoResponse {
   video: VideoData;
+  videos?: VideoData[];
 }
 
 export type DownloadStage =
