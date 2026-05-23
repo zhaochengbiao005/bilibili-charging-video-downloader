@@ -46,23 +46,26 @@ export function Sidebar({ loginStatus, collapsed, onToggleCollapsed, onLoginClic
 
   return (
     <aside
-      className={`relative h-full shrink-0 overflow-visible rounded-none border-r border-white/80 bg-white/58 shadow-none backdrop-blur-[24px] transition-[width,background-color,box-shadow] duration-[420ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
-        collapsed ? 'w-[64px]' : 'w-[256px]'
+      className={`relative h-full shrink-0 overflow-visible transition-[width] duration-[420ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
+        collapsed ? 'w-0' : 'w-[256px]'
       }`}
     >
       <button
         type="button"
         onClick={onToggleCollapsed}
-        className="motion-button absolute -right-4 top-8 z-30 flex h-9 w-9 items-center justify-center rounded-full border border-white/90 bg-white/90 text-bili-pink shadow-[0_12px_26px_rgba(255,143,179,0.18)] backdrop-blur-md"
+        className={`motion-button absolute top-8 z-30 flex h-9 w-9 items-center justify-center rounded-full border border-white/90 bg-white/92 text-bili-pink shadow-[0_12px_26px_rgba(255,143,179,0.18)] backdrop-blur-md transition-[left,right,transform,box-shadow,background-color,color,opacity] duration-[420ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          collapsed ? 'left-3 right-auto' : '-right-4 left-auto'
+        }`}
         aria-label={collapsed ? '显示侧边栏' : '隐藏侧边栏'}
+        aria-expanded={!collapsed}
         title={collapsed ? '显示侧边栏' : '隐藏侧边栏'}
       >
         {collapsed ? <ChevronRight size={18} strokeWidth={2.8} /> : <ChevronLeft size={18} strokeWidth={2.8} />}
       </button>
 
       <div
-        className={`h-full min-w-[256px] flex flex-col transition-transform duration-[420ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
-          collapsed ? '-translate-x-[192px]' : 'translate-x-0'
+        className={`absolute left-0 top-0 h-full w-[256px] flex flex-col overflow-hidden rounded-none border-r border-white/80 bg-white/58 shadow-none backdrop-blur-[24px] transition-[transform,opacity] duration-[420ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
+          collapsed ? 'pointer-events-none -translate-x-[calc(100%+18px)] opacity-0' : 'translate-x-0 opacity-100'
         }`}
       >
       <button
