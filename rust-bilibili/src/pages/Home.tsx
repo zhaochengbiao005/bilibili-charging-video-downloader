@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Check, Download, Search, Video } from 'lucide-react';
 import { UrlInput } from '../components/UrlInput';
 import { VideoInfo } from '../components/VideoInfo';
@@ -24,6 +24,9 @@ export function Home() {
   const [threads, setThreads] = useState(8);
   const [danmakuMode, setDanmakuMode] = useState<DanmakuMode>('none');
   const [ffmpegAvailable, setFfmpegAvailable] = useState(false);
+  const [loadingSizeVideoIds, setLoadingSizeVideoIds] = useState<Set<string>>(() => new Set());
+  const sizeLoadAttemptedRef = useRef<Set<string>>(new Set());
+  const sizeLoadInFlightRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     Bridge.checkFfmpeg().then(status => setFfmpegAvailable(status.available));
@@ -73,6 +76,48 @@ export function Home() {
   const visibleVideoCount = videos.length > 80 ? 80 : videos.length;
   const visibleVideos = videos.slice(0, visibleVideoCount);
 
+  useEffect(() => {
+    if (!activeVideo || videoHasKnownSizes(activeVideo)) {
+      return;
+    }
+
+    let cancelled = false;
+    const videoId = activeVideo.id;
+    const cid = activePage?.cid ?? activeVideo.pages[0]?.cid ?? null;
+    const cacheKey = `${videoId}:${cid ?? 'default'}:${cookiePath}`;
+
+    if (sizeLoadAttemptedRef.current.has(cacheKey) || sizeLoadInFlightRef.current.has(cacheKey)) {
+      return;
+    }
+
+    sizeLoadAttemptedRef.current.add(cacheKey);
+    sizeLoadInFlightRef.current.add(cacheKey);
+    setLoadingSizeVideoIds(prev => new Set(prev).add(videoId));
+    Bridge.enrichVideoSizes(activeVideo, cid, cookiePath)
+      .then((enriched) => {
+        setVideos(prev => prev.map(video => (video.id === videoId ? enriched : video)));
+        if (!cancelled) {
+          setSelectedQuality(current => firstQualityForFormat(enriched, format, current));
+        }
+      })
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : '获取视频容量失败';
+        if (!cancelled) setNotice(`容量获取失败：${message}`);
+      })
+      .finally(() => {
+        sizeLoadInFlightRef.current.delete(cacheKey);
+        setLoadingSizeVideoIds(prev => {
+          const next = new Set(prev);
+          next.delete(videoId);
+          return next;
+        });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeVideo, activePage?.cid, cookiePath, format]);
+
   const handleParse = useCallback(async (url: string) => {
     setError(null);
     setNotice(null);
@@ -110,6 +155,9 @@ export function Home() {
       }
 
       const uniqueVideos = dedupeVideos(parsedVideos);
+      sizeLoadAttemptedRef.current.clear();
+      sizeLoadInFlightRef.current.clear();
+      setLoadingSizeVideoIds(new Set());
       setVideos(uniqueVideos);
       setSelectedVideoId(uniqueVideos[0].id);
       setSelectedPageByVideo(Object.fromEntries(uniqueVideos.map(video => [video.id, 0])));
@@ -378,6 +426,7 @@ export function Home() {
               danmakuMode={danmakuMode}
               onDanmakuModeChange={setDanmakuMode}
               ffmpegAvailable={ffmpegAvailable}
+              isLoadingSizes={activeVideo ? loadingSizeVideoIds.has(activeVideo.id) : false}
             />
           </div>
         </div>
@@ -441,6 +490,11 @@ function firstQualityForFormat(
   return video.qualities.includes(currentQuality)
     ? currentQuality
     : video.qualities[0] || currentQuality;
+}
+
+function videoHasKnownSizes(video: VideoData): boolean {
+  return video.streams.some(stream => Boolean(stream.size_bytes && stream.size_bytes > 0)) ||
+    video.audio_streams.some(stream => Boolean(stream.size_bytes && stream.size_bytes > 0));
 }
 
 function extractBvids(text: string): string[] {

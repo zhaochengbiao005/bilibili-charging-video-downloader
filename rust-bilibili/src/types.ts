@@ -64,6 +64,12 @@ export interface FetchInfoResponse {
   videos?: VideoData[];
 }
 
+export interface EnrichVideoRequest {
+  video: VideoData;
+  cid?: number | null;
+  cookie_path?: string | null;
+}
+
 export type DownloadStage =
   | 'queued'
   | 'resolving'

@@ -35,6 +35,7 @@ pub fn run() {
         .manage(app_state)
         .invoke_handler(tauri::generate_handler![
             commands::fetch_info,
+            commands::enrich_video_sizes,
             commands::fetch_image_data_url,
             commands::fetch_playurl,
             commands::start_download,

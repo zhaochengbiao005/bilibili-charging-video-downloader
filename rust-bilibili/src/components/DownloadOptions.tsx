@@ -17,13 +17,14 @@ interface DownloadOptionsProps {
   danmakuMode: DanmakuMode;
   onDanmakuModeChange: (mode: DanmakuMode) => void;
   ffmpegAvailable?: boolean;
+  isLoadingSizes?: boolean;
 }
 
 export function DownloadOptions({
   data, selectedQuality, onSelectQuality, onDownload,
   batchCount = 1, currentPageLabel, onDownloadAll,
   format, onFormatChange, threads, onThreadsChange,
-  danmakuMode, onDanmakuModeChange, ffmpegAvailable = true,
+  danmakuMode, onDanmakuModeChange, ffmpegAvailable = true, isLoadingSizes = false,
 }: DownloadOptionsProps) {
   if (!data) return null;
 
@@ -188,8 +189,8 @@ export function DownloadOptions({
                 : stream?.unavailable_reason;
             const isDisabled = Boolean(unavailableReason);
             const fileSize = format === 'video'
-              ? formatFileSize(stream?.size_bytes)
-              : formatFileSize(audioStream?.size_bytes);
+              ? formatFileSize(stream?.size_bytes, isLoadingSizes)
+              : formatFileSize(audioStream?.size_bytes, isLoadingSizes);
 
             return (
               <label
@@ -284,8 +285,10 @@ export function DownloadOptions({
   );
 }
 
-function formatFileSize(sizeBytes?: number | null): string {
-  if (!sizeBytes || !Number.isFinite(sizeBytes) || sizeBytes <= 0) return '大小未知';
+function formatFileSize(sizeBytes?: number | null, isLoading = false): string {
+  if (!sizeBytes || !Number.isFinite(sizeBytes) || sizeBytes <= 0) {
+    return isLoading ? '获取中...' : '大小未知';
+  }
   const mib = sizeBytes / 1024 / 1024;
   if (mib < 100) return `${mib.toFixed(1)} MB`;
   return `${Math.round(mib)} MB`;

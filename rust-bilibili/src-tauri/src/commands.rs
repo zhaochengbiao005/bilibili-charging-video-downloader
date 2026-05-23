@@ -25,7 +25,7 @@ use crate::{
             PlayUrlRequest, PlayUrlResponse, StartDownloadRequest, StartDownloadResponse,
         },
         history::HistoryItem,
-        video::{FetchInfoRequest, FetchInfoResponse},
+        video::{EnrichVideoRequest, FetchInfoRequest, FetchInfoResponse, VideoData},
     },
     state::AppState,
 };
@@ -49,6 +49,24 @@ pub async fn fetch_info(
         message: "B站响应缺少视频信息".to_string(),
     })?;
     Ok(FetchInfoResponse { video, videos })
+}
+
+#[tauri::command]
+pub async fn enrich_video_sizes(
+    input: EnrichVideoRequest,
+    state: State<'_, AppState>,
+) -> AppResult<VideoData> {
+    if !is_valid_bvid(&input.video.id) {
+        return Err(AppError::InvalidInput {
+            message: "视频信息缺少有效的 BVID".to_string(),
+        });
+    }
+
+    let cookies = load_cookies_for_request(input.cookie_path.as_deref(), &state)?;
+    state
+        .client
+        .enrich_video_sizes(input.video, input.cid, cookies.as_ref())
+        .await
 }
 
 #[tauri::command]

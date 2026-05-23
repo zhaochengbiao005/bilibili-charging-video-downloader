@@ -10,6 +10,7 @@ import type {
   DanmakuMode,
   DownloadDoneEvent,
   DownloadProgressEvent,
+  EnrichVideoRequest,
   FetchInfoResponse,
   FfmpegStatus,
   HistoryItem,
@@ -152,6 +153,19 @@ export async function fetchInfoList(bvid: string, cookiePath = ''): Promise<Vide
     input: { bvid, cookie_path: cookiePath || null },
   });
   return res.videos && res.videos.length > 0 ? res.videos : [res.video];
+}
+
+export async function enrichVideoSizes(
+  video: VideoData,
+  cid?: number | null,
+  cookiePath = '',
+): Promise<VideoData> {
+  const input: EnrichVideoRequest = {
+    video,
+    cid: cid ?? null,
+    cookie_path: cookiePath || null,
+  };
+  return callCommand<VideoData>('enrich_video_sizes', { input });
 }
 
 export async function fetchImageDataUrl(url: string): Promise<string> {

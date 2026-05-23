@@ -182,6 +182,22 @@ impl BilibiliClient {
         Ok(playurl)
     }
 
+    pub async fn enrich_video_sizes(
+        &self,
+        mut video: VideoData,
+        cid: Option<u64>,
+        cookies: Option<&CookieSet>,
+    ) -> AppResult<VideoData> {
+        let cid = cid
+            .or_else(|| video.pages.first().map(|page| page.cid))
+            .ok_or_else(|| AppError::InvalidInput {
+                message: "视频缺少分 P 信息，无法获取容量".to_string(),
+            })?;
+        let playurl = self.playurl(&video.id, cid, 127, cookies).await?;
+        video.apply_playurl_sizes(&playurl);
+        Ok(video)
+    }
+
     pub async fn start_qr_login(&self) -> AppResult<QrLoginStartResponse> {
         let response = self
             .client
@@ -669,27 +685,27 @@ fn build_stream_options_from_dash(
 fn default_stream_options(is_charging: bool, is_vip: bool) -> Vec<StreamOption> {
     let restricted = is_charging || is_vip;
     VIDEO_QUALITY_TIERS
-    .iter()
-    .map(|&(qn, label, maybe_login, maybe_vip)| {
-        let requires_login = maybe_login && restricted;
-        let requires_vip = maybe_vip && is_vip;
-        StreamOption {
-            id: format!("video_{qn}"),
-            qn,
-            label: label.to_string(),
-            codec: None,
-            width: None,
-            height: None,
-            frame_rate: None,
-            bandwidth: None,
-            size_bytes: None,
-            requires_login,
-            requires_vip,
-            available: !requires_vip,
-            unavailable_reason: requires_vip.then(|| "需要大会员权限".to_string()),
-        }
-    })
-    .collect()
+        .iter()
+        .map(|&(qn, label, maybe_login, maybe_vip)| {
+            let requires_login = maybe_login && restricted;
+            let requires_vip = maybe_vip && is_vip;
+            StreamOption {
+                id: format!("video_{qn}"),
+                qn,
+                label: label.to_string(),
+                codec: None,
+                width: None,
+                height: None,
+                frame_rate: None,
+                bandwidth: None,
+                size_bytes: None,
+                requires_login,
+                requires_vip,
+                available: !requires_vip,
+                unavailable_reason: requires_vip.then(|| "需要大会员权限".to_string()),
+            }
+        })
+        .collect()
 }
 
 const VIDEO_QUALITY_TIERS: &[(u32, &str, bool, bool)] = &[
@@ -834,11 +850,7 @@ impl UgcEpisode {
             return None;
         }
 
-        let title = first_non_empty_string([
-            self.title,
-            arc.title,
-            base.title.clone(),
-        ]);
+        let title = first_non_empty_string([self.title, arc.title, base.title.clone()]);
         let duration_sec = arc.duration;
         let thumbnail = first_non_empty_string([arc.pic, base.thumbnail.clone()]);
         let owner_name = first_non_empty_string([arc.author.name, base.author.clone()]);
@@ -880,7 +892,10 @@ impl UgcEpisode {
             is_login: base.is_login,
             login_name: base.login_name.clone(),
             login_level: base.login_level,
-            desc: Some(first_non_empty_string([arc.desc, base.desc.clone().unwrap_or_default()])),
+            desc: Some(first_non_empty_string([
+                arc.desc,
+                base.desc.clone().unwrap_or_default(),
+            ])),
             error: None,
         })
     }
@@ -1239,7 +1254,10 @@ mod tests {
         assert_eq!(videos[0].id, "BVcurrent111");
         assert_eq!(videos[1].id, "BVnext22222");
         assert_eq!(videos[1].pages[0].cid, 22);
-        assert_eq!(videos[1].pages[0].thumbnail.as_deref(), Some("https://i0.hdslb.com/bfs/archive/next.jpg"));
+        assert_eq!(
+            videos[1].pages[0].thumbnail.as_deref(),
+            Some("https://i0.hdslb.com/bfs/archive/next.jpg")
+        );
     }
 
     #[test]

@@ -13,6 +13,13 @@ pub struct FetchInfoResponse {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct EnrichVideoRequest {
+    pub video: VideoData,
+    pub cid: Option<u64>,
+    pub cookie_path: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct VideoPage {
     pub cid: u64,
     pub page: u32,
