@@ -2,7 +2,7 @@ import React from 'react';
 import { Info, Code, ShieldCheck, Github, ExternalLink } from 'lucide-react';
 
 const BILIBILI_PROFILE_URL = 'https://space.bilibili.com/228533833?spm_id_from=333.788.0.0';
-const GITHUB_REPO_URL = 'https://github.com/zhaochengbiao005?tab=repositories';
+const GITHUB_REPO_URL = 'https://github.com/zhaochengbiao005/bilibili-charging-video-downloader';
 
 const linkClass =
   'flex items-center justify-center gap-2 px-6 py-3.5 bg-white/70 hover:bg-white text-gray-800 rounded-2xl font-black transition-all border border-[#FFE1EC] shadow-[0_10px_24px_rgba(255,143,179,0.12)] hover:text-bili-pink hover:scale-[1.02] shrink-0';
