@@ -411,6 +411,23 @@ pub fn open_path(path: String, app: AppHandle) -> AppResult<()> {
 }
 
 #[tauri::command]
+pub fn open_url(url: String, app: AppHandle) -> AppResult<()> {
+    let url = url.trim();
+    if !(url.starts_with("https://") || url.starts_with("http://")) {
+        return Err(AppError::InvalidInput {
+            message: "链接地址无效".to_string(),
+        });
+    }
+
+    app.opener()
+        .open_url(url.to_string(), None::<String>)
+        .map_err(|err| AppError::Io {
+            message: err.to_string(),
+        })?;
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn choose_cookie_file(app: AppHandle) -> AppResult<Option<String>> {
     let dialog = app
         .dialog()

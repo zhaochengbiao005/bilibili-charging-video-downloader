@@ -316,6 +316,14 @@ export async function openPath(path: string): Promise<void> {
   await callCommand<void>('open_path', { path });
 }
 
+export async function openUrl(url: string): Promise<void> {
+  if (!isTauriRuntime()) {
+    window.open(url, '_blank', 'noopener,noreferrer');
+    return;
+  }
+  await callCommand<void>('open_url', { url });
+}
+
 export async function checkLogin(): Promise<LoginStatus> {
   if (!isTauriRuntime()) {
     return { is_login: false, avatar: null, message: '此功能需要在 Tauri 桌面应用中运行' };

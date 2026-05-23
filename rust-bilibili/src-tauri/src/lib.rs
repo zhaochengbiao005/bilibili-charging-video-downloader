@@ -52,6 +52,7 @@ pub fn run() {
             commands::install_ffmpeg,
             commands::choose_output_dir,
             commands::open_path,
+            commands::open_url,
             commands::choose_cookie_file,
             commands::check_login,
             commands::check_cookie,

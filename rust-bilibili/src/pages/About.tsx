@@ -1,5 +1,6 @@
 import React from 'react';
 import { Info, Code, ShieldCheck, Github, ExternalLink } from 'lucide-react';
+import * as Bridge from '../bridge';
 
 const BILIBILI_PROFILE_URL = 'https://space.bilibili.com/228533833?spm_id_from=333.788.0.0';
 const GITHUB_REPO_URL = 'https://github.com/zhaochengbiao005/bilibili-charging-video-downloader';
@@ -8,6 +9,12 @@ const linkClass =
   'flex items-center justify-center gap-2 px-6 py-3.5 bg-white/70 hover:bg-white text-gray-800 rounded-2xl font-black transition-all border border-[#FFE1EC] shadow-[0_10px_24px_rgba(255,143,179,0.12)] hover:text-bili-pink hover:scale-[1.02] shrink-0';
 
 export function About() {
+  const handleOpenLink = (url: string) => {
+    Bridge.openUrl(url).catch(() => {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    });
+  };
+
   return (
     <div className="max-w-4xl mx-auto w-full p-8 md:p-12 flex flex-col gap-10 min-h-full">
        <div className="text-center flex flex-col items-center mt-4 shrink-0">
@@ -44,17 +51,17 @@ export function About() {
        <div className="glass-panel p-8 md:p-10 rounded-[2rem] mt-6 flex flex-col md:flex-row items-center justify-between gap-8">
           <div>
             <h3 className="text-2xl font-bold text-gray-900 mb-2">相关链接</h3>
-            <p className="text-gray-600 font-medium">可以通过 B站主页和 GitHub 仓库查看后续更新。</p>
+            <p className="text-gray-600 font-medium">如果本项目对你有帮助请点个关注和Star，谢谢！</p>
           </div>
           <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-            <a href={BILIBILI_PROFILE_URL} target="_blank" rel="noreferrer" className={linkClass}>
+            <button type="button" onClick={() => handleOpenLink(BILIBILI_PROFILE_URL)} className={linkClass}>
               <ExternalLink size={18} strokeWidth={2.5} />
               我的 B站主页
-            </a>
-            <a href={GITHUB_REPO_URL} target="_blank" rel="noreferrer" className={linkClass}>
+            </button>
+            <button type="button" onClick={() => handleOpenLink(GITHUB_REPO_URL)} className={linkClass}>
               <Github size={18} strokeWidth={2.5} />
               GitHub 项目仓库
-            </a>
+            </button>
           </div>
        </div>
 
