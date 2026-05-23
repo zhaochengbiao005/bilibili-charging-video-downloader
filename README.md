@@ -1,6 +1,6 @@
 # B站充电视频下载器
 
-一个面向 Windows 桌面的 B站视频下载工具。项目当前主线是 `rust-bilibili`：前端使用 React + Tailwind，桌面端使用 Tauri，下载、解析、合并、弹幕处理和本地数据管理由 Rust 后端负责。
+一个面向 Windows 桌面的 B站视频下载工具，支持视频解析、清晰度选择、批量下载、弹幕处理、音频导出和下载历史管理。
 
 > 本项目仅用于个人学习、备份与技术研究。请遵守 B站用户协议、版权规则和内容创作者权益，不要用于未授权传播。
 
@@ -15,48 +15,19 @@
 - 开箱合并：打包时内置 FFmpeg 资源，用于视频/音频合并和弹幕烧录。
 - 桌面体验：中文界面、下载历史、设置页、隐藏侧边栏、B站风格视觉。
 
-## 当前主线
+## 下载安装
 
-```text
-rust-bilibili/
-```
+在 GitHub Releases 页面下载最新的 Windows 应用安装包，双击安装完成后即可使用。
 
-这是正在维护的 Rust/Tauri 桌面版本。
+安装完成后，打开“B站充电视频下载器”，粘贴 B站视频链接，解析成功后选择画质、线程数和弹幕处理方式，然后点击下载。
 
-仓库中还保留了早期原型与迁移资料：
+## 使用说明
 
-- `bilibili-video-downloader/`：早期 React 前端原型。
-- `gui_qt/`、`src/`：早期 Python/PyQt 版本与下载逻辑。
-- `docs/`、`plans/`：设计、迁移和实现计划文档。
-
-## 开发环境
-
-- Windows 10/11
-- Node.js 18+
-- Rust stable
-- Tauri 2 相关 Windows 构建依赖
-
-## 本地运行
-
-```powershell
-cd rust-bilibili
-npm install
-npm run tauri:dev
-```
-
-## 打包安装包
-
-```powershell
-cd rust-bilibili
-npm install
-npm run tauri:build
-```
-
-生成的 NSIS 安装包通常位于：
-
-```text
-rust-bilibili/src-tauri/target/release/bundle/nsis/
-```
+- 普通公开视频可以直接解析和下载。
+- 部分高清画质、充电专属内容或会员内容需要先在应用内登录 B站账号。
+- 多 P 或合集视频解析成功后，可以下载当前视频，也可以批量下载全部视频。
+- 勾选外挂弹幕会生成同名 ASS 弹幕文件；选择烧录弹幕会生成带弹幕的 MP4 文件。
+- 下载完成后，可以在下载历史中查看记录并打开文件所在目录。
 
 ## 本地数据
 
