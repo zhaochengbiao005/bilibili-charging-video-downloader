@@ -46,6 +46,10 @@
 - 我的 B站主页：[https://space.bilibili.com/228533833](https://space.bilibili.com/228533833)
 - 项目仓库：[https://github.com/zhaochengbiao005/bilibili-charging-video-downloader](https://github.com/zhaochengbiao005/bilibili-charging-video-downloader)
 
-## 许可证与声明
+## FFmpeg 相关许可说明
 
-仓库目前未声明开源许可证，默认保留全部权利。项目依赖 FFmpeg 完成合并、转码和弹幕烧录，正式分发时请保留 FFmpeg 相关许可说明。
+本应用依赖 FFmpeg 完成视频合并、音频转换和弹幕烧录等功能。FFmpeg 是独立的开源项目，相关版权和许可归 FFmpeg 项目及其贡献者所有。
+
+随安装包分发的 FFmpeg 组件会保留对应的许可说明文件。使用本应用时，请同时遵守 FFmpeg 的相关许可条款。
+
+FFmpeg 官网：[https://ffmpeg.org/](https://ffmpeg.org/)
