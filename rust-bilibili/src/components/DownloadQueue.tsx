@@ -92,7 +92,10 @@ export function DownloadQueue({ tasks, onRemove, onCancel }: DownloadQueueProps)
                 </div>
                 <div className="flex items-center justify-between text-[10px] text-gray-500 font-medium px-1">
                   <span>{task.speed || (task.status === 'downloading' ? '等待后端进度...' : '')}</span>
-                  <span>{task.quality} · {task.format?.toUpperCase()}{task.danmaku_mode === 'burn' ? ' · 烧录弹幕' : ''}</span>
+                  <span>
+                    {task.quality} · {task.storage === 'baidu_netdisk' ? '百度网盘' : task.format?.toUpperCase()}
+                    {task.danmaku_mode === 'burn' ? ' · 烧录弹幕' : ''}
+                  </span>
                 </div>
               </div>
 

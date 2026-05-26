@@ -73,6 +73,12 @@ export interface EnrichVideoRequest {
 export type DownloadStage =
   | 'queued'
   | 'resolving'
+  | 'cloud_calculating_md5'
+  | 'cloud_muxing_mp4'
+  | 'cloud_precreating'
+  | 'cloud_uploading_video'
+  | 'cloud_uploading_audio'
+  | 'cloud_uploading_danmaku'
   | 'downloading_video'
   | 'downloading_audio'
   | 'downloading_danmaku'
@@ -174,6 +180,7 @@ export interface DownloadTask {
   status: 'downloading' | 'completed' | 'error' | 'cancelled';
   speed?: string;
   output_dir?: string;
+  storage?: CloudSaveMode;
   error_message?: string;
   message?: string;
   download_danmaku?: boolean;
@@ -227,6 +234,13 @@ export interface CloudAuthStatus {
   account_name?: string | null;
   expires_at?: string | null;
   message?: string | null;
+}
+
+export interface CloudFileResult {
+  provider: CloudProvider;
+  remote_path: string;
+  file_id?: string | null;
+  size_bytes: number;
 }
 
 export interface BaiduAuthStartResponse {

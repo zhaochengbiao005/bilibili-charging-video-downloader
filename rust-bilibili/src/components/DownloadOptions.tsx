@@ -1,6 +1,6 @@
 import React from 'react';
-import { SlidersHorizontal, Film, Music, Download, AlertTriangle, Cpu, MessageSquareText, Flame } from 'lucide-react';
-import type { DanmakuMode, VideoData } from '../types';
+import { SlidersHorizontal, Film, Music, Download, AlertTriangle, Cpu, MessageSquareText, Flame, Cloud, HardDrive } from 'lucide-react';
+import type { CloudSaveMode, DanmakuMode, VideoData } from '../types';
 
 interface DownloadOptionsProps {
   data: VideoData | null;
@@ -10,6 +10,10 @@ interface DownloadOptionsProps {
   batchCount?: number;
   currentPageLabel?: string;
   onDownloadAll?: () => void;
+  saveMode: CloudSaveMode;
+  onSaveModeChange: (mode: CloudSaveMode) => void;
+  cloudAuthorized?: boolean;
+  cloudRemoteDir?: string;
   format: 'video' | 'audio';
   onFormatChange: (f: 'video' | 'audio') => void;
   threads: number;
@@ -23,6 +27,7 @@ interface DownloadOptionsProps {
 export function DownloadOptions({
   data, selectedQuality, onSelectQuality, onDownload,
   batchCount = 1, currentPageLabel, onDownloadAll,
+  saveMode, onSaveModeChange, cloudAuthorized = false, cloudRemoteDir = '',
   format, onFormatChange, threads, onThreadsChange,
   danmakuMode, onDanmakuModeChange, ffmpegAvailable = true, isLoadingSizes = false,
 }: DownloadOptionsProps) {
@@ -40,7 +45,8 @@ export function DownloadOptions({
     selectedQuality.includes('杜比') ||
     selectedQuality.includes('HDR')
   );
-  const effectiveDanmakuMode = isHighFidelityVideo && danmakuMode === 'burn' ? 'ass' : danmakuMode;
+  const isCloudMode = saveMode === 'baidu_netdisk';
+  const effectiveDanmakuMode = (isHighFidelityVideo || isCloudMode) && danmakuMode === 'burn' ? 'ass' : danmakuMode;
 
   const handleFormatSwitch = (f: 'video' | 'audio') => {
     onFormatChange(f);
@@ -58,6 +64,45 @@ export function DownloadOptions({
           <SlidersHorizontal size={24} strokeWidth={2.5} />
         </div>
         <h3 className="text-xl font-black text-gray-900">下载设置</h3>
+      </div>
+
+      <div className="mb-4">
+        <label className="block text-sm font-black text-gray-600 mb-3">保存位置</label>
+        <div className="grid grid-cols-2 gap-2 rounded-2xl bg-white/82 border border-pink-50 p-1.5">
+          {[
+            { value: 'local' as const, label: '本地', icon: HardDrive },
+            { value: 'baidu_netdisk' as const, label: '百度网盘', icon: Cloud },
+          ].map((item) => {
+            const Icon = item.icon;
+            const active = saveMode === item.value;
+            return (
+              <button
+                key={item.value}
+                type="button"
+                onClick={() => onSaveModeChange(item.value)}
+                className={`motion-button flex min-h-11 items-center justify-center gap-2 rounded-xl text-sm font-black ${
+                  active
+                    ? 'bg-white text-bili-pink shadow-sm border border-pink-100'
+                    : 'text-gray-500 hover:text-bili-pink hover:bg-white/50 border border-transparent'
+                }`}
+              >
+                <Icon size={16} />
+                {item.label}
+              </button>
+            );
+          })}
+        </div>
+        {isCloudMode && (
+          <div className={`mt-2 rounded-xl border px-3 py-2 text-xs font-bold ${
+            cloudAuthorized
+              ? 'border-[#D8E4F0] bg-[#EAF7FF]/70 text-[#2377A6]'
+              : 'border-orange-100 bg-orange-50 text-orange-500'
+          }`}>
+            {cloudAuthorized
+              ? `云端目录：${cloudRemoteDir || '/apps/B站充电视频下载器'}`
+              : '百度网盘未授权，请先到设置中完成授权'}
+          </div>
+        )}
       </div>
 
       <div className="mb-4">
@@ -83,7 +128,7 @@ export function DownloadOptions({
             }`}
           >
             <Music size={22} />
-            音频 (MP3)
+            {isCloudMode ? '音频 (M4A)' : '音频 (MP3)'}
           </button>
         </div>
       </div>
@@ -128,7 +173,7 @@ export function DownloadOptions({
               { value: 'burn' as const, label: '烧录', icon: Flame },
             ].map((item) => {
               const Icon = item.icon;
-              const disabled = isHighFidelityVideo && item.value === 'burn';
+              const disabled = (isHighFidelityVideo || isCloudMode) && item.value === 'burn';
               const active = effectiveDanmakuMode === item.value;
               return (
                 <button
@@ -158,9 +203,11 @@ export function DownloadOptions({
           {danmakuMode === 'burn' && (
             <p className="mt-2 text-xs font-medium text-gray-400">生成带弹幕的 MP4，播放更顺滑但弹幕不可关闭。</p>
           )}
-          {isHighFidelityVideo && (
+          {(isHighFidelityVideo || isCloudMode) && (
             <p className="mt-2 text-xs font-medium text-orange-400">
-              8K / HDR / 杜比视界将保留原始画质，弹幕烧录会自动改为外挂弹幕。
+              {isCloudMode
+                ? '百度网盘直传会生成 MP4，弹幕烧录会自动改为外挂弹幕。'
+                : '8K / HDR / 杜比视界将保留原始画质，弹幕烧录会自动改为外挂弹幕。'}
             </p>
           )}
         </div>
@@ -266,19 +313,23 @@ export function DownloadOptions({
 
       <button
         onClick={onDownload}
-        className="motion-button w-full mt-5 bg-gradient-to-r from-bili-pink to-bili-pink-hover text-white py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-[0_14px_30px_rgba(255,143,179,0.32)]"
+        disabled={isCloudMode && !cloudAuthorized}
+        className="motion-button w-full mt-5 bg-gradient-to-r from-bili-pink to-bili-pink-hover text-white py-3.5 rounded-2xl font-bold flex items-center justify-center gap-2 shadow-[0_14px_30px_rgba(255,143,179,0.32)] disabled:cursor-not-allowed disabled:opacity-55"
       >
         <Download size={20} strokeWidth={2.5} />
-        {currentPageLabel ? `下载当前 ${currentPageLabel}` : '开始下载'}
+        {isCloudMode
+          ? currentPageLabel ? `保存当前 ${currentPageLabel}` : '保存到百度网盘'
+          : currentPageLabel ? `下载当前 ${currentPageLabel}` : '开始下载'}
       </button>
       {onDownloadAll && batchCount > 1 && (
         <button
           type="button"
           onClick={onDownloadAll}
-          className="motion-button mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-pink-100 bg-white/84 py-3 text-sm font-black text-bili-pink shadow-sm hover:bg-pink-50/80"
+          disabled={isCloudMode && !cloudAuthorized}
+          className="motion-button mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-pink-100 bg-white/84 py-3 text-sm font-black text-bili-pink shadow-sm hover:bg-pink-50/80 disabled:cursor-not-allowed disabled:opacity-55"
         >
           <Download size={18} strokeWidth={2.5} />
-          下载全部 {batchCount} 个视频
+          {isCloudMode ? `全部保存 ${batchCount} 个视频` : `下载全部 ${batchCount} 个视频`}
         </button>
       )}
     </div>

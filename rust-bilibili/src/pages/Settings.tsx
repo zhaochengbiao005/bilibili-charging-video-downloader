@@ -19,7 +19,7 @@ export function Settings() {
     baidu: {
       client_id: '',
       client_secret: '',
-      redirect_uri: 'http://localhost:1421/baidu/callback',
+      redirect_uri: 'oob',
       scope: 'basic,netdisk',
     },
   });
@@ -32,6 +32,7 @@ export function Settings() {
   const [authState, setAuthState] = useState('');
   const [cloudSaved, setCloudSaved] = useState(false);
   const [cloudMessage, setCloudMessage] = useState('');
+  const [testUploading, setTestUploading] = useState(false);
   const [saved, setSaved] = useState(false);
   const [appDir, setAppDir] = useState('');
   const [ffmpegStatus, setFfmpegStatus] = useState<FfmpegStatus>({ available: false });
@@ -103,6 +104,19 @@ export function Settings() {
     const status = await Bridge.baiduLogout();
     setCloudStatus(status);
     setCloudMessage(status.message || '已退出百度网盘');
+  };
+
+  const handleUploadTestFile = async () => {
+    setTestUploading(true);
+    setCloudMessage('');
+    try {
+      const result = await Bridge.baiduUploadTestFile();
+      setCloudMessage(`测试文件已上传：${result.remote_path}`);
+    } catch (err) {
+      setCloudMessage(err instanceof Error ? err.message : String(err));
+    } finally {
+      setTestUploading(false);
+    }
   };
 
   const handleInstallFfmpeg = async () => {
@@ -240,7 +254,7 @@ export function Settings() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <label className="flex flex-col gap-2">
-            <span className="text-sm font-bold text-gray-600">应用 ID</span>
+            <span className="text-sm font-bold text-gray-600">API Key（client_id）</span>
             <input
               type="text"
               value={cloudCfg.baidu.client_id}
@@ -248,11 +262,12 @@ export function Settings() {
                 ...cloudCfg,
                 baidu: { ...cloudCfg.baidu, client_id: e.target.value },
               })}
+              placeholder="填写百度开放平台的 API Key，不是数字应用 ID"
               className={cloudInputClass}
             />
           </label>
           <label className="flex flex-col gap-2">
-            <span className="text-sm font-bold text-gray-600">应用密钥</span>
+            <span className="text-sm font-bold text-gray-600">Secret Key（client_secret）</span>
             <input
               type="password"
               autoComplete="off"
@@ -261,6 +276,7 @@ export function Settings() {
                 ...cloudCfg,
                 baidu: { ...cloudCfg.baidu, client_secret: e.target.value },
               })}
+              placeholder="填写百度开放平台的 Secret Key"
               className={cloudInputClass}
             />
           </label>
@@ -273,6 +289,7 @@ export function Settings() {
                 ...cloudCfg,
                 baidu: { ...cloudCfg.baidu, redirect_uri: e.target.value },
               })}
+              placeholder="手动授权码模式建议填写 oob"
               className={cloudInputClass}
             />
           </label>
@@ -321,6 +338,10 @@ export function Settings() {
           ))}
         </div>
 
+        <p className="rounded-xl border border-[#D8E4F0] bg-[#EAF7FF]/70 px-4 py-2 text-xs font-bold text-[#2377A6]">
+          授权参数请使用百度开放平台应用详情里的 API Key 和 Secret Key；回调地址建议填写 oob，不要填写数字形式的应用 ID。
+        </p>
+
         <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={handleSaveCloud}
@@ -342,6 +363,16 @@ export function Settings() {
             >
               <LogOut size={18} />
               退出授权
+            </button>
+          )}
+          {cloudStatus.is_authorized && (
+            <button
+              onClick={handleUploadTestFile}
+              disabled={testUploading}
+              className="motion-button inline-flex items-center gap-2 px-5 py-3 bg-[#EAF7FF] border border-[#D8E4F0] rounded-2xl text-[#2377A6] hover:text-bili-pink font-bold disabled:opacity-60"
+            >
+              <Cloud size={18} />
+              {testUploading ? '测试中...' : '上传测试文件'}
             </button>
           )}
         </div>

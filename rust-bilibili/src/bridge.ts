@@ -10,6 +10,7 @@ import type {
   BaiduAuthStartResponse,
   CloudAuthStatus,
   CloudConfig,
+  CloudFileResult,
   ConfigResponse,
   DanmakuMode,
   DownloadDoneEvent,
@@ -211,6 +212,35 @@ export async function startDownload(
   return res.task_id;
 }
 
+export async function startCloudUpload(
+  bvid: string, quality: string, fmt: string,
+  remoteDir: string, cookiePath = '', threads = 8,
+  danmakuMode: DanmakuMode = 'none', page?: VideoPage | null,
+): Promise<string> {
+  if (!isTauriRuntime()) throw missingRuntimeError();
+  await ensureEventListeners();
+  const isVideo = fmt !== 'audio';
+  const input: StartDownloadRequest = {
+    bvid,
+    cid: page?.cid ?? null,
+    page: page?.page ?? null,
+    part: page?.part ?? null,
+    quality,
+    format: isVideo ? 'video' : 'audio',
+    outdir: remoteDir,
+    cookie_path: cookiePath || null,
+    skip_merge: !isVideo,
+    download_danmaku: isVideo && danmakuMode !== 'none',
+    danmaku_mode: isVideo ? danmakuMode : 'none',
+    threads,
+  };
+  const res = await callCommand<StartDownloadResponse>('start_cloud_upload', {
+    input,
+  });
+  cachedHistory = null;
+  return res.task_id;
+}
+
 export async function fetchPlayurl(
   bvid: string,
   cid: number,
@@ -273,7 +303,7 @@ export async function getCloudConfig(): Promise<CloudConfig> {
       baidu: {
         client_id: '',
         client_secret: '',
-        redirect_uri: 'http://localhost:1421/baidu/callback',
+        redirect_uri: 'oob',
         scope: 'basic,netdisk',
       },
     };
@@ -310,6 +340,10 @@ export async function baiduAuthFinish(input: BaiduAuthFinishRequest): Promise<Cl
 
 export async function baiduLogout(): Promise<CloudAuthStatus> {
   return callCommand<CloudAuthStatus>('baidu_logout');
+}
+
+export async function baiduUploadTestFile(): Promise<CloudFileResult> {
+  return callCommand<CloudFileResult>('baidu_upload_test_file');
 }
 
 export async function checkFfmpeg(): Promise<FfmpegStatus> {

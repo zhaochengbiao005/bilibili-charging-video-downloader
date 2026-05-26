@@ -1,14 +1,16 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Check, Download, Search, Video } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 import { UrlInput } from '../components/UrlInput';
 import { VideoInfo } from '../components/VideoInfo';
 import { DownloadOptions } from '../components/DownloadOptions';
 import { DownloadQueue } from '../components/DownloadQueue';
-import type { DanmakuMode, VideoData, DownloadTask, VideoPage } from '../types';
+import type { CloudAuthStatus, CloudSaveMode, DanmakuMode, VideoData, DownloadTask, VideoPage } from '../types';
 import * as Bridge from '../bridge';
 import homeBg from '../assets/home-bg.png';
 
 export function Home() {
+  const location = useLocation();
   const [isParsing, setIsParsing] = useState(false);
   const [videos, setVideos] = useState<VideoData[]>([]);
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
@@ -20,6 +22,13 @@ export function Home() {
   const [notice, setNotice] = useState<string | null>(null);
   const [cookiePath, setCookiePath] = useState('');
   const [outdir, setOutdir] = useState('downloads');
+  const [saveMode, setSaveMode] = useState<CloudSaveMode>('local');
+  const [cloudRemoteDir, setCloudRemoteDir] = useState('/apps/B站充电视频下载器');
+  const [cloudStatus, setCloudStatus] = useState<CloudAuthStatus>({
+    provider: 'baidu_netdisk',
+    is_authorized: false,
+    message: '百度网盘未授权',
+  });
   const [format, setFormat] = useState<'video' | 'audio'>('video');
   const [threads, setThreads] = useState(8);
   const [danmakuMode, setDanmakuMode] = useState<DanmakuMode>('none');
@@ -27,6 +36,20 @@ export function Home() {
   const [loadingSizeVideoIds, setLoadingSizeVideoIds] = useState<Set<string>>(() => new Set());
   const sizeLoadAttemptedRef = useRef<Set<string>>(new Set());
   const sizeLoadInFlightRef = useRef<Set<string>>(new Set());
+
+  const refreshCloudState = useCallback(() => {
+    Bridge.getCloudConfig().then(cfg => {
+      setSaveMode(cfg.default_save_mode);
+      setCloudRemoteDir(cfg.default_remote_dir);
+    });
+    Bridge.baiduAuthStatus().then(setCloudStatus).catch(() => {
+      setCloudStatus({
+        provider: 'baidu_netdisk',
+        is_authorized: false,
+        message: '百度网盘未授权',
+      });
+    });
+  }, []);
 
   useEffect(() => {
     Bridge.checkFfmpeg().then(status => setFfmpegAvailable(status.available));
@@ -36,7 +59,14 @@ export function Home() {
       if (cfg.default_outdir) setOutdir(cfg.default_outdir);
       if (cfg.default_quality) setSelectedQuality(cfg.default_quality);
     });
-  }, []);
+    refreshCloudState();
+  }, [refreshCloudState]);
+
+  useEffect(() => {
+    if (location.pathname === '/') {
+      refreshCloudState();
+    }
+  }, [location.pathname, refreshCloudState]);
 
   // ── 注册 Rust 后端事件回调 ──
   useEffect(() => {
@@ -177,14 +207,23 @@ export function Home() {
     quality = selectedQuality,
     page: VideoPage | null = video.pages[0] ?? null,
   ): Promise<DownloadTask> => {
-    const requestedDanmakuMode = safeDanmakuModeForQuality(format, quality, danmakuMode);
-    const taskId = await Bridge.startDownload(
-      video.id, quality, format,
-      outdir, cookiePath, format === 'audio',
-      threads,
-      format === 'video' ? requestedDanmakuMode : 'none',
-      page,
-    );
+    const requestedDanmakuMode = safeDanmakuModeForQuality(format, quality, danmakuMode, saveMode);
+    const isCloudMode = saveMode === 'baidu_netdisk';
+    const taskId = isCloudMode
+      ? await Bridge.startCloudUpload(
+        video.id, quality, format,
+        cloudRemoteDir, cookiePath,
+        threads,
+        format === 'video' ? requestedDanmakuMode : 'none',
+        page,
+      )
+      : await Bridge.startDownload(
+        video.id, quality, format,
+        outdir, cookiePath, format === 'audio',
+        threads,
+        format === 'video' ? requestedDanmakuMode : 'none',
+        page,
+      );
     const effectiveDanmakuMode = format === 'video' ? requestedDanmakuMode : 'none';
     const title = page && video.pages.length > 1
       ? `${video.title} - P${page.page} ${page.part}`
@@ -197,12 +236,13 @@ export function Home() {
       format,
       progress: 0,
       status: 'downloading',
-      output_dir: outdir,
+      output_dir: isCloudMode ? cloudRemoteDir : outdir,
+      storage: saveMode,
       download_danmaku: effectiveDanmakuMode !== 'none',
       danmaku_mode: effectiveDanmakuMode,
-      message: danmakuTaskMessage(effectiveDanmakuMode),
+      message: isCloudMode ? cloudTaskMessage(effectiveDanmakuMode) : danmakuTaskMessage(effectiveDanmakuMode),
     };
-  }, [selectedQuality, format, outdir, cookiePath, threads, danmakuMode]);
+  }, [selectedQuality, format, saveMode, cloudRemoteDir, outdir, cookiePath, threads, danmakuMode]);
 
   const handleDownload = useCallback(async () => {
     if (!activeVideo) {
@@ -419,6 +459,10 @@ export function Home() {
               batchCount={totalDownloadItems}
               currentPageLabel={activePage && activeVideo.pages.length > 1 ? `P${activePage.page}` : undefined}
               onDownloadAll={totalDownloadItems > 1 ? handleDownloadAll : undefined}
+              saveMode={saveMode}
+              onSaveModeChange={setSaveMode}
+              cloudAuthorized={cloudStatus.is_authorized}
+              cloudRemoteDir={cloudRemoteDir}
               format={format}
               onFormatChange={handleFormatChange}
               threads={threads}
@@ -461,15 +505,24 @@ function danmakuTaskMessage(mode: DanmakuMode): string | undefined {
   return undefined;
 }
 
+function cloudTaskMessage(mode: DanmakuMode): string {
+  if (mode === 'ass') return '百度网盘直传 MP4，已选择外挂弹幕';
+  return '百度网盘直传 MP4，不写入本地大视频文件';
+}
+
 function safeDanmakuModeForQuality(
   format: 'video' | 'audio',
   quality: string,
   mode: DanmakuMode,
+  saveMode: CloudSaveMode = 'local',
 ): DanmakuMode {
   if (format !== 'video') return 'none';
   if (
     mode === 'burn' &&
-    (quality.includes('8K') || quality.includes('HDR') || quality.includes('杜比'))
+    (saveMode === 'baidu_netdisk' ||
+      quality.includes('8K') ||
+      quality.includes('HDR') ||
+      quality.includes('杜比'))
   ) {
     return 'ass';
   }

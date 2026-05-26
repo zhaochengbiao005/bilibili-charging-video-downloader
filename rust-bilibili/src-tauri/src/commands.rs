@@ -16,12 +16,13 @@ use uuid::Uuid;
 
 use crate::{
     auth::LoginStatus,
+    cloud::direct::{run_cloud_upload_task, upload_baidu_test_file, CloudUploadTask},
     downloader::{emit_progress, FileDownloadSpec, ProgressSender},
     error::{AppError, AppResult},
     models::{
         cloud::{
             BaiduAuthFinishRequest, BaiduAuthStartResponse, CloudAuthStatus, CloudConfig,
-            SaveCloudConfigRequest,
+            CloudFileResult, SaveCloudConfigRequest,
         },
         config::{ConfigResponse, SaveConfigRequest},
         download::{
@@ -206,6 +207,99 @@ pub async fn start_download(
 }
 
 #[tauri::command]
+pub async fn start_cloud_upload(
+    input: StartDownloadRequest,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<StartDownloadResponse> {
+    if !is_valid_bvid(&input.bvid) {
+        return Err(AppError::InvalidInput {
+            message: "请输入有效的 BVID".to_string(),
+        });
+    }
+    if input.threads == 0 {
+        return Err(AppError::InvalidInput {
+            message: "下载线程数必须大于 0".to_string(),
+        });
+    }
+
+    let status = state.baidu_token_store.auth_status().await?;
+    if !status.is_authorized {
+        return Err(AppError::AuthRequired);
+    }
+
+    let task_id = format!("cloud_{}", Uuid::new_v4());
+    let cancel = Arc::new(AtomicBool::new(false));
+    state
+        .cancel_tokens
+        .write()
+        .await
+        .insert(task_id.clone(), cancel.clone());
+
+    let cookies = load_cookies_for_request(input.cookie_path.as_deref(), &state)?;
+    let app_dir = state.config_store.app_dir().to_path_buf();
+    let resource_dir = app.path().resource_dir().ok();
+    let task = CloudUploadTask {
+        task_id: task_id.clone(),
+        input,
+        app: app.clone(),
+        client: state.client.clone(),
+        danmaku: state.danmaku.clone(),
+        token_store: state.baidu_token_store.clone(),
+        history_store: state.history_store.clone(),
+        config_store: state.config_store.clone(),
+        ffmpeg: state.ffmpeg.clone(),
+        app_dir,
+        resource_dir,
+        cookies,
+        cancel,
+    };
+    let cancel_tokens = state.cancel_tokens.clone();
+    let event_task_id = task_id.clone();
+    let app_for_task = app.clone();
+
+    tauri::async_runtime::spawn(async move {
+        let result = run_cloud_upload_task(task).await;
+        cancel_tokens.write().await.remove(&event_task_id);
+        match result {
+            Ok(files) => {
+                let paths = files
+                    .iter()
+                    .map(|file| file.remote_path.as_str())
+                    .collect::<Vec<_>>()
+                    .join("；");
+                let _ = app_for_task.emit(
+                    "download://completed",
+                    DownloadDoneEvent {
+                        task_id: event_task_id,
+                        status: "completed".to_string(),
+                        message: Some(format!("百度网盘保存完成：{paths}")),
+                    },
+                );
+            }
+            Err(err) => {
+                let message = err.to_string();
+                let status = if message.contains("任务已取消") {
+                    "cancelled"
+                } else {
+                    "failed"
+                };
+                let _ = app_for_task.emit(
+                    "download://failed",
+                    DownloadDoneEvent {
+                        task_id: event_task_id,
+                        status: status.to_string(),
+                        message: Some(message),
+                    },
+                );
+            }
+        }
+    });
+
+    Ok(StartDownloadResponse { task_id })
+}
+
+#[tauri::command]
 pub async fn cancel_download(task_id: String, state: State<'_, AppState>) -> AppResult<()> {
     if let Some(cancel) = state.cancel_tokens.read().await.get(&task_id) {
         cancel.store(true, Ordering::SeqCst);
@@ -312,6 +406,15 @@ pub async fn baidu_auth_finish(
 #[tauri::command]
 pub fn baidu_logout(state: State<'_, AppState>) -> AppResult<CloudAuthStatus> {
     state.baidu_token_store.logout()
+}
+
+#[tauri::command]
+pub async fn baidu_upload_test_file(state: State<'_, AppState>) -> AppResult<CloudFileResult> {
+    upload_baidu_test_file(
+        state.baidu_token_store.clone(),
+        state.config_store.app_dir().to_path_buf(),
+    )
+    .await
 }
 
 #[tauri::command]

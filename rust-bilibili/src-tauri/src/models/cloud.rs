@@ -92,7 +92,7 @@ impl Default for BaiduCloudConfig {
         Self {
             client_id: String::new(),
             client_secret: String::new(),
-            redirect_uri: "http://localhost:1421/baidu/callback".to_string(),
+            redirect_uri: "oob".to_string(),
             scope: "basic,netdisk".to_string(),
         }
     }

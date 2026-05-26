@@ -160,7 +160,12 @@ impl BaiduTokenStore {
         let client_id = config.baidu.client_id.trim();
         let redirect_uri = config.baidu.redirect_uri.trim();
         if client_id.is_empty() {
-            return Err(cloud_config_error("请先填写百度网盘 Client ID"));
+            return Err(cloud_config_error("请先填写百度网盘 API Key"));
+        }
+        if looks_like_numeric_app_id(client_id) {
+            return Err(cloud_config_error(
+                "百度网盘授权需要填写 API Key，不是数字形式的应用 ID",
+            ));
         }
         if redirect_uri.is_empty() {
             return Err(cloud_config_error("请先填写百度网盘回调地址"));
@@ -176,7 +181,9 @@ impl BaiduTokenStore {
                 ("redirect_uri", redirect_uri),
                 ("scope", config.baidu.scope.trim()),
                 ("state", state.as_str()),
-                ("display", "popup"),
+                ("display", "tv"),
+                ("qrcode", "1"),
+                ("force_login", "1"),
             ],
         )
         .map_err(|err| AppError::Cloud {
@@ -252,7 +259,9 @@ impl BaiduTokenStore {
             return Ok(());
         }
 
-        let expected = fs::read_to_string(&self.pending_state_path)?;
+        let expected_content = fs::read_to_string(&self.pending_state_path)?;
+        let expected = serde_json::from_str::<String>(&expected_content)
+            .unwrap_or_else(|_| expected_content.trim().to_string());
         if expected.trim() != state {
             return Err(cloud_config_error("百度授权状态校验失败，请重新授权"));
         }
@@ -502,8 +511,9 @@ fn normalize_cloud_config(config: &mut CloudConfig) {
     if config.part_size_mb == 0 {
         config.part_size_mb = 4;
     }
-    if config.baidu.redirect_uri.trim().is_empty() {
-        config.baidu.redirect_uri = "http://localhost:1421/baidu/callback".to_string();
+    let redirect_uri = config.baidu.redirect_uri.trim();
+    if redirect_uri.is_empty() || redirect_uri == "http://localhost:1421/baidu/callback" {
+        config.baidu.redirect_uri = "oob".to_string();
     }
     if config.baidu.scope.trim().is_empty() {
         config.baidu.scope = "basic,netdisk".to_string();
@@ -512,12 +522,22 @@ fn normalize_cloud_config(config: &mut CloudConfig) {
 
 fn ensure_baidu_secret(config: &CloudConfig) -> AppResult<()> {
     if config.baidu.client_id.trim().is_empty() {
-        return Err(cloud_config_error("请先填写百度网盘 Client ID"));
+        return Err(cloud_config_error("请先填写百度网盘 API Key"));
+    }
+    if looks_like_numeric_app_id(config.baidu.client_id.trim()) {
+        return Err(cloud_config_error(
+            "百度网盘授权需要填写 API Key，不是数字形式的应用 ID",
+        ));
     }
     if config.baidu.client_secret.trim().is_empty() {
-        return Err(cloud_config_error("请先填写百度网盘 Client Secret"));
+        return Err(cloud_config_error("请先填写百度网盘 Secret Key"));
     }
     Ok(())
+}
+
+fn looks_like_numeric_app_id(value: &str) -> bool {
+    let value = value.trim();
+    value.len() >= 6 && value.chars().all(|ch| ch.is_ascii_digit())
 }
 
 fn token_is_expired(token: &BaiduToken) -> AppResult<bool> {
@@ -593,6 +613,26 @@ mod tests {
     }
 
     #[test]
+    fn auth_start_rejects_numeric_app_id() -> AppResult<()> {
+        let root = test_root("numeric_app_id");
+        if root.exists() {
+            fs::remove_dir_all(&root)?;
+        }
+        fs::create_dir_all(&root)?;
+        let store = BaiduTokenStore::new(&root);
+        let mut config = CloudConfig::default();
+        config.baidu.client_id = "24092476".to_string();
+        config.baidu.client_secret = "secret".to_string();
+        store.save_config(config)?;
+
+        let result = store.auth_start();
+
+        assert!(matches!(result, Err(AppError::Cloud { .. })));
+        fs::remove_dir_all(root)?;
+        Ok(())
+    }
+
+    #[test]
     fn auth_start_builds_authorize_url_and_state() -> AppResult<()> {
         let root = test_root("auth_url");
         if root.exists() {
@@ -609,7 +649,27 @@ mod tests {
 
         assert!(response.auth_url.contains("openapi.baidu.com"));
         assert!(response.auth_url.contains("client_id=client-id"));
+        assert!(response.auth_url.contains("redirect_uri=oob"));
+        assert!(response.auth_url.contains("display=tv"));
+        assert!(response.auth_url.contains("qrcode=1"));
+        assert!(response.auth_url.contains("force_login=1"));
         assert!(response.state.starts_with("bd_"));
+
+        fs::remove_dir_all(root)?;
+        Ok(())
+    }
+
+    #[test]
+    fn validate_pending_state_accepts_saved_json_string() -> AppResult<()> {
+        let root = test_root("state_json");
+        if root.exists() {
+            fs::remove_dir_all(&root)?;
+        }
+        fs::create_dir_all(&root)?;
+        let store = BaiduTokenStore::new(&root);
+        write_json_atomic(&store.pending_state_path, &"bd_state_1".to_string())?;
+
+        store.validate_pending_state(Some("bd_state_1"))?;
 
         fs::remove_dir_all(root)?;
         Ok(())

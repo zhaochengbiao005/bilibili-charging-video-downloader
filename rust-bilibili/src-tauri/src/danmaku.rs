@@ -52,6 +52,21 @@ impl DanmakuClient {
         output_path: &Path,
         cookies: Option<&CookieSet>,
     ) -> AppResult<PathBuf> {
+        let ass = self.render_ass_text(cid, bvid, cookies).await?;
+        let ass_path = output_path.with_extension("ass");
+        if let Some(parent) = ass_path.parent() {
+            fs::create_dir_all(parent).await?;
+        }
+        fs::write(&ass_path, ass).await?;
+        Ok(ass_path)
+    }
+
+    pub async fn render_ass_text(
+        &self,
+        cid: u64,
+        bvid: &str,
+        cookies: Option<&CookieSet>,
+    ) -> AppResult<String> {
         let mut xml = self.fetch_xml(cid, bvid, cookies).await?;
         let mut entries = parse_danmaku_xml(&xml);
         if entries.is_empty() {
@@ -63,13 +78,7 @@ impl DanmakuClient {
                 message: "没有获取到可显示的弹幕内容".to_string(),
             });
         }
-        let ass = render_ass(&entries);
-        let ass_path = output_path.with_extension("ass");
-        if let Some(parent) = ass_path.parent() {
-            fs::create_dir_all(parent).await?;
-        }
-        fs::write(&ass_path, ass).await?;
-        Ok(ass_path)
+        Ok(render_ass(&entries))
     }
 
     async fn fetch_xml(
