@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertCircle, Clock, FolderOpen, Search, Trash2, X } from 'lucide-react';
+import { AlertCircle, Clock, Cloud, ExternalLink, FolderOpen, Search, Trash2, X } from 'lucide-react';
 import type { HistoryItem } from '../types';
 import * as Bridge from '../bridge';
 
@@ -32,6 +32,20 @@ export function History() {
   };
 
   const handleOpen = async (item: HistoryItem) => {
+    if (isCloudHistory(item)) {
+      try {
+        await Bridge.openUrl('https://pan.baidu.com/disk/main#/index?category=all');
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        setNotice({
+          id: item.id,
+          title: '百度网盘记录',
+          message: `${cloudPathLabel(item)}\n${message}`,
+        });
+      }
+      return;
+    }
+
     try {
       await Bridge.openPath(item.output_path);
     } catch (err) {
@@ -151,25 +165,37 @@ export function History() {
               className="glass-panel rounded-2xl p-5 flex items-center gap-4 group hover:bg-white/70 transition-all"
             >
               <div className="flex-1 min-w-0">
-                <h3 className="font-bold text-gray-900 truncate">{item.title}</h3>
+                <div className="flex min-w-0 items-center gap-2">
+                  {isCloudHistory(item) && (
+                    <span className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-[#EAF7FF] text-bili-blue">
+                      <Cloud size={15} />
+                    </span>
+                  )}
+                  <h3 className="font-bold text-gray-900 truncate">{item.title}</h3>
+                </div>
                 <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-500">
                   <span>{item.bvid}</span>
                   <span className="w-1 h-1 rounded-full bg-gray-300" />
                   <span>{item.quality}</span>
                   <span className="w-1 h-1 rounded-full bg-gray-300" />
-                  <span>{item.format?.toUpperCase()}</span>
+                  <span>{formatHistoryType(item)}</span>
                   <span className="w-1 h-1 rounded-full bg-gray-300" />
                   <span>{item.timestamp}</span>
                 </div>
+                {isCloudHistory(item) && (
+                  <p className="mt-2 truncate rounded-xl border border-[#D8E4F0] bg-[#EAF7FF]/70 px-3 py-1.5 text-xs font-bold text-[#2377A6]">
+                    {cloudPathLabel(item)}
+                  </p>
+                )}
               </div>
 
               <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                   onClick={() => handleOpen(item)}
                   className="motion-button w-9 h-9 rounded-xl bg-white/70 border border-white flex items-center justify-center text-gray-400 hover:text-bili-pink"
-                  title="打开文件夹"
+                  title={isCloudHistory(item) ? '打开百度网盘' : '打开文件夹'}
                 >
-                  <FolderOpen size={16} />
+                  {isCloudHistory(item) ? <ExternalLink size={16} /> : <FolderOpen size={16} />}
                 </button>
                 <button
                   onClick={() => handleDelete(item.id)}
@@ -185,4 +211,18 @@ export function History() {
       )}
     </div>
   );
+}
+
+function isCloudHistory(item: HistoryItem): boolean {
+  return item.format?.startsWith('cloud_') || item.output_path?.startsWith('/apps/');
+}
+
+function formatHistoryType(item: HistoryItem): string {
+  if (item.format === 'cloud_video') return '百度网盘 · 视频';
+  if (item.format === 'cloud_audio') return '百度网盘 · 音频';
+  return item.format?.toUpperCase() || '未知格式';
+}
+
+function cloudPathLabel(item: HistoryItem): string {
+  return item.output_path || '百度网盘远程文件';
 }

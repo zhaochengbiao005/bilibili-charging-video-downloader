@@ -16,7 +16,10 @@ use uuid::Uuid;
 
 use crate::{
     auth::LoginStatus,
-    cloud::direct::{run_cloud_upload_task, upload_baidu_test_file, CloudUploadTask},
+    cloud::{
+        direct::{run_cloud_upload_task, upload_baidu_test_file, CloudUploadTask},
+        session::CloudUploadSessionStore,
+    },
     downloader::{emit_progress, FileDownloadSpec, ProgressSender},
     error::{AppError, AppResult},
     models::{
@@ -415,6 +418,12 @@ pub async fn baidu_upload_test_file(state: State<'_, AppState>) -> AppResult<Clo
         state.config_store.app_dir().to_path_buf(),
     )
     .await
+}
+
+#[tauri::command]
+pub fn get_pending_cloud_upload_count(state: State<'_, AppState>) -> AppResult<usize> {
+    let store = CloudUploadSessionStore::new(state.config_store.app_dir());
+    Ok(store.load()?.len())
 }
 
 #[tauri::command]

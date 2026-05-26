@@ -1,11 +1,13 @@
 use std::{
     fs,
+    future::Future,
     path::{Path, PathBuf},
 };
 
 use chrono::{Duration, Utc};
 use reqwest::Url;
 use serde::{Deserialize, Serialize};
+use tokio::time::{sleep, Duration as TokioDuration};
 use uuid::Uuid;
 
 use crate::{
@@ -434,7 +436,13 @@ impl CloudUploader for BaiduNetdiskUploader {
     }
 
     fn precreate(&self, plan: CloudFilePlan) -> CloudUploadFuture<'_, CloudUploadSession> {
-        Box::pin(async move { self.precreate_inner(plan).await })
+        Box::pin(async move {
+            retry_cloud_operation("百度预上传", || {
+                let plan = plan.clone();
+                async move { self.precreate_inner(plan).await }
+            })
+            .await
+        })
     }
 
     fn upload_part<'a>(
@@ -444,11 +452,67 @@ impl CloudUploader for BaiduNetdiskUploader {
         bytes: Vec<u8>,
     ) -> CloudUploadFuture<'a, CloudPartResult> {
         let session = session.clone();
-        Box::pin(async move { self.upload_part_inner(session, part_index, bytes).await })
+        Box::pin(async move {
+            retry_cloud_operation("百度分片上传", || {
+                let session = session.clone();
+                let bytes = bytes.clone();
+                async move { self.upload_part_inner(session, part_index, bytes).await }
+            })
+            .await
+        })
     }
 
     fn finish(&self, session: CloudUploadSession) -> CloudUploadFuture<'_, CloudFileResult> {
-        Box::pin(async move { self.finish_inner(session).await })
+        Box::pin(async move {
+            retry_cloud_operation("百度创建文件", || {
+                let session = session.clone();
+                async move { self.finish_inner(session).await }
+            })
+            .await
+        })
+    }
+}
+
+async fn retry_cloud_operation<T, Fut, Op>(label: &str, mut operation: Op) -> AppResult<T>
+where
+    Op: FnMut() -> Fut,
+    Fut: Future<Output = AppResult<T>>,
+{
+    const MAX_ATTEMPTS: usize = 4;
+    let mut attempt = 0_usize;
+    loop {
+        attempt += 1;
+        match operation().await {
+            Ok(value) => return Ok(value),
+            Err(err) if attempt < MAX_ATTEMPTS && is_retryable_cloud_error(&err) => {
+                let delay_ms = 600_u64 * 2_u64.pow((attempt - 1) as u32);
+                tracing::warn!(
+                    target: "cloud::baidu",
+                    "{label}失败，准备第 {} 次重试：{}",
+                    attempt + 1,
+                    err
+                );
+                sleep(TokioDuration::from_millis(delay_ms)).await;
+            }
+            Err(err) => return Err(err),
+        }
+    }
+}
+
+fn is_retryable_cloud_error(err: &AppError) -> bool {
+    match err {
+        AppError::Network { .. } => true,
+        AppError::Cloud { message, .. } => {
+            message.contains("HTTP 429")
+                || message.contains("HTTP 500")
+                || message.contains("HTTP 502")
+                || message.contains("HTTP 503")
+                || message.contains("HTTP 504")
+                || message.contains("限速")
+                || message.contains("too many")
+                || message.contains("timeout")
+        }
+        _ => false,
     }
 }
 
@@ -481,7 +545,14 @@ async fn parse_baidu_json<T>(response: reqwest::Response) -> AppResult<T>
 where
     T: for<'de> Deserialize<'de>,
 {
+    let status = response.status();
     let body = response.text().await?;
+    if !status.is_success() {
+        return Err(AppError::Cloud {
+            provider: Some(CloudProvider::BaiduNetdisk),
+            message: format!("百度网盘请求失败，HTTP {status}；响应：{body}"),
+        });
+    }
     serde_json::from_str::<T>(&body).map_err(|err| AppError::Cloud {
         provider: Some(CloudProvider::BaiduNetdisk),
         message: format!("百度网盘响应解析失败：{err}；响应：{body}"),
@@ -685,5 +756,20 @@ mod tests {
     fn baidu_errno_nonzero_maps_cloud_error() {
         let result = ensure_baidu_errno(Some(-6), Some("鉴权失败".to_string()), "失败");
         assert!(matches!(result, Err(AppError::Cloud { .. })));
+    }
+
+    #[test]
+    fn retryable_cloud_error_matches_network_and_rate_limits() {
+        assert!(is_retryable_cloud_error(&AppError::Network {
+            message: "connection reset".to_string(),
+        }));
+        assert!(is_retryable_cloud_error(&AppError::Cloud {
+            provider: Some(CloudProvider::BaiduNetdisk),
+            message: "百度网盘请求失败，HTTP 503 Service Unavailable".to_string(),
+        }));
+        assert!(!is_retryable_cloud_error(&AppError::Cloud {
+            provider: Some(CloudProvider::BaiduNetdisk),
+            message: "百度授权失败：invalid_grant".to_string(),
+        }));
     }
 }

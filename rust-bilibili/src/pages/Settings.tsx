@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Cloud, Database, ExternalLink, FolderOpen, HardDrive, KeyRound, LogOut, Wrench } from 'lucide-react';
+import { AlertTriangle, Cloud, Database, ExternalLink, FolderOpen, HardDrive, KeyRound, LogOut, Wrench } from 'lucide-react';
 import type { AppConfig, CloudAuthStatus, CloudConfig, FfmpegStatus } from '../types';
 import * as Bridge from '../bridge';
 
@@ -33,6 +33,7 @@ export function Settings() {
   const [cloudSaved, setCloudSaved] = useState(false);
   const [cloudMessage, setCloudMessage] = useState('');
   const [testUploading, setTestUploading] = useState(false);
+  const [pendingCloudUploads, setPendingCloudUploads] = useState(0);
   const [saved, setSaved] = useState(false);
   const [appDir, setAppDir] = useState('');
   const [ffmpegStatus, setFfmpegStatus] = useState<FfmpegStatus>({ available: false });
@@ -54,6 +55,7 @@ export function Settings() {
       });
     });
     Bridge.getAppDir().then(setAppDir);
+    Bridge.getPendingCloudUploadCount().then(setPendingCloudUploads);
     Bridge.checkFfmpeg().then(status => {
       setFfmpegStatus(status);
       setFfmpegChecked(true);
@@ -401,6 +403,15 @@ export function Settings() {
           <p className="text-xs font-bold text-[#2377A6] bg-[#EAF7FF]/70 border border-[#D8E4F0] rounded-xl px-4 py-2">
             {cloudMessage || cloudStatus.message}
           </p>
+        )}
+
+        {pendingCloudUploads > 0 && (
+          <div className="flex items-start gap-3 rounded-2xl border border-orange-100 bg-orange-50 px-4 py-3 text-sm text-orange-500">
+            <AlertTriangle size={18} className="mt-0.5 shrink-0" />
+            <div className="font-bold leading-6">
+              检测到 {pendingCloudUploads} 个未完成的云盘上传记录。当前版本会保留小型会话状态，重新发起同名任务时会覆盖远端同名文件；断点续传将在后续增强。
+            </div>
+          </div>
         )}
       </div>
 

@@ -55,6 +55,7 @@ pub fn run() {
             commands::baidu_auth_finish,
             commands::baidu_logout,
             commands::baidu_upload_test_file,
+            commands::get_pending_cloud_upload_count,
             commands::get_quality_options,
             commands::get_default_outdir,
             commands::get_app_dir,

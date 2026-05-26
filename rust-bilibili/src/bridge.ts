@@ -346,6 +346,11 @@ export async function baiduUploadTestFile(): Promise<CloudFileResult> {
   return callCommand<CloudFileResult>('baidu_upload_test_file');
 }
 
+export async function getPendingCloudUploadCount(): Promise<number> {
+  if (!isTauriRuntime()) return 0;
+  return callCommand<number>('get_pending_cloud_upload_count');
+}
+
 export async function checkFfmpeg(): Promise<FfmpegStatus> {
   if (!isTauriRuntime()) return { available: false };
   if (cachedFfmpegStatus) return cachedFfmpegStatus;
