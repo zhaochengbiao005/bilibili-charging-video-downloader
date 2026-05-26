@@ -409,7 +409,7 @@ export function Settings() {
           <div className="flex items-start gap-3 rounded-2xl border border-orange-100 bg-orange-50 px-4 py-3 text-sm text-orange-500">
             <AlertTriangle size={18} className="mt-0.5 shrink-0" />
             <div className="font-bold leading-6">
-              检测到 {pendingCloudUploads} 个未完成的云盘上传记录。当前版本会保留小型会话状态，重新发起同名任务时会覆盖远端同名文件；断点续传将在后续增强。
+              检测到 {pendingCloudUploads} 个未完成的云盘上传记录。重新发起同名云盘任务时会自动跳过已上传分片并继续上传。
             </div>
           </div>
         )}

@@ -28,7 +28,9 @@ use crate::{
     error::{AppError, AppResult},
     ffmpeg::FfmpegManager,
     models::{
-        cloud::{CloudFilePlan, CloudFileResult, CloudProvider, CloudUploadMode},
+        cloud::{
+            CloudFilePlan, CloudFileResult, CloudProvider, CloudUploadMode, CloudUploadSession,
+        },
         download::{DanmakuMode, DashTrack, DownloadProgressEvent, StartDownloadRequest},
         history::HistoryItem,
         video::VideoData,
@@ -350,6 +352,83 @@ async fn upload_bili_track(
     .await
 }
 
+async fn get_or_create_session(
+    uploader: &impl CloudUploader,
+    session_store: &CloudUploadSessionStore,
+    progress: Option<&CloudProgress>,
+    plan: &CloudFilePlan,
+    label: &str,
+) -> AppResult<CloudUploadSession> {
+    if let Some(session) = find_reusable_session(session_store, plan)? {
+        if let Some(progress) = progress {
+            progress.emit(
+                "cloud_precreating",
+                20.0,
+                uploaded_bytes_for_plan(&session, plan),
+                plan.size_bytes,
+                format!("发现未完成{}上传，继续使用已保存会话", label),
+            );
+        }
+        session_store.upsert(session.clone())?;
+        return Ok(session);
+    }
+
+    let session = uploader.precreate(plan.clone()).await?;
+    session_store.upsert(session.clone())?;
+    Ok(session)
+}
+
+fn find_reusable_session(
+    session_store: &CloudUploadSessionStore,
+    plan: &CloudFilePlan,
+) -> AppResult<Option<CloudUploadSession>> {
+    let mut sessions = session_store.load()?;
+    let Some(mut session) = sessions
+        .drain(..)
+        .find(|session| session_matches_plan(session, plan))
+    else {
+        return Ok(None);
+    };
+    normalize_uploaded_parts(&mut session, plan.expected_part_count());
+    Ok(Some(session))
+}
+
+fn session_matches_plan(session: &CloudUploadSession, plan: &CloudFilePlan) -> bool {
+    session.provider == plan.provider
+        && session.remote_path == plan.remote_path
+        && session.size_bytes == plan.size_bytes
+        && session.part_size == plan.part_size
+        && session.block_md5 == plan.block_md5
+}
+
+fn normalize_uploaded_parts(session: &mut CloudUploadSession, expected_part_count: usize) {
+    session
+        .uploaded_parts
+        .retain(|part_index| *part_index < expected_part_count);
+    session.uploaded_parts.sort_unstable();
+    session.uploaded_parts.dedup();
+}
+
+fn uploaded_bytes_for_plan(session: &CloudUploadSession, plan: &CloudFilePlan) -> u64 {
+    session
+        .uploaded_parts
+        .iter()
+        .map(|part_index| part_size_at(plan, *part_index))
+        .sum()
+}
+
+fn part_size_at(plan: &CloudFilePlan, part_index: usize) -> u64 {
+    let start = part_index as u64 * plan.part_size;
+    if start >= plan.size_bytes {
+        return 0;
+    }
+    plan.part_size.min(plan.size_bytes - start)
+}
+
+fn progress_percent(base: f32, span: f32, bytes_done: u64, bytes_total: u64) -> f32 {
+    base + (bytes_done as f32 / bytes_total.max(1) as f32 * span)
+}
+
 async fn upload_planned_stream(
     stream_client: &BiliStreamClient,
     uploader: &impl CloudUploader,
@@ -369,12 +448,38 @@ async fn upload_planned_stream(
         plan.size_bytes,
         format!("正在创建{}上传任务", label),
     );
-    let mut session = uploader.precreate(plan.clone()).await?;
-    session_store.upsert(session.clone())?;
-
     let part_count = plan.block_md5.len();
+    let mut session =
+        get_or_create_session(uploader, session_store, Some(progress), &plan, label).await?;
+    let mut bytes_done = uploaded_bytes_for_plan(&session, &plan);
+    if bytes_done > 0 {
+        progress.emit(
+            stage,
+            progress_percent(20.0, 70.0, bytes_done, plan.size_bytes),
+            bytes_done,
+            plan.size_bytes,
+            format!(
+                "发现{}已上传分片，继续上传 {}/{}",
+                label,
+                session.uploaded_parts.len(),
+                part_count
+            ),
+        );
+    }
+
     for part_index in 0..part_count {
         ensure_not_cancelled(cancel, &stream.task_id)?;
+        if session.uploaded_parts.contains(&part_index) {
+            progress.emit(
+                stage,
+                progress_percent(20.0, 70.0, bytes_done, plan.size_bytes),
+                bytes_done,
+                plan.size_bytes,
+                format!("已跳过{}分片 {}/{}", label, part_index + 1, part_count),
+            );
+            continue;
+        }
+
         let start = part_index as u64 * plan.part_size;
         let end = (start + plan.part_size - 1).min(plan.size_bytes.saturating_sub(1));
         let bytes = stream_client.read_range(stream, start, end, cancel).await?;
@@ -383,7 +488,7 @@ async fn upload_planned_stream(
             session.uploaded_parts.push(part_index);
         }
         session_store.upsert(session.clone())?;
-        let bytes_done = ((part_index + 1) as u64 * plan.part_size).min(plan.size_bytes);
+        bytes_done = bytes_done.saturating_add(part_size_at(&plan, part_index));
         let percent = 20.0 + (bytes_done as f32 / plan.size_bytes.max(1) as f32 * 70.0);
         progress.emit(
             stage,
@@ -394,6 +499,7 @@ async fn upload_planned_stream(
         );
     }
 
+    ensure_not_cancelled(cancel, &stream.task_id)?;
     let result = uploader.finish(session.clone()).await?;
     session_store.remove(&session.upload_id)?;
     Ok(result)
@@ -414,8 +520,8 @@ async fn upload_ffmpeg_mp4(
         plan.size_bytes,
         "正在创建 MP4 上传任务".to_string(),
     );
-    let mut session = uploader.precreate(plan.clone()).await?;
-    session_store.upsert(session.clone())?;
+    let mut session =
+        get_or_create_session(uploader, session_store, Some(progress), &plan, "MP4").await?;
 
     progress.emit(
         "cloud_uploading_video",
@@ -428,7 +534,20 @@ async fn upload_ffmpeg_mp4(
     let mut read_buffer = vec![0_u8; 256 * 1024];
     let mut part_buffer = Vec::with_capacity(spec.part_size as usize);
     let mut part_index = 0_usize;
-    let mut bytes_done = 0_u64;
+    let mut bytes_done = uploaded_bytes_for_plan(&session, &plan);
+    if bytes_done > 0 {
+        progress.emit(
+            "cloud_uploading_video",
+            progress_percent(42.0, 53.0, bytes_done, plan.size_bytes),
+            bytes_done,
+            plan.size_bytes,
+            format!(
+                "发现 MP4 已上传分片，继续上传 {}/{}",
+                session.uploaded_parts.len(),
+                plan.block_md5.len()
+            ),
+        );
+    }
 
     loop {
         ensure_ffmpeg_not_cancelled(cancel, &spec.task_id, &mut process).await?;
@@ -504,6 +623,17 @@ async fn upload_mp4_part(
     bytes_done: &mut u64,
     bytes_total: u64,
 ) -> AppResult<()> {
+    if session.uploaded_parts.contains(&part_index) {
+        progress.emit(
+            "cloud_uploading_video",
+            progress_percent(42.0, 53.0, *bytes_done, bytes_total),
+            *bytes_done,
+            bytes_total,
+            format!("已跳过 MP4 分片 {}", part_index + 1),
+        );
+        return Ok(());
+    }
+
     *bytes_done = bytes_done.saturating_add(bytes.len() as u64);
     let _ = uploader.upload_part(session, part_index, bytes).await?;
     if !session.uploaded_parts.contains(&part_index) {
@@ -609,11 +739,12 @@ async fn upload_memory_file(
         block_md5: vec![md5],
         content_type,
     };
-    let mut session = uploader.precreate(plan).await?;
-    session_store.upsert(session.clone())?;
-    let _ = uploader.upload_part(&session, 0, bytes).await?;
-    session.uploaded_parts.push(0);
-    session_store.upsert(session.clone())?;
+    let mut session = get_or_create_session(uploader, session_store, None, &plan, "小文件").await?;
+    if !session.uploaded_parts.contains(&0) {
+        let _ = uploader.upload_part(&session, 0, bytes).await?;
+        session.uploaded_parts.push(0);
+        session_store.upsert(session.clone())?;
+    }
     let result = uploader.finish(session.clone()).await?;
     session_store.remove(&session.upload_id)?;
     Ok(result)
@@ -990,6 +1121,8 @@ impl CloudProgress {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+
     use super::*;
 
     #[test]
@@ -1036,5 +1169,60 @@ mod tests {
 
         assert_eq!(selected.id, 126);
         assert!(selected.codecs.contains("dvh"));
+    }
+
+    fn cloud_plan() -> CloudFilePlan {
+        CloudFilePlan {
+            provider: CloudProvider::BaiduNetdisk,
+            mode: CloudUploadMode::RawDash,
+            remote_path: "/apps/demo/video.m4s".to_string(),
+            size_bytes: 10,
+            part_size: 4,
+            block_md5: vec!["a".to_string(), "b".to_string(), "c".to_string()],
+            content_type: Some("video/mp4".to_string()),
+        }
+    }
+
+    #[test]
+    fn find_reusable_session_normalizes_uploaded_parts() -> AppResult<()> {
+        let root = std::env::temp_dir().join(format!("bili_cloud_resume_{}", Uuid::new_v4()));
+        fs::create_dir_all(&root)?;
+        let store = CloudUploadSessionStore::new(&root);
+        let plan = cloud_plan();
+        store.upsert(CloudUploadSession {
+            provider: CloudProvider::BaiduNetdisk,
+            upload_id: "upload-1".to_string(),
+            remote_path: plan.remote_path.clone(),
+            size_bytes: plan.size_bytes,
+            part_size: plan.part_size,
+            block_md5: plan.block_md5.clone(),
+            uploaded_parts: vec![2, 0, 2, 9],
+        })?;
+
+        let session = find_reusable_session(&store, &plan)?.expect("session should match");
+
+        assert_eq!(session.uploaded_parts, vec![0, 2]);
+        assert_eq!(uploaded_bytes_for_plan(&session, &plan), 6);
+
+        fs::remove_dir_all(root)?;
+        Ok(())
+    }
+
+    #[test]
+    fn session_matches_plan_rejects_different_block_list() {
+        let plan = cloud_plan();
+        let mut session = CloudUploadSession {
+            provider: CloudProvider::BaiduNetdisk,
+            upload_id: "upload-1".to_string(),
+            remote_path: plan.remote_path.clone(),
+            size_bytes: plan.size_bytes,
+            part_size: plan.part_size,
+            block_md5: plan.block_md5.clone(),
+            uploaded_parts: vec![],
+        };
+
+        assert!(session_matches_plan(&session, &plan));
+        session.block_md5 = vec!["different".to_string()];
+        assert!(!session_matches_plan(&session, &plan));
     }
 }
