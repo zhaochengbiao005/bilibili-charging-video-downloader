@@ -6,6 +6,10 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type {
   AppConfig,
+  BaiduAuthFinishRequest,
+  BaiduAuthStartResponse,
+  CloudAuthStatus,
+  CloudConfig,
   ConfigResponse,
   DanmakuMode,
   DownloadDoneEvent,
@@ -18,6 +22,7 @@ import type {
   PlayUrlResponse,
   QrLoginPollResponse,
   QrLoginStartResponse,
+  SaveCloudConfigRequest,
   SaveConfigRequest,
   StartDownloadRequest,
   StartDownloadResponse,
@@ -57,6 +62,7 @@ export function addTaskDoneListener(h: TaskDoneHandler): () => void {
 
 let eventListeners: Promise<UnlistenFn[]> | null = null;
 let cachedConfigResponse: ConfigResponse | null = null;
+let cachedCloudConfig: CloudConfig | null = null;
 let cachedFfmpegStatus: FfmpegStatus | null = null;
 let cachedHistory: HistoryItem[] | null = null;
 
@@ -255,6 +261,55 @@ export async function saveConfig(cfg: AppConfig): Promise<boolean> {
   const res = await callCommand<ConfigResponse>('save_config', { input });
   cachedConfigResponse = res;
   return true;
+}
+
+export async function getCloudConfig(): Promise<CloudConfig> {
+  if (!isTauriRuntime()) {
+    return {
+      default_provider: 'baidu_netdisk',
+      default_remote_dir: '/apps/B站充电视频下载器',
+      default_save_mode: 'local',
+      part_size_mb: 4,
+      baidu: {
+        client_id: '',
+        client_secret: '',
+        redirect_uri: 'http://localhost:1421/baidu/callback',
+        scope: 'basic,netdisk',
+      },
+    };
+  }
+  if (cachedCloudConfig) return cachedCloudConfig;
+  cachedCloudConfig = await callCommand<CloudConfig>('get_cloud_config');
+  return cachedCloudConfig;
+}
+
+export async function saveCloudConfig(config: CloudConfig): Promise<CloudConfig> {
+  const input: SaveCloudConfigRequest = { config };
+  cachedCloudConfig = await callCommand<CloudConfig>('save_cloud_config', { input });
+  return cachedCloudConfig;
+}
+
+export async function baiduAuthStatus(): Promise<CloudAuthStatus> {
+  if (!isTauriRuntime()) {
+    return {
+      provider: 'baidu_netdisk',
+      is_authorized: false,
+      message: '此功能需要在 Tauri 桌面应用中运行',
+    };
+  }
+  return callCommand<CloudAuthStatus>('baidu_auth_status');
+}
+
+export async function baiduAuthStart(): Promise<BaiduAuthStartResponse> {
+  return callCommand<BaiduAuthStartResponse>('baidu_auth_start');
+}
+
+export async function baiduAuthFinish(input: BaiduAuthFinishRequest): Promise<CloudAuthStatus> {
+  return callCommand<CloudAuthStatus>('baidu_auth_finish', { input });
+}
+
+export async function baiduLogout(): Promise<CloudAuthStatus> {
+  return callCommand<CloudAuthStatus>('baidu_logout');
 }
 
 export async function checkFfmpeg(): Promise<FfmpegStatus> {

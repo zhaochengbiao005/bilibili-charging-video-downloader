@@ -19,6 +19,10 @@ use crate::{
     downloader::{emit_progress, FileDownloadSpec, ProgressSender},
     error::{AppError, AppResult},
     models::{
+        cloud::{
+            BaiduAuthFinishRequest, BaiduAuthStartResponse, CloudAuthStatus, CloudConfig,
+            SaveCloudConfigRequest,
+        },
         config::{ConfigResponse, SaveConfigRequest},
         download::{
             DanmakuMode, DashTrack, DownloadDoneEvent, DownloadProgressEvent, DurlSegment,
@@ -262,6 +266,52 @@ pub fn save_config(
     }
     state.config_store.save(&config)?;
     config_response(&state)
+}
+
+#[tauri::command]
+pub fn get_cloud_config(state: State<'_, AppState>) -> AppResult<CloudConfig> {
+    state.baidu_token_store.load_config()
+}
+
+#[tauri::command]
+pub fn save_cloud_config(
+    input: SaveCloudConfigRequest,
+    state: State<'_, AppState>,
+) -> AppResult<CloudConfig> {
+    state.baidu_token_store.save_config(input.config)
+}
+
+#[tauri::command]
+pub async fn baidu_auth_status(state: State<'_, AppState>) -> AppResult<CloudAuthStatus> {
+    state.baidu_token_store.auth_status().await
+}
+
+#[tauri::command]
+pub async fn baidu_auth_start(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> AppResult<BaiduAuthStartResponse> {
+    let response = state.baidu_token_store.auth_start()?;
+    app.opener()
+        .open_url(response.auth_url.clone(), None::<String>)
+        .map_err(|err| AppError::Cloud {
+            provider: Some(crate::models::cloud::CloudProvider::BaiduNetdisk),
+            message: format!("打开百度授权页面失败：{err}"),
+        })?;
+    Ok(response)
+}
+
+#[tauri::command]
+pub async fn baidu_auth_finish(
+    input: BaiduAuthFinishRequest,
+    state: State<'_, AppState>,
+) -> AppResult<CloudAuthStatus> {
+    state.baidu_token_store.auth_finish(input).await
+}
+
+#[tauri::command]
+pub fn baidu_logout(state: State<'_, AppState>) -> AppResult<CloudAuthStatus> {
+    state.baidu_token_store.logout()
 }
 
 #[tauri::command]

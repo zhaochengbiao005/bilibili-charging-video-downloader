@@ -2,14 +2,16 @@ use std::{fs::OpenOptions, io::Write, panic};
 
 mod api;
 mod auth;
+pub mod cloud;
 mod commands;
 mod danmaku;
 mod downloader;
 mod error;
 mod ffmpeg;
-mod models;
+pub mod models;
 mod state;
 mod storage;
+pub mod streaming;
 
 pub use error::{AppError, AppResult};
 
@@ -45,6 +47,12 @@ pub fn run() {
             commands::clear_history,
             commands::get_config,
             commands::save_config,
+            commands::get_cloud_config,
+            commands::save_cloud_config,
+            commands::baidu_auth_status,
+            commands::baidu_auth_start,
+            commands::baidu_auth_finish,
+            commands::baidu_logout,
             commands::get_quality_options,
             commands::get_default_outdir,
             commands::get_app_dir,

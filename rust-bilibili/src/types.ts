@@ -199,6 +199,46 @@ export interface AppConfig {
   max_history: number;
 }
 
+export type CloudProvider = 'baidu_netdisk';
+export type CloudSaveMode = 'local' | 'baidu_netdisk';
+
+export interface BaiduCloudConfig {
+  client_id: string;
+  client_secret: string;
+  redirect_uri: string;
+  scope: string;
+}
+
+export interface CloudConfig {
+  default_provider: CloudProvider;
+  default_remote_dir: string;
+  default_save_mode: CloudSaveMode;
+  part_size_mb: number;
+  baidu: BaiduCloudConfig;
+}
+
+export interface SaveCloudConfigRequest {
+  config: CloudConfig;
+}
+
+export interface CloudAuthStatus {
+  provider: CloudProvider;
+  is_authorized: boolean;
+  account_name?: string | null;
+  expires_at?: string | null;
+  message?: string | null;
+}
+
+export interface BaiduAuthStartResponse {
+  auth_url: string;
+  state: string;
+}
+
+export interface BaiduAuthFinishRequest {
+  code: string;
+  state?: string | null;
+}
+
 export interface ConfigResponse {
   config: AppConfig;
   app_dir: string;

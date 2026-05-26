@@ -30,6 +30,12 @@ pub enum AppError {
     #[error("合并失败: {message}")]
     Merge { message: String },
 
+    #[error("云盘操作失败: {message}")]
+    Cloud {
+        provider: Option<crate::models::cloud::CloudProvider>,
+        message: String,
+    },
+
     #[error("本地文件错误: {message}")]
     Io { message: String },
 

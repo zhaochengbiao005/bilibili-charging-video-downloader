@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Database, FolderOpen, HardDrive, Wrench } from 'lucide-react';
-import type { AppConfig } from '../types';
+import { Cloud, Database, ExternalLink, FolderOpen, HardDrive, KeyRound, LogOut, Wrench } from 'lucide-react';
+import type { AppConfig, CloudAuthStatus, CloudConfig, FfmpegStatus } from '../types';
 import * as Bridge from '../bridge';
-import type { FfmpegStatus } from '../types';
 
 export function Settings() {
   const [cfg, setCfg] = useState<AppConfig>({
@@ -12,6 +11,27 @@ export function Settings() {
     auto_merge: true,
     max_history: 200,
   });
+  const [cloudCfg, setCloudCfg] = useState<CloudConfig>({
+    default_provider: 'baidu_netdisk',
+    default_remote_dir: '/apps/B站充电视频下载器',
+    default_save_mode: 'local',
+    part_size_mb: 4,
+    baidu: {
+      client_id: '',
+      client_secret: '',
+      redirect_uri: 'http://localhost:1421/baidu/callback',
+      scope: 'basic,netdisk',
+    },
+  });
+  const [cloudStatus, setCloudStatus] = useState<CloudAuthStatus>({
+    provider: 'baidu_netdisk',
+    is_authorized: false,
+    message: '百度网盘未授权',
+  });
+  const [authCode, setAuthCode] = useState('');
+  const [authState, setAuthState] = useState('');
+  const [cloudSaved, setCloudSaved] = useState(false);
+  const [cloudMessage, setCloudMessage] = useState('');
   const [saved, setSaved] = useState(false);
   const [appDir, setAppDir] = useState('');
   const [ffmpegStatus, setFfmpegStatus] = useState<FfmpegStatus>({ available: false });
@@ -20,9 +40,18 @@ export function Settings() {
   const [ffmpegTaskId, setFfmpegTaskId] = useState<string | null>(null);
   const [ffmpegInstallProgress, setFfmpegInstallProgress] = useState(0);
   const [ffmpegInstallError, setFfmpegInstallError] = useState('');
+  const cloudInputClass = 'bg-[#F6F9FE]/90 border border-[#D8E4F0] rounded-2xl py-3 px-4 shadow-[0_10px_24px_rgba(255,143,179,0.10)] focus:outline-none focus:ring-2 focus:ring-bili-pink/30 text-sm font-medium text-gray-700';
 
   useEffect(() => {
     Bridge.getConfig().then(setCfg);
+    Bridge.getCloudConfig().then(setCloudCfg);
+    Bridge.baiduAuthStatus().then(setCloudStatus).catch(err => {
+      setCloudStatus({
+        provider: 'baidu_netdisk',
+        is_authorized: false,
+        message: err instanceof Error ? err.message : String(err),
+      });
+    });
     Bridge.getAppDir().then(setAppDir);
     Bridge.checkFfmpeg().then(status => {
       setFfmpegStatus(status);
@@ -34,6 +63,46 @@ export function Settings() {
     await Bridge.saveConfig(cfg);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
+  };
+
+  const handleSaveCloud = async () => {
+    const savedConfig = await Bridge.saveCloudConfig(cloudCfg);
+    setCloudCfg(savedConfig);
+    setCloudSaved(true);
+    setCloudMessage('百度网盘设置已保存');
+    setTimeout(() => setCloudSaved(false), 2000);
+  };
+
+  const handleStartBaiduAuth = async () => {
+    try {
+      const savedConfig = await Bridge.saveCloudConfig(cloudCfg);
+      setCloudCfg(savedConfig);
+      const response = await Bridge.baiduAuthStart();
+      setAuthState(response.state);
+      setCloudMessage('已打开百度授权页面');
+    } catch (err) {
+      setCloudMessage(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const handleFinishBaiduAuth = async () => {
+    try {
+      const status = await Bridge.baiduAuthFinish({
+        code: authCode,
+        state: authState || null,
+      });
+      setCloudStatus(status);
+      setAuthCode('');
+      setCloudMessage(status.message || '百度网盘已授权');
+    } catch (err) {
+      setCloudMessage(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const handleBaiduLogout = async () => {
+    const status = await Bridge.baiduLogout();
+    setCloudStatus(status);
+    setCloudMessage(status.message || '已退出百度网盘');
   };
 
   const handleInstallFfmpeg = async () => {
@@ -147,6 +216,160 @@ export function Settings() {
               </p>
             )}
           </div>
+        )}
+      </div>
+
+      {/* 百度网盘 */}
+      <div className="glass-panel rounded-[2rem] p-6 md:p-8 flex flex-col gap-5">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-[#EAF7FF] text-bili-blue rounded-xl flex items-center justify-center">
+              <Cloud size={20} />
+            </div>
+            <h2 className="text-lg font-bold text-gray-900">百度网盘</h2>
+          </div>
+          <span className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-black ${
+            cloudStatus.is_authorized
+              ? 'bg-green-50 text-green-600 border border-green-100'
+              : 'bg-orange-50 text-orange-500 border border-orange-100'
+          }`}>
+            <span className={`h-2 w-2 rounded-full ${cloudStatus.is_authorized ? 'bg-green-500' : 'bg-orange-400'}`} />
+            {cloudStatus.is_authorized ? '已授权' : '未授权'}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <label className="flex flex-col gap-2">
+            <span className="text-sm font-bold text-gray-600">应用 ID</span>
+            <input
+              type="text"
+              value={cloudCfg.baidu.client_id}
+              onChange={e => setCloudCfg({
+                ...cloudCfg,
+                baidu: { ...cloudCfg.baidu, client_id: e.target.value },
+              })}
+              className={cloudInputClass}
+            />
+          </label>
+          <label className="flex flex-col gap-2">
+            <span className="text-sm font-bold text-gray-600">应用密钥</span>
+            <input
+              type="password"
+              autoComplete="off"
+              value={cloudCfg.baidu.client_secret}
+              onChange={e => setCloudCfg({
+                ...cloudCfg,
+                baidu: { ...cloudCfg.baidu, client_secret: e.target.value },
+              })}
+              className={cloudInputClass}
+            />
+          </label>
+          <label className="flex flex-col gap-2 md:col-span-2">
+            <span className="text-sm font-bold text-gray-600">回调地址</span>
+            <input
+              type="text"
+              value={cloudCfg.baidu.redirect_uri}
+              onChange={e => setCloudCfg({
+                ...cloudCfg,
+                baidu: { ...cloudCfg.baidu, redirect_uri: e.target.value },
+              })}
+              className={cloudInputClass}
+            />
+          </label>
+          <label className="flex flex-col gap-2">
+            <span className="text-sm font-bold text-gray-600">云端目录</span>
+            <input
+              type="text"
+              value={cloudCfg.default_remote_dir}
+              onChange={e => setCloudCfg({ ...cloudCfg, default_remote_dir: e.target.value })}
+              className={cloudInputClass}
+            />
+          </label>
+          <label className="flex flex-col gap-2">
+            <span className="text-sm font-bold text-gray-600">分片大小（MB）</span>
+            <input
+              type="number"
+              min={1}
+              max={64}
+              value={cloudCfg.part_size_mb}
+              onChange={e => setCloudCfg({
+                ...cloudCfg,
+                part_size_mb: Math.max(1, Number(e.target.value) || 4),
+              })}
+              className={cloudInputClass}
+            />
+          </label>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 rounded-2xl bg-white/70 border border-pink-50 p-1.5">
+          {[
+            { value: 'local' as const, label: '默认本地' },
+            { value: 'baidu_netdisk' as const, label: '默认网盘' },
+          ].map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              onClick={() => setCloudCfg({ ...cloudCfg, default_save_mode: item.value })}
+              className={`motion-button min-h-11 rounded-xl text-sm font-black ${
+                cloudCfg.default_save_mode === item.value
+                  ? 'bg-white text-bili-pink shadow-sm border border-pink-100'
+                  : 'text-gray-500 hover:text-bili-pink hover:bg-white/50 border border-transparent'
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={handleSaveCloud}
+            className="motion-button px-5 py-3 bg-white/70 border border-white/85 rounded-2xl text-gray-600 hover:text-bili-pink font-bold"
+          >
+            {cloudSaved ? '已保存' : '保存网盘设置'}
+          </button>
+          <button
+            onClick={handleStartBaiduAuth}
+            className="motion-button inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-bili-pink to-bili-pink-hover text-white rounded-2xl font-bold shadow-[0_12px_28px_rgba(255,143,179,0.24)]"
+          >
+            <ExternalLink size={18} />
+            打开授权
+          </button>
+          {cloudStatus.is_authorized && (
+            <button
+              onClick={handleBaiduLogout}
+              className="motion-button inline-flex items-center gap-2 px-5 py-3 bg-white/70 border border-white/85 rounded-2xl text-gray-600 hover:text-bili-pink font-bold"
+            >
+              <LogOut size={18} />
+              退出授权
+            </button>
+          )}
+        </div>
+
+        <div className="flex flex-col md:flex-row gap-3">
+          <div className="relative flex-1">
+            <KeyRound className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input
+              type="text"
+              value={authCode}
+              onChange={e => setAuthCode(e.target.value)}
+              placeholder="粘贴百度授权码"
+              className="w-full bg-white/70 border border-white/85 rounded-2xl py-3 pl-11 pr-4 focus:outline-none focus:ring-2 focus:ring-bili-pink/30 text-sm font-medium text-gray-700"
+            />
+          </div>
+          <button
+            onClick={handleFinishBaiduAuth}
+            disabled={!authCode.trim()}
+            className="motion-button px-6 py-3 bg-gradient-to-r from-bili-pink to-bili-pink-hover text-white rounded-2xl font-bold shadow-[0_12px_28px_rgba(255,143,179,0.24)] disabled:opacity-50"
+          >
+            完成授权
+          </button>
+        </div>
+
+        {(cloudMessage || cloudStatus.message) && (
+          <p className="text-xs font-bold text-[#2377A6] bg-[#EAF7FF]/70 border border-[#D8E4F0] rounded-xl px-4 py-2">
+            {cloudMessage || cloudStatus.message}
+          </p>
         )}
       </div>
 

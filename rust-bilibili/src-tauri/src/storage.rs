@@ -153,7 +153,10 @@ pub fn app_data_dir() -> AppResult<PathBuf> {
     Ok(exe_dir.to_path_buf())
 }
 
-fn write_json_atomic<T: serde::Serialize + ?Sized>(path: &Path, value: &T) -> AppResult<()> {
+pub(crate) fn write_json_atomic<T: serde::Serialize + ?Sized>(
+    path: &Path,
+    value: &T,
+) -> AppResult<()> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }

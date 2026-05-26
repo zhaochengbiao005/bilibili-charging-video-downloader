@@ -7,6 +7,7 @@ use tokio::sync::RwLock;
 
 use crate::{
     api::BilibiliClient,
+    cloud::baidu::BaiduTokenStore,
     danmaku::DanmakuClient,
     downloader::DownloadClient,
     error::AppResult,
@@ -22,6 +23,7 @@ pub struct AppState {
     pub config_store: ConfigStore,
     pub history_store: HistoryStore,
     pub cookie_store: CookieStore,
+    pub baidu_token_store: BaiduTokenStore,
     pub ffmpeg: FfmpegManager,
     pub danmaku: DanmakuClient,
 }
@@ -31,7 +33,8 @@ impl AppState {
         let app_dir = app_data_dir()?;
         let config_store = ConfigStore::new(app_dir.clone())?;
         let history_store = HistoryStore::new(app_dir.clone());
-        let cookie_store = CookieStore::new(app_dir);
+        let cookie_store = CookieStore::new(app_dir.clone());
+        let baidu_token_store = BaiduTokenStore::new(app_dir);
 
         Ok(Self {
             client: BilibiliClient::new()?,
@@ -40,6 +43,7 @@ impl AppState {
             config_store,
             history_store,
             cookie_store,
+            baidu_token_store,
             ffmpeg: FfmpegManager::new(),
             danmaku: DanmakuClient::new(),
         })
