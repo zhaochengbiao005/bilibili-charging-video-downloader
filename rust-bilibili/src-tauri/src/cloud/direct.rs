@@ -26,7 +26,7 @@ use crate::{
     },
     danmaku::DanmakuClient,
     error::{AppError, AppResult},
-    ffmpeg::FfmpegManager,
+    ffmpeg::{hide_child_window, FfmpegManager},
     models::{
         cloud::{
             CloudFilePlan, CloudFileResult, CloudProvider, CloudUploadMode, CloudUploadSession,
@@ -752,7 +752,9 @@ async fn upload_memory_file(
 
 fn spawn_ffmpeg_mp4(spec: &Mp4PipeSpec) -> AppResult<FfmpegMp4Process> {
     let headers = ffmpeg_input_headers(&spec.referer, spec.cookie_header.as_deref());
-    let mut child = Command::new(&spec.ffmpeg_path)
+    let mut command = Command::new(&spec.ffmpeg_path);
+    hide_child_window(&mut command);
+    let mut child = command
         .arg("-hide_banner")
         .arg("-loglevel")
         .arg("error")

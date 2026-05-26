@@ -94,7 +94,9 @@ impl FfmpegManager {
         let executable = self.resolve_executable(app_dir, resource_dir)?;
         let temp_path = temp_output_path(output_path);
 
-        let output = Command::new(executable)
+        let mut command = Command::new(executable);
+        hide_child_window(&mut command);
+        let output = command
             .arg("-y")
             .arg("-hide_banner")
             .arg("-loglevel")
@@ -151,7 +153,9 @@ impl FfmpegManager {
         let executable = self.resolve_executable(app_dir, resource_dir)?;
         let temp_path = temp_output_path(output_path);
 
-        let output = Command::new(executable)
+        let mut command = Command::new(executable);
+        hide_child_window(&mut command);
+        let output = command
             .arg("-y")
             .arg("-hide_banner")
             .arg("-loglevel")
@@ -206,7 +210,9 @@ impl FfmpegManager {
         let temp_path = temp_output_path(output_path);
         let filter = format!("subtitles={}", ffmpeg_filter_path(ass_path));
 
-        let output = Command::new(executable)
+        let mut command = Command::new(executable);
+        hide_child_window(&mut command);
+        let output = command
             .arg("-y")
             .arg("-hide_banner")
             .arg("-loglevel")
@@ -290,6 +296,19 @@ fn unavailable_status() -> FfmpegStatus {
         version: None,
     }
 }
+
+pub(crate) fn hide_child_window(command: &mut Command) {
+    hide_child_window_inner(command);
+}
+
+#[cfg(windows)]
+fn hide_child_window_inner(command: &mut Command) {
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
+    command.creation_flags(CREATE_NO_WINDOW);
+}
+
+#[cfg(not(windows))]
+fn hide_child_window_inner(_command: &mut Command) {}
 
 fn extract_ffmpeg_exe(zip_path: &Path, install_dir: &Path) -> AppResult<PathBuf> {
     let zip_file = StdFile::open(zip_path)?;
