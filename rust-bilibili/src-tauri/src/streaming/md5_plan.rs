@@ -1,9 +1,13 @@
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
+    atomic::AtomicBool,
     Arc,
 };
 
 use crate::{
+    download::{
+        bili_http::{md5_hex, plan_ranges},
+        ensure_not_cancelled,
+    },
     error::{AppError, AppResult},
     models::cloud::{CloudFilePlan, CloudProvider, CloudUploadMode},
     streaming::bili_stream::{BiliStreamClient, BiliStreamSpec},
@@ -60,50 +64,4 @@ pub async fn build_cloud_file_plan(
         block_md5,
         content_type: input.content_type,
     })
-}
-
-fn plan_ranges(size_bytes: u64, part_size: u64) -> Vec<(u64, u64)> {
-    if size_bytes == 0 || part_size == 0 {
-        return Vec::new();
-    }
-
-    let mut ranges = Vec::new();
-    let mut start = 0_u64;
-    while start < size_bytes {
-        let end = (start + part_size - 1).min(size_bytes - 1);
-        ranges.push((start, end));
-        start = end + 1;
-    }
-    ranges
-}
-
-fn md5_hex(bytes: &[u8]) -> String {
-    format!("{:x}", md5::compute(bytes))
-}
-
-fn ensure_not_cancelled(cancel: &Arc<AtomicBool>, task_id: &str) -> AppResult<()> {
-    if cancel.load(Ordering::SeqCst) {
-        return Err(AppError::Download {
-            task_id: Some(task_id.to_string()),
-            message: "任务已取消".to_string(),
-        });
-    }
-    Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn ranges_cover_file_without_overlap() {
-        assert_eq!(plan_ranges(10, 4), vec![(0, 3), (4, 7), (8, 9)]);
-        assert_eq!(plan_ranges(8, 4), vec![(0, 3), (4, 7)]);
-        assert!(plan_ranges(0, 4).is_empty());
-    }
-
-    #[test]
-    fn md5_hex_matches_known_value() {
-        assert_eq!(md5_hex(b"abc"), "900150983cd24fb0d6963f7d28e17f72");
-    }
 }

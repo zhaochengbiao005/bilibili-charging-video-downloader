@@ -1,0 +1,2544 @@
+{
+  "bvid": "BV1vb4y1r7cg",
+  "aid": 632023735,
+  "graph_version": 542689,
+  "view_cid": 381841269,
+  "node_count": 100,
+  "unique_cid_count": 71,
+  "unique_cids": [
+    381841243,
+    381841253,
+    381841268,
+    381841269,
+    381841275,
+    381841296,
+    381841330,
+    381841356,
+    381841705,
+    381841807,
+    381841812,
+    381841821,
+    381841925,
+    381841956,
+    381841999,
+    381842020,
+    381842049,
+    381842079,
+    381842118,
+    381842140,
+    381842152,
+    381842164,
+    381842214,
+    381842280,
+    381842321,
+    381842369,
+    381842414,
+    381842464,
+    381842487,
+    381842522,
+    381843212,
+    381843228,
+    381843291,
+    381843307,
+    381843333,
+    381843387,
+    381843406,
+    381843455,
+    381843516,
+    381843561,
+    381843580,
+    381843636,
+    381843663,
+    381843754,
+    381843777,
+    381843812,
+    381843829,
+    381843842,
+    381843888,
+    381843901,
+    381844008,
+    381844034,
+    381844055,
+    381844090,
+    381844164,
+    381844174,
+    381844201,
+    381844280,
+    381844352,
+    381844405,
+    381844480,
+    381844506,
+    381844565,
+    381844607,
+    381844657,
+    381844724,
+    381844774,
+    381844801,
+    381844815,
+    381844834,
+    381844853
+  ],
+  "nodes": {
+    "1": {
+      "edge_id": 1,
+      "title": "选择角色",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381841243,
+        381841253
+      ],
+      "choices": [
+        {
+          "id": 19458529,
+          "option": "A 华强",
+          "cid": 381841243,
+          "condition": ""
+        },
+        {
+          "id": 19458530,
+          "option": "B 瓜摊老板",
+          "cid": 381841253,
+          "condition": ""
+        }
+      ]
+    },
+    "19458529": {
+      "edge_id": 19458529,
+      "title": "选择华强",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381842522
+      ],
+      "choices": [
+        {
+          "id": 19458531,
+          "option": "A 开始游戏",
+          "cid": 381842522,
+          "condition": ""
+        }
+      ]
+    },
+    "19458530": {
+      "edge_id": 19458530,
+      "title": "选择摊主",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844853
+      ],
+      "choices": [
+        {
+          "id": 19458557,
+          "option": "A 开始游戏",
+          "cid": 381844853,
+          "condition": ""
+        }
+      ]
+    },
+    "19458531": {
+      "edge_id": 19458531,
+      "title": "华强问价",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381842487,
+        381841275
+      ],
+      "choices": [
+        {
+          "id": 19458532,
+          "option": "A 握草，这么贵",
+          "cid": 381842487,
+          "condition": ""
+        },
+        {
+          "id": 19458533,
+          "option": "B 挑一个",
+          "cid": 381841275,
+          "condition": ""
+        }
+      ]
+    },
+    "19458557": {
+      "edge_id": 19458557,
+      "title": "问价",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844834,
+        381844815,
+        381841356
+      ],
+      "choices": [
+        {
+          "id": 19458558,
+          "option": "A 30块钱一斤",
+          "cid": 381844834,
+          "condition": ""
+        },
+        {
+          "id": 19458559,
+          "option": "B 15块钱一斤",
+          "cid": 381844815,
+          "condition": ""
+        },
+        {
+          "id": 19458560,
+          "option": "C 两块钱一斤",
+          "cid": 381841356,
+          "condition": ""
+        }
+      ]
+    },
+    "19458532": {
+      "edge_id": 19458532,
+      "title": "嫌贵",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381841275,
+        381842464
+      ],
+      "choices": [
+        {
+          "id": 19458534,
+          "option": "A 挑一个",
+          "cid": 381841275,
+          "condition": ""
+        },
+        {
+          "id": 19458535,
+          "option": "B 你这瓜有问题啊",
+          "cid": 381842464,
+          "condition": ""
+        }
+      ]
+    },
+    "19458533": {
+      "edge_id": 19458533,
+      "title": "挑一个",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381842321,
+        381841999
+      ],
+      "choices": [
+        {
+          "id": 19458540,
+          "option": "A 这瓜保熟吗",
+          "cid": 381842321,
+          "condition": ""
+        },
+        {
+          "id": 19458541,
+          "option": "B 购买",
+          "cid": 381841999,
+          "condition": ""
+        }
+      ]
+    },
+    "19458558": {
+      "edge_id": 19458558,
+      "title": "30块一斤",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844480,
+        381844405
+      ],
+      "choices": [
+        {
+          "id": 19458561,
+          "option": "A 降价",
+          "cid": 381844480,
+          "condition": ""
+        },
+        {
+          "id": 19458562,
+          "option": "B 你TM要不要？",
+          "cid": 381844405,
+          "condition": ""
+        }
+      ]
+    },
+    "19458559": {
+      "edge_id": 19458559,
+      "title": "15块一斤",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381841356,
+        381844405
+      ],
+      "choices": [
+        {
+          "id": 19458669,
+          "option": "A 降价",
+          "cid": 381841356,
+          "condition": ""
+        },
+        {
+          "id": 19458670,
+          "option": "B 你TM要不要？",
+          "cid": 381844405,
+          "condition": ""
+        }
+      ]
+    },
+    "19458560": {
+      "edge_id": 19458560,
+      "title": "两块钱一斤",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844801,
+        381844657,
+        381844607
+      ],
+      "choices": [
+        {
+          "id": 19458671,
+          "option": "A 快速挑一个",
+          "cid": 381844801,
+          "condition": ""
+        },
+        {
+          "id": 19458672,
+          "option": "B 转身仔细挑瓜",
+          "cid": 381844657,
+          "condition": "$3tLd1Ih2Ah>=1.00 && $3tLd1Ih2Ah<=60.00"
+        },
+        {
+          "id": 19458673,
+          "option": "C 转身仔细挑瓜",
+          "cid": 381844607,
+          "condition": "$3tLd1Ih2Ah>=61.00 && $3tLd1Ih2Ah<=100.00"
+        }
+      ]
+    },
+    "19458534": {
+      "edge_id": 19458534,
+      "title": "挑一个",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381842321,
+        381841999
+      ],
+      "choices": [
+        {
+          "id": 19458540,
+          "option": "A 这瓜保熟吗",
+          "cid": 381842321,
+          "condition": ""
+        },
+        {
+          "id": 19458541,
+          "option": "B 购买",
+          "cid": 381841999,
+          "condition": ""
+        }
+      ]
+    },
+    "19458535": {
+      "edge_id": 19458535,
+      "title": "瓜有问题",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381842414,
+        381842369
+      ],
+      "choices": [
+        {
+          "id": 19458536,
+          "option": "A 第二天再来",
+          "cid": 381842414,
+          "condition": ""
+        },
+        {
+          "id": 19458537,
+          "option": "B 两分钟后再来",
+          "cid": 381842369,
+          "condition": ""
+        }
+      ]
+    },
+    "19458540": {
+      "edge_id": 19458540,
+      "title": "保熟吗",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381842280,
+        381841268
+      ],
+      "choices": [
+        {
+          "id": 19458542,
+          "option": "A 翻开",
+          "cid": 381842280,
+          "condition": ""
+        },
+        {
+          "id": 19458543,
+          "option": "B 直接拿刀",
+          "cid": 381841268,
+          "condition": ""
+        }
+      ]
+    },
+    "19458541": {
+      "edge_id": 19458541,
+      "title": "购买",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381842414
+      ],
+      "choices": [
+        {
+          "id": 19458556,
+          "option": "A 第二天",
+          "cid": 381842414,
+          "condition": ""
+        }
+      ]
+    },
+    "19458561": {
+      "edge_id": 19458561,
+      "title": "降价到15块一斤",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844801,
+        381844280,
+        381844607
+      ],
+      "choices": [
+        {
+          "id": 19458563,
+          "option": "A 快速挑一个",
+          "cid": 381844801,
+          "condition": ""
+        },
+        {
+          "id": 19458564,
+          "option": "B 转身仔细挑瓜",
+          "cid": 381844280,
+          "condition": "$3tLd1Ih2Ah>=1.00 && $3tLd1Ih2Ah<=60.00"
+        },
+        {
+          "id": 19458565,
+          "option": "C 转身仔细挑瓜",
+          "cid": 381844607,
+          "condition": "$3tLd1Ih2Ah>=61.00 && $3tLd1Ih2Ah<=100.00"
+        }
+      ]
+    },
+    "19458562": {
+      "edge_id": 19458562,
+      "title": "不降价",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844853
+      ],
+      "choices": [
+        {
+          "id": 19458668,
+          "option": "A 时间回溯",
+          "cid": 381844853,
+          "condition": ""
+        }
+      ]
+    },
+    "19458669": {
+      "edge_id": 19458669,
+      "title": "两块钱一斤",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844801,
+        381844657,
+        381844607
+      ],
+      "choices": [
+        {
+          "id": 19458671,
+          "option": "A 快速挑一个",
+          "cid": 381844801,
+          "condition": ""
+        },
+        {
+          "id": 19458672,
+          "option": "B 转身仔细挑瓜",
+          "cid": 381844657,
+          "condition": "$3tLd1Ih2Ah>=1.00 && $3tLd1Ih2Ah<=60.00"
+        },
+        {
+          "id": 19458673,
+          "option": "C 转身仔细挑瓜",
+          "cid": 381844607,
+          "condition": "$3tLd1Ih2Ah>=61.00 && $3tLd1Ih2Ah<=100.00"
+        }
+      ]
+    },
+    "19458670": {
+      "edge_id": 19458670,
+      "title": "不降价",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844853
+      ],
+      "choices": [
+        {
+          "id": 19458668,
+          "option": "A 时间回溯",
+          "cid": 381844853,
+          "condition": ""
+        }
+      ]
+    },
+    "19458671": {
+      "edge_id": 19458671,
+      "title": "快速挑瓜",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844774,
+        381844724
+      ],
+      "choices": [
+        {
+          "id": 19458674,
+          "option": "A 继续",
+          "cid": 381844774,
+          "condition": "$3tLd1Ih2Ah>=1.00 && $3tLd1Ih2Ah<=60.00"
+        },
+        {
+          "id": 19458675,
+          "option": "B 继续",
+          "cid": 381844724,
+          "condition": "$3tLd1Ih2Ah>=61.00 && $3tLd1Ih2Ah<=100.00"
+        }
+      ]
+    },
+    "19458672": {
+      "edge_id": 19458672,
+      "title": "转身挑瓜",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844201
+      ],
+      "choices": [
+        {
+          "id": 19458705,
+          "option": "A 第二天",
+          "cid": 381844201,
+          "condition": ""
+        }
+      ]
+    },
+    "19458673": {
+      "edge_id": 19458673,
+      "title": "转身挑瓜。",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844853
+      ],
+      "choices": [
+        {
+          "id": 19458706,
+          "option": "A 时间回溯",
+          "cid": 381844853,
+          "condition": ""
+        }
+      ]
+    },
+    "19458536": {
+      "edge_id": 19458536,
+      "title": "第二天再来",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381842321
+      ],
+      "choices": [
+        {
+          "id": 19458538,
+          "option": "A 继续",
+          "cid": 381842321,
+          "condition": ""
+        }
+      ]
+    },
+    "19458537": {
+      "edge_id": 19458537,
+      "title": "两分钟",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381842522
+      ],
+      "choices": [
+        {
+          "id": 19458539,
+          "option": "A 时间回溯",
+          "cid": 381842522,
+          "condition": ""
+        }
+      ]
+    },
+    "19458542": {
+      "edge_id": 19458542,
+      "title": "没有吸铁石",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 1,
+      "story_n": 1,
+      "preload_cids": [],
+      "choices": []
+    },
+    "19458543": {
+      "edge_id": 19458543,
+      "title": "十一 拿起刀",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381842214,
+        381842164,
+        381842152
+      ],
+      "choices": [
+        {
+          "id": 19458544,
+          "option": "A 直接劈老板",
+          "cid": 381842214,
+          "condition": ""
+        },
+        {
+          "id": 19458545,
+          "option": "B 劈瓜",
+          "cid": 381842164,
+          "condition": "$3tLd1Ih2Ah>=1.00 && $3tLd1Ih2Ah<=50.00"
+        },
+        {
+          "id": 19458546,
+          "option": "C 劈瓜",
+          "cid": 381842152,
+          "condition": "$3tLd1Ih2Ah>=51.00 && $3tLd1Ih2Ah<=100.00"
+        }
+      ]
+    },
+    "19458556": {
+      "edge_id": 19458556,
+      "title": "第二天再来",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381842321
+      ],
+      "choices": [
+        {
+          "id": 19458538,
+          "option": "A 继续",
+          "cid": 381842321,
+          "condition": ""
+        }
+      ]
+    },
+    "19458563": {
+      "edge_id": 19458563,
+      "title": "快速挑一个",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844774,
+        381844352
+      ],
+      "choices": [
+        {
+          "id": 19458566,
+          "option": "A 继续",
+          "cid": 381844774,
+          "condition": "$3tLd1Ih2Ah>=1.00 && $3tLd1Ih2Ah<=60.00"
+        },
+        {
+          "id": 19458567,
+          "option": "B 继续",
+          "cid": 381844352,
+          "condition": "$3tLd1Ih2Ah>=61.00 && $3tLd1Ih2Ah<=100.00"
+        }
+      ]
+    },
+    "19458564": {
+      "edge_id": 19458564,
+      "title": "转身挑瓜1",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381843842
+      ],
+      "choices": [
+        {
+          "id": 19458666,
+          "option": "A 第二天",
+          "cid": 381843842,
+          "condition": ""
+        }
+      ]
+    },
+    "19458565": {
+      "edge_id": 19458565,
+      "title": "转身挑瓜2",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844853
+      ],
+      "choices": [
+        {
+          "id": 19458667,
+          "option": "A 时间回溯",
+          "cid": 381844853,
+          "condition": ""
+        }
+      ]
+    },
+    "19458668": {
+      "edge_id": 19458668,
+      "title": "问价",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844834,
+        381844815,
+        381841356
+      ],
+      "choices": [
+        {
+          "id": 19458558,
+          "option": "A 30块钱一斤",
+          "cid": 381844834,
+          "condition": ""
+        },
+        {
+          "id": 19458559,
+          "option": "B 15块钱一斤",
+          "cid": 381844815,
+          "condition": ""
+        },
+        {
+          "id": 19458560,
+          "option": "C 两块钱一斤",
+          "cid": 381841356,
+          "condition": ""
+        }
+      ]
+    },
+    "19458674": {
+      "edge_id": 19458674,
+      "title": "劈瓜",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844565,
+        381844506
+      ],
+      "choices": [
+        {
+          "id": 19458676,
+          "option": "A 吃了生瓜",
+          "cid": 381844565,
+          "condition": ""
+        },
+        {
+          "id": 19458677,
+          "option": "B 你TM劈我瓜",
+          "cid": 381844506,
+          "condition": ""
+        }
+      ]
+    },
+    "19458675": {
+      "edge_id": 19458675,
+      "title": "熟的",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844201
+      ],
+      "choices": [
+        {
+          "id": 19458680,
+          "option": "A 第二天",
+          "cid": 381844201,
+          "condition": ""
+        }
+      ]
+    },
+    "19458705": {
+      "edge_id": 19458705,
+      "title": "第二天",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844174,
+        381844164
+      ],
+      "choices": [
+        {
+          "id": 19458681,
+          "option": "A 重新挑一个",
+          "cid": 381844174,
+          "condition": ""
+        },
+        {
+          "id": 19458682,
+          "option": "B 不了",
+          "cid": 381844164,
+          "condition": ""
+        }
+      ]
+    },
+    "19458706": {
+      "edge_id": 19458706,
+      "title": "问价",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844834,
+        381844815,
+        381841356
+      ],
+      "choices": [
+        {
+          "id": 19458558,
+          "option": "A 30块钱一斤",
+          "cid": 381844834,
+          "condition": ""
+        },
+        {
+          "id": 19458559,
+          "option": "B 15块钱一斤",
+          "cid": 381844815,
+          "condition": ""
+        },
+        {
+          "id": 19458560,
+          "option": "C 两块钱一斤",
+          "cid": 381841356,
+          "condition": ""
+        }
+      ]
+    },
+    "19458538": {
+      "edge_id": 19458538,
+      "title": "保熟吗",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381842280,
+        381841268
+      ],
+      "choices": [
+        {
+          "id": 19458542,
+          "option": "A 翻开",
+          "cid": 381842280,
+          "condition": ""
+        },
+        {
+          "id": 19458543,
+          "option": "B 直接拿刀",
+          "cid": 381841268,
+          "condition": ""
+        }
+      ]
+    },
+    "19458539": {
+      "edge_id": 19458539,
+      "title": "华强问价",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381842487,
+        381841275
+      ],
+      "choices": [
+        {
+          "id": 19458532,
+          "option": "A 握草，这么贵",
+          "cid": 381842487,
+          "condition": ""
+        },
+        {
+          "id": 19458533,
+          "option": "B 挑一个",
+          "cid": 381841275,
+          "condition": ""
+        }
+      ]
+    },
+    "19458544": {
+      "edge_id": 19458544,
+      "title": "劈老板",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 1,
+      "story_n": 1,
+      "preload_cids": [],
+      "choices": []
+    },
+    "19458545": {
+      "edge_id": 19458545,
+      "title": "劈瓜1",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381841253
+      ],
+      "choices": [
+        {
+          "id": 19458547,
+          "option": "A 选择角色瓜摊摊主",
+          "cid": 381841253,
+          "condition": ""
+        }
+      ]
+    },
+    "19458546": {
+      "edge_id": 19458546,
+      "title": "劈瓜2",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381842140,
+        381842118
+      ],
+      "choices": [
+        {
+          "id": 19458548,
+          "option": "A 离开",
+          "cid": 381842140,
+          "condition": ""
+        },
+        {
+          "id": 19458549,
+          "option": "B 直接捅",
+          "cid": 381842118,
+          "condition": ""
+        }
+      ]
+    },
+    "19458566": {
+      "edge_id": 19458566,
+      "title": "挑瓜1",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844565,
+        381844506
+      ],
+      "choices": [
+        {
+          "id": 19458568,
+          "option": "A 吃生瓜",
+          "cid": 381844565,
+          "condition": ""
+        },
+        {
+          "id": 19458569,
+          "option": "B 你TM敢劈我瓜？",
+          "cid": 381844506,
+          "condition": ""
+        }
+      ]
+    },
+    "19458567": {
+      "edge_id": 19458567,
+      "title": "挑瓜2",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381843842
+      ],
+      "choices": [
+        {
+          "id": 19458623,
+          "option": "A 第二天",
+          "cid": 381843842,
+          "condition": ""
+        }
+      ]
+    },
+    "19458666": {
+      "edge_id": 19458666,
+      "title": "第二天2",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381843829,
+        381843812,
+        381843777,
+        381843754
+      ],
+      "choices": [
+        {
+          "id": 19458624,
+          "option": "A 这都是生瓜蛋子",
+          "cid": 381843829,
+          "condition": ""
+        },
+        {
+          "id": 19458625,
+          "option": "B 保熟",
+          "cid": 381843812,
+          "condition": ""
+        },
+        {
+          "id": 19458626,
+          "option": "C 你要生的还是熟的？",
+          "cid": 381843777,
+          "condition": ""
+        },
+        {
+          "id": 19458627,
+          "option": "D 提高警惕",
+          "cid": 381843754,
+          "condition": ""
+        }
+      ]
+    },
+    "19458667": {
+      "edge_id": 19458667,
+      "title": "问价",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844834,
+        381844815,
+        381841356
+      ],
+      "choices": [
+        {
+          "id": 19458558,
+          "option": "A 30块钱一斤",
+          "cid": 381844834,
+          "condition": ""
+        },
+        {
+          "id": 19458559,
+          "option": "B 15块钱一斤",
+          "cid": 381844815,
+          "condition": ""
+        },
+        {
+          "id": 19458560,
+          "option": "C 两块钱一斤",
+          "cid": 381841356,
+          "condition": ""
+        }
+      ]
+    },
+    "19458676": {
+      "edge_id": 19458676,
+      "title": "吃生瓜",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844201
+      ],
+      "choices": [
+        {
+          "id": 19458678,
+          "option": "A 第二天",
+          "cid": 381844201,
+          "condition": ""
+        }
+      ]
+    },
+    "19458677": {
+      "edge_id": 19458677,
+      "title": "11  第一天，你劈我瓜？死",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844853
+      ],
+      "choices": [
+        {
+          "id": 19458679,
+          "option": "A 时间回溯",
+          "cid": 381844853,
+          "condition": ""
+        }
+      ]
+    },
+    "19458680": {
+      "edge_id": 19458680,
+      "title": "第二天",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844174,
+        381844164
+      ],
+      "choices": [
+        {
+          "id": 19458681,
+          "option": "A 重新挑一个",
+          "cid": 381844174,
+          "condition": ""
+        },
+        {
+          "id": 19458682,
+          "option": "B 不了",
+          "cid": 381844164,
+          "condition": ""
+        }
+      ]
+    },
+    "19458681": {
+      "edge_id": 19458681,
+      "title": "重新挑",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844090,
+        381841330
+      ],
+      "choices": [
+        {
+          "id": 19458683,
+          "option": "A 保熟",
+          "cid": 381844090,
+          "condition": ""
+        },
+        {
+          "id": 19458684,
+          "option": "B 提高警惕",
+          "cid": 381841330,
+          "condition": ""
+        }
+      ]
+    },
+    "19458682": {
+      "edge_id": 19458682,
+      "title": "不重挑。",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844008,
+        381841330
+      ],
+      "choices": [
+        {
+          "id": 19458693,
+          "option": "A 我开水果摊的能卖给你生瓜蛋子？",
+          "cid": 381844008,
+          "condition": ""
+        },
+        {
+          "id": 19458694,
+          "option": "B 提高警惕",
+          "cid": 381841330,
+          "condition": ""
+        }
+      ]
+    },
+    "19458547": {
+      "edge_id": 19458547,
+      "title": "选择摊主",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844853
+      ],
+      "choices": [
+        {
+          "id": 19458557,
+          "option": "A 开始游戏",
+          "cid": 381844853,
+          "condition": ""
+        }
+      ]
+    },
+    "19458548": {
+      "edge_id": 19458548,
+      "title": "走。",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381842020,
+        381842079,
+        381842049
+      ],
+      "choices": [
+        {
+          "id": 19458550,
+          "option": "A 直接走",
+          "cid": 381842020,
+          "condition": ""
+        },
+        {
+          "id": 19458551,
+          "option": "B 飞刀",
+          "cid": 381842079,
+          "condition": "$3tLd1Ih2Ah>=1.00 && $3tLd1Ih2Ah<=50.00"
+        },
+        {
+          "id": 19458552,
+          "option": "C 飞刀",
+          "cid": 381842049,
+          "condition": "$3tLd1Ih2Ah>=51.00 && $3tLd1Ih2Ah<=100.00"
+        }
+      ]
+    },
+    "19458549": {
+      "edge_id": 19458549,
+      "title": "走",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 1,
+      "story_n": 1,
+      "preload_cids": [],
+      "choices": []
+    },
+    "19458568": {
+      "edge_id": 19458568,
+      "title": "吞了生瓜1",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844201
+      ],
+      "choices": [
+        {
+          "id": 19458570,
+          "option": "A 第二天",
+          "cid": 381844201,
+          "condition": ""
+        }
+      ]
+    },
+    "19458569": {
+      "edge_id": 19458569,
+      "title": "你敢劈我瓜",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844853
+      ],
+      "choices": [
+        {
+          "id": 19458622,
+          "option": "A 时间回溯",
+          "cid": 381844853,
+          "condition": ""
+        }
+      ]
+    },
+    "19458623": {
+      "edge_id": 19458623,
+      "title": "第二天2",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381843829,
+        381843812,
+        381843777,
+        381843754
+      ],
+      "choices": [
+        {
+          "id": 19458624,
+          "option": "A 这都是生瓜蛋子",
+          "cid": 381843829,
+          "condition": ""
+        },
+        {
+          "id": 19458625,
+          "option": "B 保熟",
+          "cid": 381843812,
+          "condition": ""
+        },
+        {
+          "id": 19458626,
+          "option": "C 你要生的还是熟的？",
+          "cid": 381843777,
+          "condition": ""
+        },
+        {
+          "id": 19458627,
+          "option": "D 提高警惕",
+          "cid": 381843754,
+          "condition": ""
+        }
+      ]
+    },
+    "19458624": {
+      "edge_id": 19458624,
+      "title": "我这都是生的",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381843663,
+        381843636
+      ],
+      "choices": [
+        {
+          "id": 19458628,
+          "option": "A 是",
+          "cid": 381843663,
+          "condition": ""
+        },
+        {
+          "id": 19458629,
+          "option": "B 否",
+          "cid": 381843636,
+          "condition": ""
+        }
+      ]
+    },
+    "19458625": {
+      "edge_id": 19458625,
+      "title": "都是熟的",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381843406,
+        381843387
+      ],
+      "choices": [
+        {
+          "id": 19458647,
+          "option": "A 是",
+          "cid": 381843406,
+          "condition": ""
+        },
+        {
+          "id": 19458648,
+          "option": "B 否",
+          "cid": 381843387,
+          "condition": ""
+        }
+      ]
+    },
+    "19458626": {
+      "edge_id": 19458626,
+      "title": "生熟都有",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381843291,
+        381843228
+      ],
+      "choices": [
+        {
+          "id": 19458656,
+          "option": "A 再挑一个",
+          "cid": 381843291,
+          "condition": ""
+        },
+        {
+          "id": 19458657,
+          "option": "B 你是故意找茬是不是",
+          "cid": 381843228,
+          "condition": ""
+        }
+      ]
+    },
+    "19458627": {
+      "edge_id": 19458627,
+      "title": "提高警惕",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381841925,
+        381841956
+      ],
+      "choices": [
+        {
+          "id": 19458664,
+          "option": "A 第三天",
+          "cid": 381841925,
+          "condition": "$3tLd1Ih2Ah>=1.00 && $3tLd1Ih2Ah<=50.00"
+        },
+        {
+          "id": 19458665,
+          "option": "B 第三天",
+          "cid": 381841956,
+          "condition": "$3tLd1Ih2Ah>=51.00 && $3tLd1Ih2Ah<=100.00"
+        }
+      ]
+    },
+    "19458678": {
+      "edge_id": 19458678,
+      "title": "第二天1",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844174,
+        381844164
+      ],
+      "choices": [
+        {
+          "id": 19458571,
+          "option": "A 重新挑一个",
+          "cid": 381844174,
+          "condition": ""
+        },
+        {
+          "id": 19458572,
+          "option": "B 不了",
+          "cid": 381844164,
+          "condition": ""
+        }
+      ]
+    },
+    "19458679": {
+      "edge_id": 19458679,
+      "title": "问价",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844834,
+        381844815,
+        381841356
+      ],
+      "choices": [
+        {
+          "id": 19458558,
+          "option": "A 30块钱一斤",
+          "cid": 381844834,
+          "condition": ""
+        },
+        {
+          "id": 19458559,
+          "option": "B 15块钱一斤",
+          "cid": 381844815,
+          "condition": ""
+        },
+        {
+          "id": 19458560,
+          "option": "C 两块钱一斤",
+          "cid": 381841356,
+          "condition": ""
+        }
+      ]
+    },
+    "19458683": {
+      "edge_id": 19458683,
+      "title": "保熟",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381841925,
+        381841956
+      ],
+      "choices": [
+        {
+          "id": 19458685,
+          "option": "A 第三天",
+          "cid": 381841925,
+          "condition": "$3tLd1Ih2Ah>=1.00 && $3tLd1Ih2Ah<=50.00"
+        },
+        {
+          "id": 19458686,
+          "option": "B 第三天",
+          "cid": 381841956,
+          "condition": "$3tLd1Ih2Ah>=51.00 && $3tLd1Ih2Ah<=100.00"
+        }
+      ]
+    },
+    "19458684": {
+      "edge_id": 19458684,
+      "title": "警惕",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844055,
+        381844034
+      ],
+      "choices": [
+        {
+          "id": 19458687,
+          "option": "A 要是不熟我自己吃了它",
+          "cid": 381844055,
+          "condition": ""
+        },
+        {
+          "id": 19458688,
+          "option": "B 提高警惕",
+          "cid": 381844034,
+          "condition": ""
+        }
+      ]
+    },
+    "19458693": {
+      "edge_id": 19458693,
+      "title": "保熟。",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381843561,
+        381843901
+      ],
+      "choices": [
+        {
+          "id": 19458695,
+          "option": "A 吃了生瓜",
+          "cid": 381843561,
+          "condition": ""
+        },
+        {
+          "id": 19458696,
+          "option": "B 你TM劈我瓜？",
+          "cid": 381843901,
+          "condition": ""
+        }
+      ]
+    },
+    "19458694": {
+      "edge_id": 19458694,
+      "title": "警惕。",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381843888,
+        381844034
+      ],
+      "choices": [
+        {
+          "id": 19458700,
+          "option": "A 要是不熟我自己吃了它",
+          "cid": 381843888,
+          "condition": ""
+        },
+        {
+          "id": 19458701,
+          "option": "B 提高警惕",
+          "cid": 381844034,
+          "condition": ""
+        }
+      ]
+    },
+    "19458550": {
+      "edge_id": 19458550,
+      "title": "直接走",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381842522
+      ],
+      "choices": [
+        {
+          "id": 19458553,
+          "option": "A 时间回溯",
+          "cid": 381842522,
+          "condition": ""
+        }
+      ]
+    },
+    "19458551": {
+      "edge_id": 19458551,
+      "title": "成功",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381841253
+      ],
+      "choices": [
+        {
+          "id": 19458554,
+          "option": "A 选择角色瓜摊摊主",
+          "cid": 381841253,
+          "condition": ""
+        }
+      ]
+    },
+    "19458552": {
+      "edge_id": 19458552,
+      "title": "不成功",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381842522
+      ],
+      "choices": [
+        {
+          "id": 19458555,
+          "option": "A 时间回溯",
+          "cid": 381842522,
+          "condition": ""
+        }
+      ]
+    },
+    "19458570": {
+      "edge_id": 19458570,
+      "title": "第二天1",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844174,
+        381844164
+      ],
+      "choices": [
+        {
+          "id": 19458571,
+          "option": "A 重新挑一个",
+          "cid": 381844174,
+          "condition": ""
+        },
+        {
+          "id": 19458572,
+          "option": "B 不了",
+          "cid": 381844164,
+          "condition": ""
+        }
+      ]
+    },
+    "19458622": {
+      "edge_id": 19458622,
+      "title": "问价",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844834,
+        381844815,
+        381841356
+      ],
+      "choices": [
+        {
+          "id": 19458558,
+          "option": "A 30块钱一斤",
+          "cid": 381844834,
+          "condition": ""
+        },
+        {
+          "id": 19458559,
+          "option": "B 15块钱一斤",
+          "cid": 381844815,
+          "condition": ""
+        },
+        {
+          "id": 19458560,
+          "option": "C 两块钱一斤",
+          "cid": 381841356,
+          "condition": ""
+        }
+      ]
+    },
+    "19458628": {
+      "edge_id": 19458628,
+      "title": "换熟瓜",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381841925,
+        381841956
+      ],
+      "choices": [
+        {
+          "id": 19458630,
+          "option": "A 第三天",
+          "cid": 381841925,
+          "condition": "$3tLd1Ih2Ah>=1.00 && $3tLd1Ih2Ah<=50.00"
+        },
+        {
+          "id": 19458631,
+          "option": "B 第三天",
+          "cid": 381841956,
+          "condition": "$3tLd1Ih2Ah>=51.00 && $3tLd1Ih2Ah<=100.00"
+        }
+      ]
+    },
+    "19458629": {
+      "edge_id": 19458629,
+      "title": "不换",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381843580,
+        381843516,
+        381843455
+      ],
+      "choices": [
+        {
+          "id": 19458640,
+          "option": "A 吃生瓜",
+          "cid": 381843580,
+          "condition": ""
+        },
+        {
+          "id": 19458641,
+          "option": "B 你TM劈我瓜？",
+          "cid": 381843516,
+          "condition": ""
+        },
+        {
+          "id": 19458642,
+          "option": "C 送华强十个瓜",
+          "cid": 381843455,
+          "condition": ""
+        }
+      ]
+    },
+    "19458647": {
+      "edge_id": 19458647,
+      "title": "重挑",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381841925,
+        381841956
+      ],
+      "choices": [
+        {
+          "id": 19458649,
+          "option": "A 第三天",
+          "cid": 381841925,
+          "condition": "$3tLd1Ih2Ah>=1.00 && $3tLd1Ih2Ah<=50.00"
+        },
+        {
+          "id": 19458650,
+          "option": "B 第三天",
+          "cid": 381841956,
+          "condition": "$3tLd1Ih2Ah>=51.00 && $3tLd1Ih2Ah<=100.00"
+        }
+      ]
+    },
+    "19458648": {
+      "edge_id": 19458648,
+      "title": "不重挑",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381843307,
+        381843333
+      ],
+      "choices": [
+        {
+          "id": 19458651,
+          "option": "A 自己吃了瓜",
+          "cid": 381843307,
+          "condition": ""
+        },
+        {
+          "id": 19458652,
+          "option": "B 你TM劈我瓜是吧",
+          "cid": 381843333,
+          "condition": ""
+        }
+      ]
+    },
+    "19458656": {
+      "edge_id": 19458656,
+      "title": "再挑一个1",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381841296,
+        381843212
+      ],
+      "choices": [
+        {
+          "id": 19458658,
+          "option": "A 再挑一个",
+          "cid": 381841296,
+          "condition": ""
+        },
+        {
+          "id": 19458659,
+          "option": "B 你要不要吧",
+          "cid": 381843212,
+          "condition": ""
+        }
+      ]
+    },
+    "19458657": {
+      "edge_id": 19458657,
+      "title": "你找茬是不是",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381843842
+      ],
+      "choices": [
+        {
+          "id": 19458663,
+          "option": "A 时间回溯",
+          "cid": 381843842,
+          "condition": ""
+        }
+      ]
+    },
+    "19458664": {
+      "edge_id": 19458664,
+      "title": "第三天下雨2",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381841807,
+        381841821
+      ],
+      "choices": [
+        {
+          "id": 19458632,
+          "option": "A 收摊",
+          "cid": 381841807,
+          "condition": ""
+        },
+        {
+          "id": 19458633,
+          "option": "B 不收摊",
+          "cid": 381841821,
+          "condition": ""
+        }
+      ]
+    },
+    "19458665": {
+      "edge_id": 19458665,
+      "title": "第三天下雪2",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381841812,
+        381841705
+      ],
+      "choices": [
+        {
+          "id": 19458636,
+          "option": "A 收摊",
+          "cid": 381841812,
+          "condition": ""
+        },
+        {
+          "id": 19458637,
+          "option": "B 不收摊",
+          "cid": 381841705,
+          "condition": ""
+        }
+      ]
+    },
+    "19458571": {
+      "edge_id": 19458571,
+      "title": "重新挑一个1",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844090,
+        381841330
+      ],
+      "choices": [
+        {
+          "id": 19458573,
+          "option": "A 我开水果摊的能卖给你生瓜蛋子？",
+          "cid": 381844090,
+          "condition": ""
+        },
+        {
+          "id": 19458574,
+          "option": "B 提高警惕",
+          "cid": 381841330,
+          "condition": ""
+        }
+      ]
+    },
+    "19458572": {
+      "edge_id": 19458572,
+      "title": "不重挑1",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844008,
+        381841330
+      ],
+      "choices": [
+        {
+          "id": 19458608,
+          "option": "A 我开水果摊的能卖给你生瓜蛋子？",
+          "cid": 381844008,
+          "condition": ""
+        },
+        {
+          "id": 19458609,
+          "option": "B 提高警惕",
+          "cid": 381841330,
+          "condition": ""
+        }
+      ]
+    },
+    "19458685": {
+      "edge_id": 19458685,
+      "title": "第三天下雨2",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381841807,
+        381841821
+      ],
+      "choices": [
+        {
+          "id": 19458632,
+          "option": "A 收摊",
+          "cid": 381841807,
+          "condition": ""
+        },
+        {
+          "id": 19458633,
+          "option": "B 不收摊",
+          "cid": 381841821,
+          "condition": ""
+        }
+      ]
+    },
+    "19458686": {
+      "edge_id": 19458686,
+      "title": "第三天下雪2",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381841812,
+        381841705
+      ],
+      "choices": [
+        {
+          "id": 19458636,
+          "option": "A 收摊",
+          "cid": 381841812,
+          "condition": ""
+        },
+        {
+          "id": 19458637,
+          "option": "B 不收摊",
+          "cid": 381841705,
+          "condition": ""
+        }
+      ]
+    },
+    "19458687": {
+      "edge_id": 19458687,
+      "title": "劈开熟的",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381841925,
+        381841956
+      ],
+      "choices": [
+        {
+          "id": 19458689,
+          "option": "A 第三天",
+          "cid": 381841925,
+          "condition": "$3tLd1Ih2Ah>=1.00 && $3tLd1Ih2Ah<=50.00"
+        },
+        {
+          "id": 19458690,
+          "option": "B 第三天",
+          "cid": 381841956,
+          "condition": "$3tLd1Ih2Ah>=51.00 && $3tLd1Ih2Ah<=100.00"
+        }
+      ]
+    },
+    "19458688": {
+      "edge_id": 19458688,
+      "title": "警惕提高",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381841925,
+        381841956
+      ],
+      "choices": [
+        {
+          "id": 19458691,
+          "option": "A 第三天",
+          "cid": 381841925,
+          "condition": "$3tLd1Ih2Ah>=1.00 && $3tLd1Ih2Ah<=50.00"
+        },
+        {
+          "id": 19458692,
+          "option": "B 第三天",
+          "cid": 381841956,
+          "condition": "$3tLd1Ih2Ah>=51.00 && $3tLd1Ih2Ah<=100.00"
+        }
+      ]
+    },
+    "19458695": {
+      "edge_id": 19458695,
+      "title": "吃了生瓜",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381841925,
+        381841956
+      ],
+      "choices": [
+        {
+          "id": 19458697,
+          "option": "A 第三天",
+          "cid": 381841925,
+          "condition": "$3tLd1Ih2Ah>=1.00 && $3tLd1Ih2Ah<=50.00"
+        },
+        {
+          "id": 19458698,
+          "option": "B 第三天",
+          "cid": 381841956,
+          "condition": "$3tLd1Ih2Ah>=51.00 && $3tLd1Ih2Ah<=100.00"
+        }
+      ]
+    },
+    "19458696": {
+      "edge_id": 19458696,
+      "title": "你劈我瓜",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844201
+      ],
+      "choices": [
+        {
+          "id": 19458699,
+          "option": "A 时间回溯",
+          "cid": 381844201,
+          "condition": ""
+        }
+      ]
+    },
+    "19458700": {
+      "edge_id": 19458700,
+      "title": "不熟自己吃",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381843901,
+        381843561
+      ],
+      "choices": [
+        {
+          "id": 19458702,
+          "option": "A 你敢劈我瓜是吧",
+          "cid": 381843901,
+          "condition": ""
+        },
+        {
+          "id": 19458703,
+          "option": "B 吃了生瓜",
+          "cid": 381843561,
+          "condition": ""
+        }
+      ]
+    },
+    "19458701": {
+      "edge_id": 19458701,
+      "title": "警惕提高",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381841925,
+        381841956
+      ],
+      "choices": [
+        {
+          "id": 19458691,
+          "option": "A 第三天",
+          "cid": 381841925,
+          "condition": "$3tLd1Ih2Ah>=1.00 && $3tLd1Ih2Ah<=50.00"
+        },
+        {
+          "id": 19458692,
+          "option": "B 第三天",
+          "cid": 381841956,
+          "condition": "$3tLd1Ih2Ah>=51.00 && $3tLd1Ih2Ah<=100.00"
+        }
+      ]
+    },
+    "19458553": {
+      "edge_id": 19458553,
+      "title": "华强问价",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381842487,
+        381841275
+      ],
+      "choices": [
+        {
+          "id": 19458532,
+          "option": "A 握草，这么贵",
+          "cid": 381842487,
+          "condition": ""
+        },
+        {
+          "id": 19458533,
+          "option": "B 挑一个",
+          "cid": 381841275,
+          "condition": ""
+        }
+      ]
+    },
+    "19458554": {
+      "edge_id": 19458554,
+      "title": "选择摊主",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381844853
+      ],
+      "choices": [
+        {
+          "id": 19458557,
+          "option": "A 开始游戏",
+          "cid": 381844853,
+          "condition": ""
+        }
+      ]
+    },
+    "19458555": {
+      "edge_id": 19458555,
+      "title": "华强问价",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381842487,
+        381841275
+      ],
+      "choices": [
+        {
+          "id": 19458532,
+          "option": "A 握草，这么贵",
+          "cid": 381842487,
+          "condition": ""
+        },
+        {
+          "id": 19458533,
+          "option": "B 挑一个",
+          "cid": 381841275,
+          "condition": ""
+        }
+      ]
+    },
+    "19458630": {
+      "edge_id": 19458630,
+      "title": "第三天下雨2",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381841807,
+        381841821
+      ],
+      "choices": [
+        {
+          "id": 19458632,
+          "option": "A 收摊",
+          "cid": 381841807,
+          "condition": ""
+        },
+        {
+          "id": 19458633,
+          "option": "B 不收摊",
+          "cid": 381841821,
+          "condition": ""
+        }
+      ]
+    },
+    "19458631": {
+      "edge_id": 19458631,
+      "title": "第三天下雪2",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381841812,
+        381841705
+      ],
+      "choices": [
+        {
+          "id": 19458636,
+          "option": "A 收摊",
+          "cid": 381841812,
+          "condition": ""
+        },
+        {
+          "id": 19458637,
+          "option": "B 不收摊",
+          "cid": 381841705,
+          "condition": ""
+        }
+      ]
+    },
+    "19458640": {
+      "edge_id": 19458640,
+      "title": "吞了生瓜",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381841925,
+        381841956
+      ],
+      "choices": [
+        {
+          "id": 19458643,
+          "option": "A 第三天",
+          "cid": 381841925,
+          "condition": "$3tLd1Ih2Ah>=1.00 && $3tLd1Ih2Ah<=50.00"
+        },
+        {
+          "id": 19458644,
+          "option": "B 第三天",
+          "cid": 381841956,
+          "condition": "$3tLd1Ih2Ah>=51.00 && $3tLd1Ih2Ah<=100.00"
+        }
+      ]
+    },
+    "19458641": {
+      "edge_id": 19458641,
+      "title": "你敢劈我瓜5",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381843842
+      ],
+      "choices": [
+        {
+          "id": 19458645,
+          "option": "A 时间回溯",
+          "cid": 381843842,
+          "condition": ""
+        }
+      ]
+    },
+    "19458642": {
+      "edge_id": 19458642,
+      "title": "送瓜",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381843842
+      ],
+      "choices": [
+        {
+          "id": 19458646,
+          "option": "A 时间回溯",
+          "cid": 381843842,
+          "condition": ""
+        }
+      ]
+    },
+    "19458649": {
+      "edge_id": 19458649,
+      "title": "第三天下雨2",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381841807,
+        381841821
+      ],
+      "choices": [
+        {
+          "id": 19458632,
+          "option": "A 收摊",
+          "cid": 381841807,
+          "condition": ""
+        },
+        {
+          "id": 19458633,
+          "option": "B 不收摊",
+          "cid": 381841821,
+          "condition": ""
+        }
+      ]
+    },
+    "19458650": {
+      "edge_id": 19458650,
+      "title": "第三天下雪2",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381841812,
+        381841705
+      ],
+      "choices": [
+        {
+          "id": 19458636,
+          "option": "A 收摊",
+          "cid": 381841812,
+          "condition": ""
+        },
+        {
+          "id": 19458637,
+          "option": "B 不收摊",
+          "cid": 381841705,
+          "condition": ""
+        }
+      ]
+    },
+    "19458651": {
+      "edge_id": 19458651,
+      "title": "吃熟瓜",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381841925,
+        381841956
+      ],
+      "choices": [
+        {
+          "id": 19458653,
+          "option": "A 第三天",
+          "cid": 381841925,
+          "condition": "$3tLd1Ih2Ah>=1.00 && $3tLd1Ih2Ah<=50.00"
+        },
+        {
+          "id": 19458654,
+          "option": "B 第三天",
+          "cid": 381841956,
+          "condition": "$3tLd1Ih2Ah>=51.00 && $3tLd1Ih2Ah<=100.00"
+        }
+      ]
+    },
+    "19458652": {
+      "edge_id": 19458652,
+      "title": "你敢劈我瓜6",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381843842
+      ],
+      "choices": [
+        {
+          "id": 19458655,
+          "option": "A 时间回溯",
+          "cid": 381843842,
+          "condition": ""
+        }
+      ]
+    },
+    "19458658": {
+      "edge_id": 19458658,
+      "title": "再挑一个2",
+      "cid": 381841269,
+      "node_id": 1,
+      "is_leaf": 0,
+      "story_n": 1,
+      "preload_cids": [
+        381841925,
+        381841956
+      ],
+      "choices": [
+        {
+          "id": 19458660,
+          "option": "A 第三天",
+          "cid": 381841925,
+          "condition": "$3tLd1Ih2Ah>=1.00 && $3tLd1Ih2Ah<=50.00"
+        },
+        {
+          "id": 19458661,
+          "option": "B 第三天",
+          "cid": 381841956,
+          "condition": "$3tLd1Ih2Ah>=51.00 && $3tLd1Ih2Ah<=100.00"
+        }
+      ]
+    }
+  }
+}

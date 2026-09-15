@@ -24,6 +24,9 @@ pub enum AppError {
         message: String,
     },
 
+    #[error("任务已取消")]
+    Cancelled { task_id: Option<String> },
+
     #[error("FFmpeg 未安装")]
     FfmpegNotFound,
 

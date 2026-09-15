@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, Cloud, Database, ExternalLink, FolderOpen, HardDrive, KeyRound, LogOut, Wrench } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ClipboardPaste, Cloud, Database, ExternalLink, FolderOpen, HardDrive, KeyRound, LogOut, Wrench } from 'lucide-react';
 import type { AppConfig, CloudAuthStatus, CloudConfig, FfmpegStatus } from '../types';
 import * as Bridge from '../bridge';
 
@@ -30,6 +30,7 @@ export function Settings() {
   });
   const [authCode, setAuthCode] = useState('');
   const [authState, setAuthState] = useState('');
+  const [cloudWizardText, setCloudWizardText] = useState('');
   const [cloudSaved, setCloudSaved] = useState(false);
   const [cloudMessage, setCloudMessage] = useState('');
   const [testUploading, setTestUploading] = useState(false);
@@ -74,6 +75,49 @@ export function Settings() {
     setCloudSaved(true);
     setCloudMessage('百度网盘设置已保存');
     setTimeout(() => setCloudSaved(false), 2000);
+  };
+
+  const handleOpenBaiduConsole = async () => {
+    try {
+      await Bridge.openUrl('https://pan.baidu.com/union/console/applist');
+      setCloudMessage('已打开百度网盘开放平台，请创建或打开应用后复制 API Key 和 Secret Key');
+    } catch (err) {
+      setCloudMessage(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const handlePasteCloudWizard = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text.trim()) {
+        setCloudMessage('剪贴板为空，请先复制百度开放平台应用信息');
+        return;
+      }
+      setCloudWizardText(text);
+      applyBaiduCredentialText(text);
+    } catch {
+      setCloudMessage('无法读取剪贴板，请手动粘贴应用信息后点击自动识别');
+    }
+  };
+
+  const applyBaiduCredentialText = (text = cloudWizardText) => {
+    const parsed = parseBaiduCredentialText(text);
+    if (!parsed.clientId && !parsed.clientSecret) {
+      setCloudMessage('没有识别到 API Key 或 Secret Key，请直接复制百度开放平台应用详情区域');
+      return;
+    }
+
+    setCloudCfg(prev => ({
+      ...prev,
+      baidu: {
+        ...prev.baidu,
+        client_id: parsed.clientId || prev.baidu.client_id,
+        client_secret: parsed.clientSecret || prev.baidu.client_secret,
+        redirect_uri: 'oob',
+        scope: prev.baidu.scope || 'basic,netdisk',
+      },
+    }));
+    setCloudMessage(`已识别${parsed.clientId ? ' API Key' : ''}${parsed.clientSecret ? ' Secret Key' : ''}，请保存后打开授权`);
   };
 
   const handleStartBaiduAuth = async () => {
@@ -252,6 +296,55 @@ export function Settings() {
             <span className={`h-2 w-2 rounded-full ${cloudStatus.is_authorized ? 'bg-green-500' : 'bg-orange-400'}`} />
             {cloudStatus.is_authorized ? '已授权' : '未授权'}
           </span>
+        </div>
+
+        <div className="rounded-[1.5rem] border border-[#D8E4F0] bg-[#F6F9FE]/82 p-4 md:p-5">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-black text-gray-800">百度 API 半自动配置向导</p>
+              <p className="mt-1 text-xs font-bold text-gray-500">
+                打开开放平台，复制应用详情中的 API Key 和 Secret Key，粘贴到下方即可自动识别。
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleOpenBaiduConsole}
+              className="motion-button inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl bg-white/85 px-4 text-sm font-black text-[#2377A6] shadow-sm hover:text-bili-pink"
+            >
+              <ExternalLink size={16} />
+              打开开放平台
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3">
+            <textarea
+              value={cloudWizardText}
+              onChange={e => setCloudWizardText(e.target.value)}
+              placeholder={`可粘贴整段应用信息，例如：
+API Key: xxxxxxxxxxxxxxxxx
+Secret Key: xxxxxxxxxxxxxxxxx
+AppKey / client_id / client_secret 等字段也能识别`}
+              className="min-h-28 resize-y rounded-2xl border border-[#D8E4F0] bg-white/86 px-4 py-3 text-sm font-medium text-gray-700 shadow-[0_10px_24px_rgba(255,143,179,0.10)] focus:outline-none focus:ring-2 focus:ring-bili-pink/30"
+            />
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={handlePasteCloudWizard}
+                className="motion-button inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl bg-white/85 px-4 text-sm font-black text-gray-600 shadow-sm hover:text-bili-pink"
+              >
+                <ClipboardPaste size={16} />
+                从剪贴板识别
+              </button>
+              <button
+                type="button"
+                onClick={() => applyBaiduCredentialText()}
+                className="motion-button inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#FF9FC0] to-[#FF86B2] px-4 text-sm font-black text-white shadow-[0_10px_22px_rgba(255,134,178,0.24)]"
+              >
+                <CheckCircle2 size={16} />
+                自动识别并填入
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -481,4 +574,51 @@ export function Settings() {
 
     </div>
   );
+}
+
+function parseBaiduCredentialText(text: string): { clientId: string; clientSecret: string } {
+  const normalized = text.replace(/\r/g, '\n');
+  const clientId =
+    findCredentialValue(normalized, [
+      'API Key',
+      'AppKey',
+      'App Key',
+      'client_id',
+      'client id',
+      'Client ID',
+      '应用Key',
+    ]) || '';
+  const clientSecret =
+    findCredentialValue(normalized, [
+      'Secret Key',
+      'SecretKey',
+      'AppSecret',
+      'App Secret',
+      'client_secret',
+      'client secret',
+      'Client Secret',
+      '应用Secret',
+    ]) || '';
+
+  if (clientId || clientSecret) {
+    return { clientId, clientSecret };
+  }
+
+  const tokens = normalized
+    .match(/[A-Za-z0-9_-]{16,}/g)
+    ?.filter(token => !/^\d+$/.test(token)) ?? [];
+  return {
+    clientId: tokens[0] || '',
+    clientSecret: tokens[1] || '',
+  };
+}
+
+function findCredentialValue(text: string, labels: string[]): string {
+  for (const label of labels) {
+    const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = new RegExp(`${escaped}\\s*[：:=\\-]?\\s*([A-Za-z0-9_-]{8,})`, 'i');
+    const match = text.match(pattern);
+    if (match?.[1] && !/^\d+$/.test(match[1])) return match[1].trim();
+  }
+  return '';
 }

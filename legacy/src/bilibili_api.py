@@ -134,22 +134,37 @@ class BilibiliAPI:
     # ------------------------------------------------------------------
 
     def check_charging_status(self, bvid: str) -> dict:
-        """检测视频是否为充电/付费专属视频"""
+        """检测视频是否为充电/付费专属视频（含 UPower 高档充电）"""
         info = self.get_video_info(bvid)
         rights = info.get("rights", {})
-        stat = info.get("stat", {})
+        is_upower = bool(info.get("is_upower_exclusive"))
+        is_upower_play = bool(info.get("is_upower_play"))
+        is_upower_preview = bool(info.get("is_upower_preview"))
+        is_charging = rights.get("elec_high", 0) == 1 or is_upower or is_upower_preview
         return {
             "bvid": bvid,
             "title": info.get("title", ""),
-            "is_charging": rights.get("elec_high", 0) == 1,
-            "need_pay": info.get("elec", 0) == 1,
+            "is_charging": is_charging,
+            "is_upower_exclusive": is_upower,
+            "is_upower_play": is_upower_play,
+            "is_upower_preview": is_upower_preview,
+            "need_pay": info.get("elec", 0) == 1 or is_charging,
             "need_vip": rights.get("vip_free", 0) == 0 and rights.get("bp", 0) == 0,
             "downloadable": rights.get("download", 0) == 1,
             "copyright": info.get("copyright", ""),
+            "duration": info.get("duration", 0),
         }
 
     def check_video_access(self, bvid: str, cid: int) -> dict:
-        """检测视频的实际可访问性（付费状态）"""
+        """检测视频的实际可访问性（付费状态 / 是否试看）"""
+        info = self.get_video_info(bvid)
+        meta_sec = int(info.get("duration") or 0)
+        pages = info.get("pages") or []
+        for page in pages:
+            if page.get("cid") == cid and page.get("duration"):
+                meta_sec = int(page["duration"])
+                break
+
         url = f"{self.BASE_URL}/x/player/playurl"
         params = {
             "bvid": bvid, "cid": cid,
@@ -161,20 +176,59 @@ class BilibiliAPI:
         resp = self.session.get(url, params=params, headers=headers)
         resp.raise_for_status()
         data = resp.json()
-        result = {"code": data.get("code", -1), "message": data.get("message", "")}
+        result = {"code": data.get("code", -1), "message": data.get("message", ""), "meta_sec": meta_sec}
         if data.get("code") == 0:
             d = data.get("data", {})
             result["quality"] = d.get("quality")
             result["accept_quality"] = d.get("accept_quality")
             result["format"] = d.get("format")
-            result["has_dash"] = "dash" in d
-            result["has_durl"] = "durl" in d
+            result["has_dash"] = "dash" in d and bool(d.get("dash"))
+            result["has_durl"] = "durl" in d and bool(d.get("durl"))
             result["video_codecid"] = d.get("video_codecid")
             result["timelength"] = d.get("timelength", 0)
-            if "durl" in d:
-                total_ms = sum(s.get("length", 0) for s in d["durl"])
-                result["durl_total_ms"] = total_ms
+            stream_ms = 0
+            if d.get("durl"):
+                stream_ms = sum(s.get("length", 0) for s in d["durl"])
+                result["durl_total_ms"] = stream_ms
+                urls = [s.get("url", "") for s in d["durl"]]
+                result["is_preview_encode"] = any(
+                    "-1-448." in u or "-448.mp4" in u for u in urls
+                )
+            elif d.get("dash") and d["dash"].get("duration"):
+                stream_ms = int(d["dash"]["duration"]) * 1000
+            result["stream_ms"] = stream_ms
+            result["is_preview"] = self.is_preview_stream(
+                meta_sec=meta_sec,
+                stream_ms=stream_ms,
+                has_dash_video=bool((d.get("dash") or {}).get("video")),
+                is_preview_encode=result.get("is_preview_encode", False),
+            )
         return result
+
+    @staticmethod
+    def is_preview_stream(
+        meta_sec: int,
+        stream_ms: int,
+        has_dash_video: bool = False,
+        is_preview_encode: bool = False,
+    ) -> bool:
+        """判断 playurl 是否为充电试看流。"""
+        if is_preview_encode and meta_sec > 30:
+            return True
+        if meta_sec <= 0 or stream_ms <= 0:
+            return False
+        meta_ms = meta_sec * 1000
+        if has_dash_video:
+            return stream_ms < meta_ms // 2 and stream_ms + 3000 < meta_ms
+        return stream_ms < meta_ms // 2 and stream_ms + 5000 < meta_ms
+
+    @staticmethod
+    def preview_block_message(meta_sec: int, stream_ms: int) -> str:
+        stream_sec = max(stream_ms // 1000, 0)
+        return (
+            f"当前账号仅能获取充电试看流（约 {stream_sec}s / 全片 {meta_sec}s）。"
+            "请确认已登录，并对该 UP 开通对应档位包月充电后重试。"
+        )
 
     # ------------------------------------------------------------------
     # 视频流 URL 提取

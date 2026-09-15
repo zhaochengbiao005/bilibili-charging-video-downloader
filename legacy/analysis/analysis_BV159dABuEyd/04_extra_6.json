@@ -1,0 +1,10 @@
+{
+  "url": "https://api.bilibili.com/x/upower/v2/archive/info",
+  "params": {
+    "aid": 116533938360751
+  },
+  "resp": {
+    "status": 404,
+    "text": "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n<html lang=\"zh-cn\">\n\n<head>\n    <meta http-equiv=\"Page-Enter\" content=\"blendTrans(Duration=0.5)\">\n    <meta http-equiv=\"Page-Exit\" content=\"blendTrans(Duration=0.5)\">\n    <meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">\n    <meta name=\"viewport\"\n        content=\"width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0\">\n    <meta name=\"spm_prefix\" content=\"333.937\">\n    <title>åºéå¦! - bilibili.com</title>\n    <style type=\"text/css\">\n        html,\n        body {\n            vertical-align: middle;\n            padding: 0;\n            margin: 0;\n            background: var(--bg3, #f1f2f3);\n        }\n\n        .error-container {\n            width: 980px;\n            margi"
+  }
+}

@@ -5,7 +5,7 @@ import { UrlInput } from '../components/UrlInput';
 import { VideoInfo } from '../components/VideoInfo';
 import { DownloadOptions } from '../components/DownloadOptions';
 import { DownloadQueue } from '../components/DownloadQueue';
-import type { CloudAuthStatus, CloudSaveMode, DanmakuMode, VideoData, DownloadTask, VideoPage } from '../types';
+import type { CloudAuthStatus, CloudSaveMode, DanmakuMode, SteinDownloadMode, VideoData, DownloadTask, VideoPage } from '../types';
 import * as Bridge from '../bridge';
 import homeBg from '../assets/home-bg.png';
 
@@ -32,7 +32,10 @@ export function Home() {
   const [format, setFormat] = useState<'video' | 'audio'>('video');
   const [threads, setThreads] = useState(8);
   const [danmakuMode, setDanmakuMode] = useState<DanmakuMode>('none');
+  const [steinMode, setSteinMode] = useState<SteinDownloadMode>('all');
+  const [steinPathEdges, setSteinPathEdges] = useState<number[]>([]);
   const [ffmpegAvailable, setFfmpegAvailable] = useState(false);
+  const [isBatchStarting, setIsBatchStarting] = useState(false);
   const [loadingSizeVideoIds, setLoadingSizeVideoIds] = useState<Set<string>>(() => new Set());
   const sizeLoadAttemptedRef = useRef<Set<string>>(new Set());
   const sizeLoadInFlightRef = useRef<Set<string>>(new Set());
@@ -99,6 +102,16 @@ export function Home() {
     ? Math.min(selectedPageByVideo[activeVideo.id] ?? 0, Math.max(activeVideo.pages.length - 1, 0))
     : 0;
   const activePage = activeVideo?.pages[activePageIndex] ?? activeVideo?.pages[0] ?? null;
+
+  useEffect(() => {
+    if (activeVideo?.is_stein) {
+      setSteinMode((prev) => (prev === 'path' ? 'path' : 'all'));
+    } else {
+      setSteinMode('none');
+      setSteinPathEdges([]);
+    }
+  }, [activeVideo?.id, activeVideo?.is_stein]);
+
   const totalDownloadItems = videos.reduce(
     (total, video) => total + Math.max(video.pages.length, 1),
     0,
@@ -192,6 +205,8 @@ export function Home() {
       setSelectedVideoId(uniqueVideos[0].id);
       setSelectedPageByVideo(Object.fromEntries(uniqueVideos.map(video => [video.id, 0])));
       setSelectedQuality(firstQualityForFormat(uniqueVideos[0], format, selectedQuality));
+      setSteinMode(uniqueVideos[0].is_stein ? 'all' : 'none');
+      setSteinPathEdges([]);
       if (failures.length > 0) {
         setNotice(`已解析 ${uniqueVideos.length} 个，失败 ${failures.length} 个`);
       }
@@ -207,8 +222,15 @@ export function Home() {
     quality = selectedQuality,
     page: VideoPage | null = video.pages[0] ?? null,
   ): Promise<DownloadTask> => {
-    const requestedDanmakuMode = safeDanmakuModeForQuality(format, quality, danmakuMode, saveMode);
+    const requestedDanmakuMode = safeDanmakuModeForQuality(format, quality, danmakuMode);
     const isCloudMode = saveMode === 'baidu_netdisk';
+    const isStein = Boolean(video.is_stein);
+    const effectiveSteinMode: SteinDownloadMode = isStein
+      ? (steinMode === 'path' ? 'path' : 'all')
+      : 'none';
+    if (isStein && effectiveSteinMode === 'path' && steinPathEdges.length === 0) {
+      throw new Error('请先选择互动视频的分支路径');
+    }
     const taskId = isCloudMode
       ? await Bridge.startCloudUpload(
         video.id, quality, format,
@@ -221,13 +243,17 @@ export function Home() {
         video.id, quality, format,
         outdir, cookiePath, format === 'audio',
         threads,
-        format === 'video' ? requestedDanmakuMode : 'none',
+        format === 'video' && !isStein ? requestedDanmakuMode : 'none',
         page,
+        effectiveSteinMode,
+        isStein && effectiveSteinMode === 'path' ? steinPathEdges : [],
       );
-    const effectiveDanmakuMode = format === 'video' ? requestedDanmakuMode : 'none';
-    const title = page && video.pages.length > 1
-      ? `${video.title} - P${page.page} ${page.part}`
-      : video.title;
+    const effectiveDanmakuMode = format === 'video' && !isStein ? requestedDanmakuMode : 'none';
+    const title = isStein
+      ? `${video.title} [互动${effectiveSteinMode === 'path' ? '路径' : '整图'}]`
+      : page && video.pages.length > 1
+        ? `${video.title} - P${page.page} ${page.part}`
+        : video.title;
     return {
       id: taskId,
       bvid: video.id,
@@ -242,7 +268,7 @@ export function Home() {
       danmaku_mode: effectiveDanmakuMode,
       message: isCloudMode ? cloudTaskMessage(effectiveDanmakuMode) : danmakuTaskMessage(effectiveDanmakuMode),
     };
-  }, [selectedQuality, format, saveMode, cloudRemoteDir, outdir, cookiePath, threads, danmakuMode]);
+  }, [selectedQuality, format, saveMode, cloudRemoteDir, outdir, cookiePath, threads, danmakuMode, steinMode, steinPathEdges]);
 
   const handleDownload = useCallback(async () => {
     if (!activeVideo) {
@@ -259,39 +285,71 @@ export function Home() {
   }, [activeVideo, startVideoDownload]);
 
   const handleDownloadAll = useCallback(async () => {
+    if (isBatchStarting) return;
     if (videos.length === 0) {
       setError('请先解析视频链接，再开始下载');
       return;
     }
 
+    setError(null);
+    setIsBatchStarting(true);
+    setNotice(`正在展开合集并创建下载任务，请稍等...`);
     try {
-      const results = await Promise.allSettled(
-        videos.flatMap(video => {
-          const pages = video.pages.length > 0 ? video.pages : [null];
-          return pages.map((page) => {
-            const quality = firstQualityForFormat(video, format, selectedQuality);
-            return startVideoDownload(video, quality, page);
-          });
-        }),
-      );
-      const newTasks = results
-        .filter((result): result is PromiseFulfilledResult<DownloadTask> => result.status === 'fulfilled')
-        .map(result => result.value);
-      const failedCount = results.length - newTasks.length;
-      if (newTasks.length > 0) {
-        setTasks(prev => [...newTasks, ...prev]);
+      const expandedVideos = videos;
+      const downloadItems = expandedVideos.flatMap(video => {
+        const pages = video.pages.length > 0 ? video.pages : [null];
+        return pages.map((page) => ({
+          video,
+          page,
+          quality: firstQualityForFormat(video, format, selectedQuality),
+        }));
+      });
+      setNotice(`已展开 ${downloadItems.length} 个下载项，正在创建队列...`);
+
+      let startedCount = 0;
+      let bufferedTasks: DownloadTask[] = [];
+      const failedMessages: string[] = [];
+      for (const [index, item] of downloadItems.entries()) {
+        try {
+          const task = await startVideoDownload(item.video, item.quality, item.page);
+          bufferedTasks.push(task);
+          startedCount += 1;
+          if (bufferedTasks.length >= 5 || index === downloadItems.length - 1) {
+            const chunk = bufferedTasks;
+            bufferedTasks = [];
+            setTasks(prev => [...chunk, ...prev]);
+            setNotice(`正在创建下载队列 ${index + 1}/${downloadItems.length}`);
+          }
+        } catch (err) {
+          const title = item.page && item.video.pages.length > 1
+            ? `${item.video.title} - P${item.page.page}`
+            : item.video.title;
+          const message = err instanceof Error ? err.message : String(err);
+          failedMessages.push(`${title}：${message}`);
+        }
       }
+
+      if (bufferedTasks.length > 0) {
+        const chunk = bufferedTasks;
+        bufferedTasks = [];
+        setTasks(prev => [...chunk, ...prev]);
+      }
+      const failedCount = failedMessages.length;
       if (failedCount > 0) {
-        setNotice(`已启动 ${newTasks.length} 个下载，失败 ${failedCount} 个`);
+        setNotice(`已启动 ${startedCount} 个下载，失败 ${failedCount} 个`);
       }
-      if (newTasks.length === 0 && failedCount > 0) {
-        const firstFailure = results.find((result): result is PromiseRejectedResult => result.status === 'rejected');
-        throw firstFailure?.reason ?? new Error('批量下载启动失败');
+      if (startedCount === 0 && failedCount > 0) {
+        throw new Error(failedMessages[0] ?? '批量下载启动失败');
+      }
+      if (failedCount === 0) {
+        setNotice(`已创建 ${startedCount} 个下载任务`);
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsBatchStarting(false);
     }
-  }, [videos, format, selectedQuality, startVideoDownload]);
+  }, [isBatchStarting, videos, format, selectedQuality, startVideoDownload]);
 
   const handleSelectVideo = useCallback((video: VideoData) => {
     setSelectedVideoId(video.id);
@@ -381,10 +439,11 @@ export function Home() {
                   <button
                     type="button"
                     onClick={handleDownloadAll}
-                    className="motion-button inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#FF9FC0] to-[#FF86B2] px-4 text-sm font-black text-white shadow-[0_10px_22px_rgba(255,134,178,0.28)]"
+                    disabled={isBatchStarting}
+                    className="motion-button inline-flex min-h-10 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#FF9FC0] to-[#FF86B2] px-4 text-sm font-black text-white shadow-[0_10px_22px_rgba(255,134,178,0.28)] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <Download size={16} strokeWidth={2.6} />
-                    下载全部
+                    {isBatchStarting ? '正在创建队列' : '下载全部'}
                   </button>
                 </div>
                 <div className="flex max-h-36 flex-col gap-2 overflow-y-auto pr-1 custom-scrollbar">
@@ -458,7 +517,8 @@ export function Home() {
               onDownload={handleDownload}
               batchCount={totalDownloadItems}
               currentPageLabel={activePage && activeVideo.pages.length > 1 ? `P${activePage.page}` : undefined}
-              onDownloadAll={totalDownloadItems > 1 ? handleDownloadAll : undefined}
+              onDownloadAll={totalDownloadItems > 1 && !activeVideo.is_stein ? handleDownloadAll : undefined}
+              isBatchStarting={isBatchStarting}
               saveMode={saveMode}
               onSaveModeChange={setSaveMode}
               cloudAuthorized={cloudStatus.is_authorized}
@@ -471,6 +531,10 @@ export function Home() {
               onDanmakuModeChange={setDanmakuMode}
               ffmpegAvailable={ffmpegAvailable}
               isLoadingSizes={activeVideo ? loadingSizeVideoIds.has(activeVideo.id) : false}
+              steinMode={activeVideo.is_stein ? steinMode : 'none'}
+              onSteinModeChange={setSteinMode}
+              steinPathEdges={steinPathEdges}
+              onSteinPathEdgesChange={setSteinPathEdges}
             />
           </div>
         </div>
@@ -485,10 +549,11 @@ function finishTask(task: DownloadTask, result: { status: string; message?: stri
     : result.status === 'cancelled'
       ? 'cancelled' as const
       : 'error' as const;
+  // 弹幕状态消息由前端自己生成（danmakuTaskMessage），完成时用相等比较保留，不匹配后端散文
   const shouldKeepDanmakuMessage =
     task.download_danmaku &&
     task.message &&
-    (task.message.includes('弹幕文件') || task.message.includes('弹幕'));
+    task.message === danmakuTaskMessage(task.danmaku_mode ?? 'none');
 
   return {
     ...task,
@@ -507,6 +572,7 @@ function danmakuTaskMessage(mode: DanmakuMode): string | undefined {
 
 function cloudTaskMessage(mode: DanmakuMode): string {
   if (mode === 'ass') return '百度网盘直传 MP4，已选择外挂弹幕';
+  if (mode === 'burn') return '百度网盘直传 MP4，已选择烧录弹幕';
   return '百度网盘直传 MP4，不写入本地大视频文件';
 }
 
@@ -514,13 +580,11 @@ function safeDanmakuModeForQuality(
   format: 'video' | 'audio',
   quality: string,
   mode: DanmakuMode,
-  saveMode: CloudSaveMode = 'local',
 ): DanmakuMode {
   if (format !== 'video') return 'none';
   if (
     mode === 'burn' &&
-    (saveMode === 'baidu_netdisk' ||
-      quality.includes('8K') ||
+    (quality.includes('8K') ||
       quality.includes('HDR') ||
       quality.includes('杜比'))
   ) {

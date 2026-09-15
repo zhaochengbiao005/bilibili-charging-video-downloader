@@ -30,6 +30,7 @@ import type {
   VideoData,
   AppErrorPayload,
   VideoPage,
+  SteinDownloadMode,
 } from './types';
 
 export type ProgressHandler = (taskId: string, percent: number, speed: string, event: DownloadProgressEvent) => void;
@@ -62,10 +63,13 @@ export function addTaskDoneListener(h: TaskDoneHandler): () => void {
 }
 
 let eventListeners: Promise<UnlistenFn[]> | null = null;
-let cachedConfigResponse: ConfigResponse | null = null;
-let cachedCloudConfig: CloudConfig | null = null;
-let cachedFfmpegStatus: FfmpegStatus | null = null;
-let cachedHistory: HistoryItem[] | null = null;
+// 四类只读快照的缓存，失效统一走 invalidate*
+const cache: {
+  config: ConfigResponse | null;
+  cloudConfig: CloudConfig | null;
+  ffmpeg: FfmpegStatus | null;
+  history: HistoryItem[] | null;
+} = { config: null, cloudConfig: null, ffmpeg: null, history: null };
 
 function isTauriRuntime(): boolean {
   return Boolean((window as any).__TAURI_INTERNALS__?.invoke);
@@ -128,9 +132,6 @@ function ensureEventListeners(): Promise<UnlistenFn[]> {
       ));
       if (payload.message) logHandlers.forEach((handler) => handler(payload.message!));
     }),
-    listen<string>('download://log', (event) => {
-      logHandlers.forEach((handler) => handler(event.payload));
-    }),
     listen<DownloadDoneEvent>('download://completed', (event) => {
       taskDoneHandlers.forEach((handler) => handler(
         event.payload.task_id,
@@ -186,11 +187,13 @@ export async function startDownload(
   bvid: string, quality: string, fmt: string,
   outdir: string, cookiePath = '', skipMerge = false, threads = 8,
   danmakuMode: DanmakuMode = 'none', page?: VideoPage | null,
+  steinMode: SteinDownloadMode = 'none',
+  steinPathEdges: number[] = [],
 ): Promise<string> {
   if (!isTauriRuntime()) throw missingRuntimeError();
   await ensureEventListeners();
   const isVideo = fmt !== 'audio';
-  const effectiveDanmakuMode = isVideo ? danmakuMode : 'none';
+  // 弹幕取舍交给后端 effective_danmaku_mode（音频自动视为 none），前端不再复写
   const input: StartDownloadRequest = {
     bvid,
     cid: page?.cid ?? null,
@@ -201,14 +204,16 @@ export async function startDownload(
     outdir,
     cookie_path: cookiePath || null,
     skip_merge: skipMerge,
-    download_danmaku: effectiveDanmakuMode !== 'none',
-    danmaku_mode: effectiveDanmakuMode,
+    download_danmaku: isVideo && danmakuMode !== 'none',
+    danmaku_mode: danmakuMode,
     threads,
+    stein_mode: steinMode,
+    stein_path_edges: steinPathEdges,
   };
   const res = await callCommand<StartDownloadResponse>('start_download', {
     input,
   });
-  cachedHistory = null;
+  cache.history = null;
   return res.task_id;
 }
 
@@ -231,13 +236,13 @@ export async function startCloudUpload(
     cookie_path: cookiePath || null,
     skip_merge: !isVideo,
     download_danmaku: isVideo && danmakuMode !== 'none',
-    danmaku_mode: isVideo ? danmakuMode : 'none',
+    danmaku_mode: danmakuMode,
     threads,
   };
   const res = await callCommand<StartDownloadResponse>('start_cloud_upload', {
     input,
   });
-  cachedHistory = null;
+  cache.history = null;
   return res.task_id;
 }
 
@@ -254,79 +259,49 @@ export async function fetchPlayurl(
 
 export async function getHistory(): Promise<HistoryItem[]> {
   if (!isTauriRuntime()) return [];
-  if (cachedHistory) return cachedHistory;
+  if (cache.history) return cache.history;
   const items = await callCommand<HistoryItem[]>('get_history');
-  cachedHistory = items;
+  cache.history = items;
   return items;
 }
 
 export async function clearHistory(): Promise<void> {
   await callCommand<void>('clear_history');
-  cachedHistory = [];
+  cache.history = [];
 }
 
 export async function deleteHistoryItem(id: string): Promise<boolean> {
   await callCommand<void>('delete_history_item', { id });
-  if (cachedHistory) cachedHistory = cachedHistory.filter(item => item.id !== id);
+  if (cache.history) cache.history = cache.history.filter(item => item.id !== id);
   return true;
 }
 
 export async function getConfig(): Promise<AppConfig> {
-  if (!isTauriRuntime()) {
-    return {
-      default_quality: '1080P',
-      default_speed: '标准 (8线程)',
-      default_outdir: 'downloads',
-      auto_merge: true,
-      max_history: 200,
-    };
-  }
   const res = await callCommand<ConfigResponse>('get_config');
-  cachedConfigResponse = res;
+  cache.config = res;
   return res.config;
 }
 
 export async function saveConfig(cfg: AppConfig): Promise<boolean> {
   const input: SaveConfigRequest = { config: cfg };
   const res = await callCommand<ConfigResponse>('save_config', { input });
-  cachedConfigResponse = res;
+  cache.config = res;
   return true;
 }
 
 export async function getCloudConfig(): Promise<CloudConfig> {
-  if (!isTauriRuntime()) {
-    return {
-      default_provider: 'baidu_netdisk',
-      default_remote_dir: '/apps/B站充电视频下载器',
-      default_save_mode: 'local',
-      part_size_mb: 4,
-      baidu: {
-        client_id: '',
-        client_secret: '',
-        redirect_uri: 'oob',
-        scope: 'basic,netdisk',
-      },
-    };
-  }
-  if (cachedCloudConfig) return cachedCloudConfig;
-  cachedCloudConfig = await callCommand<CloudConfig>('get_cloud_config');
-  return cachedCloudConfig;
+  if (cache.cloudConfig) return cache.cloudConfig;
+  cache.cloudConfig = await callCommand<CloudConfig>('get_cloud_config');
+  return cache.cloudConfig;
 }
 
 export async function saveCloudConfig(config: CloudConfig): Promise<CloudConfig> {
   const input: SaveCloudConfigRequest = { config };
-  cachedCloudConfig = await callCommand<CloudConfig>('save_cloud_config', { input });
-  return cachedCloudConfig;
+  cache.cloudConfig = await callCommand<CloudConfig>('save_cloud_config', { input });
+  return cache.cloudConfig;
 }
 
 export async function baiduAuthStatus(): Promise<CloudAuthStatus> {
-  if (!isTauriRuntime()) {
-    return {
-      provider: 'baidu_netdisk',
-      is_authorized: false,
-      message: '此功能需要在 Tauri 桌面应用中运行',
-    };
-  }
   return callCommand<CloudAuthStatus>('baidu_auth_status');
 }
 
@@ -353,34 +328,31 @@ export async function getPendingCloudUploadCount(): Promise<number> {
 
 export async function checkFfmpeg(): Promise<FfmpegStatus> {
   if (!isTauriRuntime()) return { available: false };
-  if (cachedFfmpegStatus) return cachedFfmpegStatus;
+  if (cache.ffmpeg) return cache.ffmpeg;
   const status = await callCommand<FfmpegStatus>('check_ffmpeg');
-  cachedFfmpegStatus = status;
+  cache.ffmpeg = status;
   return status;
 }
 
 export async function installFfmpeg(): Promise<string> {
   if (!isTauriRuntime()) throw missingRuntimeError();
   await ensureEventListeners();
-  cachedFfmpegStatus = null;
+  cache.ffmpeg = null;
   const res = await callCommand<StartDownloadResponse>('install_ffmpeg');
   return res.task_id;
 }
 
 export async function getQualityOptions(): Promise<string[]> {
-  if (!isTauriRuntime()) return ['360P', '480P', '720P', '1080P', '1080P60', '4K', 'HDR'];
   return callCommand<string[]>('get_quality_options');
 }
 
 export async function getDefaultOutdir(): Promise<string> {
-  if (!isTauriRuntime()) return 'downloads';
-  if (cachedConfigResponse) return cachedConfigResponse.config.default_outdir;
+  if (cache.config) return cache.config.config.default_outdir;
   return callCommand<string>('get_default_outdir');
 }
 
 export async function getAppDir(): Promise<string> {
-  if (!isTauriRuntime()) return 'Tauri 桌面应用运行时';
-  if (cachedConfigResponse) return cachedConfigResponse.app_dir;
+  if (cache.config) return cache.config.app_dir;
   return callCommand<string>('get_app_dir');
 }
 
@@ -390,10 +362,6 @@ export async function startQrLogin(): Promise<QrLoginStartResponse> {
 
 export async function pollQrLogin(qrcodeKey: string): Promise<QrLoginPollResponse> {
   return callCommand<QrLoginPollResponse>('poll_qr_login', { qrcodeKey });
-}
-
-export async function qrLogin(): Promise<QrLoginStartResponse> {
-  return startQrLogin();
 }
 
 export async function cancelDownload(taskId: string): Promise<boolean> {
@@ -437,8 +405,3 @@ export async function checkCookie(cookiePath: string): Promise<LoginStatus> {
 export async function clearCookie(): Promise<LoginStatus> {
   return callCommand<LoginStatus>('clear_cookie');
 }
-
-export const minimizeWindow = () => {};
-export const maximizeWindow = () => {};
-export const closeWindow = () => {};
-export const moveWindow = (_dx: number, _dy: number) => {};

@@ -1,21 +1,24 @@
 use std::{
     future::Future,
     sync::{
-        atomic::{AtomicBool, Ordering},
+        atomic::AtomicBool,
         Arc,
     },
 };
 
 use reqwest::{
-    header::{CONTENT_LENGTH, CONTENT_RANGE, COOKIE, RANGE, REFERER},
+    header::{COOKIE, RANGE, REFERER},
     StatusCode,
 };
 
 use crate::{
+    download::{
+        bili_http::{header_content_length, probe_content_size, BILIBILI_UA},
+        ensure_not_cancelled, DownloadStage,
+    },
     error::{AppError, AppResult},
     models::download::DownloadProgressEvent,
 };
-
 #[derive(Debug, Clone)]
 pub struct BiliStreamClient {
     client: reqwest::Client,
@@ -35,34 +38,19 @@ impl BiliStreamClient {
     pub fn new() -> AppResult<Self> {
         let client = reqwest::Client::builder()
             .pool_max_idle_per_host(32)
-            .user_agent(
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
-                 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-            )
+            .user_agent(BILIBILI_UA)
             .build()?;
         Ok(Self { client })
     }
 
     pub async fn probe_size(&self, spec: &BiliStreamSpec) -> AppResult<Option<u64>> {
-        let response = self
-            .request_with_bili_headers(self.client.head(&spec.url), spec)
-            .send()
-            .await;
-        if let Ok(response) = response {
-            if response.status().is_success() {
-                if let Some(size) = header_content_length(response.headers()) {
-                    return Ok(Some(size));
-                }
-            }
-        }
-
-        let response = self
-            .request_with_bili_headers(self.client.get(&spec.url), spec)
-            .header(RANGE, "bytes=0-0")
-            .send()
-            .await?;
-        Ok(header_content_range_total(response.headers())
-            .or_else(|| header_content_length(response.headers())))
+        Ok(probe_content_size(
+            &self.client,
+            &spec.url,
+            &spec.referer,
+            spec.cookie_header.as_deref(),
+        )
+        .await)
     }
 
     pub async fn read_range(
@@ -168,43 +156,13 @@ fn stream_progress_event(
     };
     DownloadProgressEvent {
         task_id: spec.task_id.clone(),
-        stage: "downloading_segments".to_string(),
+        stage: DownloadStage::DownloadingSegments,
         percent,
         bytes_done,
         bytes_total,
         speed_bytes_per_sec: 0,
         message: Some("正在读取 B站视频流".to_string()),
     }
-}
-
-fn ensure_not_cancelled(cancel: &Arc<AtomicBool>, task_id: &str) -> AppResult<()> {
-    if cancel.load(Ordering::SeqCst) {
-        return Err(AppError::Download {
-            task_id: Some(task_id.to_string()),
-            message: "任务已取消".to_string(),
-        });
-    }
-    Ok(())
-}
-
-fn header_content_length(headers: &reqwest::header::HeaderMap) -> Option<u64> {
-    headers
-        .get(CONTENT_LENGTH)?
-        .to_str()
-        .ok()?
-        .parse::<u64>()
-        .ok()
-}
-
-fn header_content_range_total(headers: &reqwest::header::HeaderMap) -> Option<u64> {
-    headers
-        .get(CONTENT_RANGE)?
-        .to_str()
-        .ok()?
-        .rsplit('/')
-        .next()?
-        .parse::<u64>()
-        .ok()
 }
 
 #[cfg(test)]
@@ -215,14 +173,6 @@ mod tests {
     };
 
     use super::*;
-
-    #[test]
-    fn parses_content_range_total() {
-        let mut headers = reqwest::header::HeaderMap::new();
-        headers.insert(CONTENT_RANGE, "bytes 0-0/12345".parse().unwrap());
-
-        assert_eq!(header_content_range_total(&headers), Some(12345));
-    }
 
     #[tokio::test]
     async fn read_range_uses_range_referer_and_cookie_headers() -> AppResult<()> {
@@ -283,6 +233,6 @@ mod tests {
             )
             .await;
 
-        assert!(matches!(result, Err(AppError::Download { .. })));
+        assert!(matches!(result, Err(AppError::Cancelled { .. })));
     }
 }

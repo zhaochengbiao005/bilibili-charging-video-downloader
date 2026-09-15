@@ -1,0 +1,494 @@
+[
+  {
+    "name": "web_base",
+    "params_extra": {},
+    "code": 0,
+    "message": "OK",
+    "quality": 64,
+    "format": "mp4",
+    "timelength_meta": 124300,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 1,
+    "stream_ms": 14977,
+    "durl_size": 1682316,
+    "verdict": "PREVIEW",
+    "first_url_host": "upos-sz-estgcos.bilivideo.com"
+  },
+  {
+    "name": "web_try_look0",
+    "params_extra": {
+      "try_look": 0
+    },
+    "code": 0,
+    "message": "OK",
+    "quality": 64,
+    "format": "mp4",
+    "timelength_meta": 124300,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 1,
+    "stream_ms": 14977,
+    "durl_size": 1682316,
+    "verdict": "PREVIEW",
+    "first_url_host": "upos-sz-estgcos.bilivideo.com"
+  },
+  {
+    "name": "web_try_look1",
+    "params_extra": {
+      "try_look": 1
+    },
+    "code": 0,
+    "message": "OK",
+    "quality": 64,
+    "format": "mp4",
+    "timelength_meta": 124300,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 1,
+    "stream_ms": 14977,
+    "durl_size": 1682316,
+    "verdict": "PREVIEW",
+    "first_url_host": "upos-sz-estgcos.bilivideo.com"
+  },
+  {
+    "name": "web_is_preview0",
+    "params_extra": {
+      "is_preview": 0
+    },
+    "code": 0,
+    "message": "OK",
+    "quality": 64,
+    "format": "mp4",
+    "timelength_meta": 124300,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 1,
+    "stream_ms": 14977,
+    "durl_size": 1682316,
+    "verdict": "PREVIEW",
+    "first_url_host": "upos-sz-estgcos.bilivideo.com"
+  },
+  {
+    "name": "web_is_preview1",
+    "params_extra": {
+      "is_preview": 1
+    },
+    "code": 0,
+    "message": "OK",
+    "quality": 64,
+    "format": "mp4",
+    "timelength_meta": 124300,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 1,
+    "stream_ms": 14977,
+    "durl_size": 1682316,
+    "verdict": "PREVIEW",
+    "first_url_host": "upos-sz-estgcos.bilivideo.com"
+  },
+  {
+    "name": "web_preview0",
+    "params_extra": {
+      "preview": 0
+    },
+    "code": 0,
+    "message": "OK",
+    "quality": 64,
+    "format": "mp4",
+    "timelength_meta": 124300,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 1,
+    "stream_ms": 14977,
+    "durl_size": 1682316,
+    "verdict": "PREVIEW",
+    "first_url_host": "upos-sz-estgcos.bilivideo.com"
+  },
+  {
+    "name": "web_need_vip0",
+    "params_extra": {
+      "need_vip": 0
+    },
+    "code": 0,
+    "message": "OK",
+    "quality": 64,
+    "format": "mp4",
+    "timelength_meta": 124300,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 1,
+    "stream_ms": 14977,
+    "durl_size": 1682316,
+    "verdict": "PREVIEW",
+    "first_url_host": "upos-sz-estgcos.bilivideo.com"
+  },
+  {
+    "name": "web_vip_status1",
+    "params_extra": {
+      "vip_status": 1
+    },
+    "code": 0,
+    "message": "OK",
+    "quality": 64,
+    "format": "mp4",
+    "timelength_meta": 124300,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 1,
+    "stream_ms": 14977,
+    "durl_size": 1682316,
+    "verdict": "PREVIEW",
+    "first_url_host": "upos-sz-estgcos.bilivideo.com"
+  },
+  {
+    "name": "web_is_upower_play1",
+    "params_extra": {
+      "is_upower_play": 1
+    },
+    "code": 0,
+    "message": "OK",
+    "quality": 64,
+    "format": "mp4",
+    "timelength_meta": 124300,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 1,
+    "stream_ms": 14977,
+    "durl_size": 1682316,
+    "verdict": "PREVIEW",
+    "first_url_host": "upos-sz-estgcos.bilivideo.com"
+  },
+  {
+    "name": "web_upower1",
+    "params_extra": {
+      "upower": 1
+    },
+    "code": 0,
+    "message": "OK",
+    "quality": 64,
+    "format": "mp4",
+    "timelength_meta": 124300,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 1,
+    "stream_ms": 14977,
+    "durl_size": 1682316,
+    "verdict": "PREVIEW",
+    "first_url_host": "upos-sz-estgcos.bilivideo.com"
+  },
+  {
+    "name": "web_gaia_sourcepre-load",
+    "params_extra": {
+      "gaia_source": "pre-load"
+    },
+    "code": 0,
+    "message": "OK",
+    "quality": 64,
+    "format": "mp4",
+    "timelength_meta": 124300,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 1,
+    "stream_ms": 14977,
+    "durl_size": 1682316,
+    "verdict": "PREVIEW",
+    "first_url_host": "upos-sz-estgcos.bilivideo.com"
+  },
+  {
+    "name": "web_from_spmid333.788",
+    "params_extra": {
+      "from_spmid": "333.788"
+    },
+    "code": 0,
+    "message": "OK",
+    "quality": 64,
+    "format": "mp4",
+    "timelength_meta": 124300,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 1,
+    "stream_ms": 14977,
+    "durl_size": 1682316,
+    "verdict": "PREVIEW",
+    "first_url_host": "upos-sz-estgcos.bilivideo.com"
+  },
+  {
+    "name": "web_otypejson",
+    "params_extra": {
+      "otype": "json"
+    },
+    "code": 0,
+    "message": "OK",
+    "quality": 64,
+    "format": "mp4",
+    "timelength_meta": 124300,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 1,
+    "stream_ms": 14977,
+    "durl_size": 1682316,
+    "verdict": "PREVIEW",
+    "first_url_host": "upos-sz-estgcos.bilivideo.com"
+  },
+  {
+    "name": "web_typemp4",
+    "params_extra": {
+      "type": "mp4"
+    },
+    "code": 0,
+    "message": "OK",
+    "quality": 64,
+    "format": "mp4",
+    "timelength_meta": 124300,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 1,
+    "stream_ms": 14977,
+    "durl_size": 1682316,
+    "verdict": "PREVIEW",
+    "first_url_host": "upos-sz-estgcos.bilivideo.com"
+  },
+  {
+    "name": "web_high_quality1",
+    "params_extra": {
+      "high_quality": 1
+    },
+    "code": 0,
+    "message": "OK",
+    "quality": 64,
+    "format": "mp4",
+    "timelength_meta": 124300,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 1,
+    "stream_ms": 14977,
+    "durl_size": 1682316,
+    "verdict": "PREVIEW",
+    "first_url_host": "upos-sz-estgcos.bilivideo.com"
+  },
+  {
+    "name": "web_download1",
+    "params_extra": {
+      "download": 1
+    },
+    "code": 0,
+    "message": "OK",
+    "quality": 64,
+    "format": "mp4",
+    "timelength_meta": 124300,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 1,
+    "stream_ms": 14977,
+    "durl_size": 1682316,
+    "verdict": "PREVIEW",
+    "first_url_host": "upos-sz-estgcos.bilivideo.com"
+  },
+  {
+    "name": "web_npcybs0",
+    "params_extra": {
+      "npcybs": 0
+    },
+    "code": 0,
+    "message": "OK",
+    "quality": 64,
+    "format": "mp4",
+    "timelength_meta": 124300,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 1,
+    "stream_ms": 14977,
+    "durl_size": 1682316,
+    "verdict": "PREVIEW",
+    "first_url_host": "upos-sz-estgcos.bilivideo.com"
+  },
+  {
+    "name": "web_fnval0",
+    "params_extra": {
+      "fnval": 0
+    },
+    "code": 0,
+    "message": "OK",
+    "quality": 64,
+    "format": "mp4",
+    "timelength_meta": 124300,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 1,
+    "stream_ms": 14977,
+    "durl_size": 1682316,
+    "verdict": "PREVIEW",
+    "first_url_host": "upos-sz-estgcos.bilivideo.com"
+  },
+  {
+    "name": "web_fnval16",
+    "params_extra": {
+      "fnval": 16
+    },
+    "code": 0,
+    "message": "OK",
+    "quality": 64,
+    "format": "mp4",
+    "timelength_meta": 124300,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 1,
+    "stream_ms": 14977,
+    "durl_size": 1682316,
+    "verdict": "PREVIEW",
+    "first_url_host": "upos-sz-estgcos.bilivideo.com"
+  },
+  {
+    "name": "web_fnval80",
+    "params_extra": {
+      "fnval": 80
+    },
+    "code": 0,
+    "message": "OK",
+    "quality": 64,
+    "format": "mp4",
+    "timelength_meta": 124300,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 1,
+    "stream_ms": 14977,
+    "durl_size": 1682316,
+    "verdict": "PREVIEW",
+    "first_url_host": "upos-sz-estgcos.bilivideo.com"
+  },
+  {
+    "name": "web_fnval144",
+    "params_extra": {
+      "fnval": 144
+    },
+    "code": 0,
+    "message": "OK",
+    "quality": 64,
+    "format": "mp4",
+    "timelength_meta": 124300,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 1,
+    "stream_ms": 14977,
+    "durl_size": 1682316,
+    "verdict": "PREVIEW",
+    "first_url_host": "upos-sz-estgcos.bilivideo.com"
+  },
+  {
+    "name": "web_fnval208",
+    "params_extra": {
+      "fnval": 208
+    },
+    "code": 0,
+    "message": "OK",
+    "quality": 64,
+    "format": "mp4",
+    "timelength_meta": 124300,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 1,
+    "stream_ms": 14977,
+    "durl_size": 1682316,
+    "verdict": "PREVIEW",
+    "first_url_host": "upos-sz-estgcos.bilivideo.com"
+  },
+  {
+    "name": "web_fnval976",
+    "params_extra": {
+      "fnval": 976
+    },
+    "code": 0,
+    "message": "OK",
+    "quality": 64,
+    "format": "mp4",
+    "timelength_meta": 124300,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 1,
+    "stream_ms": 14977,
+    "durl_size": 1682316,
+    "verdict": "PREVIEW",
+    "first_url_host": "upos-sz-estgcos.bilivideo.com"
+  },
+  {
+    "name": "web_fnval4048",
+    "params_extra": {
+      "fnval": 4048
+    },
+    "code": 0,
+    "message": "OK",
+    "quality": 64,
+    "format": "mp4",
+    "timelength_meta": 124300,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 1,
+    "stream_ms": 14977,
+    "durl_size": 1682316,
+    "verdict": "PREVIEW",
+    "first_url_host": "upos-sz-estgcos.bilivideo.com"
+  },
+  {
+    "name": "web_fnval8192",
+    "params_extra": {
+      "fnval": 8192
+    },
+    "code": -400,
+    "message": "请求错误",
+    "quality": null,
+    "format": null,
+    "timelength_meta": null,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 0,
+    "stream_ms": 0,
+    "durl_size": 0,
+    "verdict": "UNKNOWN/EMPTY",
+    "first_url_host": ""
+  },
+  {
+    "name": "web_fnval12240",
+    "params_extra": {
+      "fnval": 12240
+    },
+    "code": -400,
+    "message": "请求错误",
+    "quality": null,
+    "format": null,
+    "timelength_meta": null,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 0,
+    "stream_ms": 0,
+    "durl_size": 0,
+    "verdict": "UNKNOWN/EMPTY",
+    "first_url_host": ""
+  }
+]

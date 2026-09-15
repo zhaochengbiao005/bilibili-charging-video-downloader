@@ -1,0 +1,86 @@
+[
+  {
+    "name": "signed_1d8b6e_x_playurl",
+    "code": null,
+    "message": "",
+    "verdict": "NO_STREAM"
+  },
+  {
+    "name": "signed_1d8b6e_v2",
+    "code": null,
+    "message": "",
+    "verdict": "NO_STREAM"
+  },
+  {
+    "name": "signed_1d8b6e_player",
+    "code": 0,
+    "message": "OK",
+    "quality": 64,
+    "format": "mp4",
+    "timelength_meta": 124300,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 1,
+    "stream_ms": 14977,
+    "durl_size": 1682316,
+    "verdict": "PREVIEW",
+    "first_url_host": "upos-sz-estgcos.bilivideo.com"
+  },
+  {
+    "name": "signed_27eb53_x_playurl",
+    "code": null,
+    "message": "",
+    "verdict": "NO_STREAM"
+  },
+  {
+    "name": "signed_27eb53_v2",
+    "code": null,
+    "message": "",
+    "verdict": "NO_STREAM"
+  },
+  {
+    "name": "signed_27eb53_player",
+    "code": 0,
+    "message": "OK",
+    "quality": 64,
+    "format": "mp4",
+    "timelength_meta": 124300,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 1,
+    "stream_ms": 14977,
+    "durl_size": 1682316,
+    "verdict": "PREVIEW",
+    "first_url_host": "upos-sz-estgcos.bilivideo.com"
+  },
+  {
+    "name": "signed_4409e2_x_playurl",
+    "code": null,
+    "message": "",
+    "verdict": "NO_STREAM"
+  },
+  {
+    "name": "signed_4409e2_v2",
+    "code": null,
+    "message": "",
+    "verdict": "NO_STREAM"
+  },
+  {
+    "name": "signed_4409e2_player",
+    "code": 0,
+    "message": "OK",
+    "quality": 64,
+    "format": "mp4",
+    "timelength_meta": 124300,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 1,
+    "stream_ms": 14977,
+    "durl_size": 1682316,
+    "verdict": "PREVIEW",
+    "first_url_host": "upos-sz-estgcos.bilivideo.com"
+  }
+]

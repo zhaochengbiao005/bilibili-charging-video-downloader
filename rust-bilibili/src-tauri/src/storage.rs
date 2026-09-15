@@ -1,6 +1,7 @@
 use std::{
     fs,
     path::{Path, PathBuf},
+    sync::{Arc, Mutex},
 };
 
 use crate::{
@@ -18,6 +19,8 @@ pub struct ConfigStore {
 #[derive(Debug, Clone)]
 pub struct HistoryStore {
     history_path: PathBuf,
+    /// 串行化 load-modify-save，避免并发任务互相覆盖历史条目。
+    lock: Arc<Mutex<()>>,
 }
 
 #[derive(Debug, Clone)]
@@ -70,7 +73,19 @@ impl HistoryStore {
     pub fn new(app_dir: PathBuf) -> Self {
         Self {
             history_path: app_dir.join("history.json"),
+            lock: Arc::new(Mutex::new(())),
         }
+    }
+
+    /// 在锁保护下插入一条历史并按 max_history 截断。
+    pub fn record(&self, max_history: usize, item: HistoryItem) -> AppResult<()> {
+        let _guard = self.lock.lock().map_err(|err| AppError::Io {
+            message: format!("历史记录锁获取失败: {err}"),
+        })?;
+        let mut items = self.load()?;
+        items.insert(0, item);
+        items.truncate(max_history.max(1));
+        self.save(&items)
     }
 
     pub fn load(&self) -> AppResult<Vec<HistoryItem>> {

@@ -1,14 +1,10 @@
-use std::{
-    collections::HashMap,
-    sync::{atomic::AtomicBool, Arc},
-};
-
-use tokio::sync::RwLock;
+use std::sync::Arc;
 
 use crate::{
     api::BilibiliClient,
     cloud::baidu::BaiduTokenStore,
     danmaku::DanmakuClient,
+    download::TaskOrchestrator,
     downloader::DownloadClient,
     error::AppResult,
     ffmpeg::FfmpegManager,
@@ -18,14 +14,13 @@ use crate::{
 #[derive(Debug)]
 pub struct AppState {
     pub client: BilibiliClient,
-    pub downloader: DownloadClient,
-    pub cancel_tokens: Arc<RwLock<HashMap<String, Arc<AtomicBool>>>>,
     pub config_store: ConfigStore,
     pub history_store: HistoryStore,
     pub cookie_store: CookieStore,
     pub baidu_token_store: BaiduTokenStore,
     pub ffmpeg: FfmpegManager,
-    pub danmaku: DanmakuClient,
+    /// 任务编排模块：队列、取消表、事件收尾全部在这里。
+    pub tasks: Arc<TaskOrchestrator>,
 }
 
 impl AppState {
@@ -36,16 +31,29 @@ impl AppState {
         let cookie_store = CookieStore::new(app_dir.clone());
         let baidu_token_store = BaiduTokenStore::new(app_dir);
 
+        let client = BilibiliClient::new()?;
+        let downloader = DownloadClient::new()?;
+        let ffmpeg = FfmpegManager::new();
+        let danmaku = DanmakuClient::new();
+        let tasks = Arc::new(TaskOrchestrator::new(
+            client.clone(),
+            downloader,
+            ffmpeg.clone(),
+            danmaku,
+            config_store.clone(),
+            history_store.clone(),
+            baidu_token_store.clone(),
+            config_store.app_dir().to_path_buf(),
+        ));
+
         Ok(Self {
-            client: BilibiliClient::new()?,
-            downloader: DownloadClient::new()?,
-            cancel_tokens: Arc::new(RwLock::new(HashMap::new())),
+            client,
             config_store,
             history_store,
             cookie_store,
             baidu_token_store,
-            ffmpeg: FfmpegManager::new(),
-            danmaku: DanmakuClient::new(),
+            ffmpeg,
+            tasks,
         })
     }
 }

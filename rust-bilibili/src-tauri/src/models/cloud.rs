@@ -143,15 +143,3 @@ pub struct CloudFileResult {
     pub file_id: Option<String>,
     pub size_bytes: u64,
 }
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct CloudUploadProgressEvent {
-    pub task_id: String,
-    pub provider: CloudProvider,
-    pub stage: String,
-    pub remote_path: String,
-    pub bytes_done: u64,
-    pub bytes_total: u64,
-    pub percent: f32,
-    pub message: Option<String>,
-}

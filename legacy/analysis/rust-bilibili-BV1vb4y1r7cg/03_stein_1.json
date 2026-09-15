@@ -1,0 +1,12 @@
+{
+  "url": "https://api.bilibili.com/x/stein/nodeinfo",
+  "params": {
+    "bvid": "BV1vb4y1r7cg",
+    "graph_version": 0
+  },
+  "resp": {
+    "code": -400,
+    "message": "请求错误",
+    "ttl": 1
+  }
+}

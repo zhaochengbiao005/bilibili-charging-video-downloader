@@ -1,0 +1,116 @@
+[
+  {
+    "name": "web_playurl",
+    "url": "https://api.bilibili.com/x/player/playurl",
+    "code": 0,
+    "message": "OK",
+    "quality": 64,
+    "format": "mp4",
+    "timelength_meta": 124300,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 1,
+    "stream_ms": 14977,
+    "durl_size": 1682316,
+    "verdict": "PREVIEW",
+    "first_url_host": "upos-sz-estgcos.bilivideo.com"
+  },
+  {
+    "name": "wbi_playurl",
+    "url": "https://api.bilibili.com/x/player/wbi/playurl",
+    "code": null,
+    "message": "<!DOCTYPE html>\n<html lang=\"zh-cn\">\n\n<head>\n    <meta http-equiv=\"Access-Control-Allow-Origin\" content=\"*\" />\n    <meta ",
+    "http": 412,
+    "verdict": "NO_STREAM"
+  },
+  {
+    "name": "player_v2",
+    "url": "https://api.bilibili.com/x/player/v2",
+    "code": 0,
+    "message": "OK",
+    "http": 200,
+    "verdict": "NO_STREAM"
+  },
+  {
+    "name": "app_v2_playurl",
+    "url": "https://app.bilibili.com/x/v2/playurl",
+    "code": null,
+    "message": "404 page not found\n",
+    "http": 404,
+    "verdict": "NO_STREAM"
+  },
+  {
+    "name": "app_playurl",
+    "url": "https://api.bilibili.com/x/playurl",
+    "code": null,
+    "message": "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n<html lang=\"zh-cn\">\n\n<head>\n    <meta http-equiv=\"Page-E",
+    "http": 404,
+    "verdict": "NO_STREAM"
+  },
+  {
+    "name": "tv_playurl",
+    "url": "https://api.bilibili.com/x/tv/playurl",
+    "code": -400,
+    "message": "请求错误",
+    "http": 200,
+    "verdict": "NO_STREAM"
+  },
+  {
+    "name": "intl_playurl",
+    "url": "https://api.biliintl.com/intl/gateway/v2/app/playurl",
+    "code": null,
+    "message": "<html>\r\n<head><title>404 Not Found</title></head>\r\n<body>\r\n<center><h1>404 Not Found</h1></center>\r\n<hr><center>openrest",
+    "http": 404,
+    "verdict": "NO_STREAM"
+  },
+  {
+    "name": "pgc_web",
+    "url": "https://api.bilibili.com/pgc/player/web/playurl",
+    "code": -404,
+    "message": "啥都木有",
+    "http": 200,
+    "verdict": "NO_STREAM"
+  },
+  {
+    "name": "pugv_web",
+    "url": "https://api.bilibili.com/pugv/player/web/playurl",
+    "code": -400,
+    "message": "参数错误,请检查请求视频云参数",
+    "http": 200,
+    "verdict": "NO_STREAM"
+  },
+  {
+    "name": "html5_playurl",
+    "url": "https://api.bilibili.com/x/player/playurl",
+    "code": 0,
+    "message": "OK",
+    "quality": 80,
+    "format": "mp4",
+    "timelength_meta": 124300,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 1,
+    "stream_ms": 14977,
+    "durl_size": 3572024,
+    "verdict": "PREVIEW",
+    "first_url_host": "upos-sz-estgoss.bilivideo.com"
+  },
+  {
+    "name": "stein_playurl",
+    "url": "https://api.bilibili.com/x/stein/playurl",
+    "code": -101,
+    "message": "账号未登录",
+    "http": 200,
+    "verdict": "NO_STREAM"
+  },
+  {
+    "name": "player_pagelist",
+    "url": "https://api.bilibili.com/x/player/pagelist",
+    "code": 0,
+    "message": "OK",
+    "http": 200,
+    "verdict": "NO_STREAM"
+  }
+]

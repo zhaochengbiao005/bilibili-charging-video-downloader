@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "B站充电视频下载器",
-  "mainBinaryName": "BilibiliChargingDownloader104",
-  "version": "1.0.4",
+  "mainBinaryName": "BilibiliChargingDownloader107",
+  "version": "1.0.7",
   "identifier": "com.local.bilibili-downloader",
   "build": {
     "beforeDevCommand": "npm run dev",

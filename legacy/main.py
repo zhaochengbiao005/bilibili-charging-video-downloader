@@ -85,7 +85,10 @@ def download_video(
     # 2. 检查充电状态
     charging_status = api.check_charging_status(bvid)
     if charging_status.get("is_charging"):
-        print("    [!] This is a charging-only video. Cookie auth required.")
+        if charging_status.get("is_upower_play"):
+            print("    [*] 充电专属视频：当前账号可完整播放（以 playurl 为准）")
+        else:
+            print("    [!] 充电专属视频：当前账号可能仅能试看，需对该 UP 开通对应档位包月充电")
     elif charging_status.get("need_pay"):
         print("    [!] This is a paid video. Cookie auth required.")
 
@@ -109,8 +112,25 @@ def download_video(
             print("    [!] This video may require valid Cookie for charging video access")
             continue
 
+        meta_sec = int(page.get("duration") or info.get("duration") or 0)
+        durl_preview = api.extract_durl_urls(playurl_data)
+        dash_preview = api.extract_dash_urls(playurl_data)
+        stream_ms = sum(s.get("length", 0) for s in durl_preview)
+        if stream_ms == 0 and dash_preview.get("duration"):
+            stream_ms = int(dash_preview["duration"]) * 1000
+        urls = [s.get("url", "") for s in durl_preview]
+        is_preview_encode = any("-1-448." in u or "-448.mp4" in u for u in urls)
+        if BilibiliAPI.is_preview_stream(
+            meta_sec=meta_sec,
+            stream_ms=stream_ms,
+            has_dash_video=bool(dash_preview.get("video")),
+            is_preview_encode=is_preview_encode,
+        ):
+            print(f"    [!] {BilibiliAPI.preview_block_message(meta_sec, stream_ms)}")
+            continue
+
         # 尝试 DASH 流
-        dash = api.extract_dash_urls(playurl_data)
+        dash = dash_preview
         if dash["video"] and dash["audio"]:
             print(f"    DASH streams available:")
             # 选择最高码率视频流

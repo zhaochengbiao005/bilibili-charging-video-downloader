@@ -1,0 +1,105 @@
+{
+  "samples": [
+    {
+      "cid": 381841243,
+      "code": 0,
+      "message": "OK",
+      "quality": 64,
+      "timelength": 10680,
+      "has_dash": true,
+      "dash_v": 6,
+      "dash_a": 3,
+      "durl_n": 0,
+      "durl_ms": 0
+    },
+    {
+      "cid": 381841253,
+      "code": 0,
+      "message": "OK",
+      "quality": 64,
+      "timelength": 8962,
+      "has_dash": true,
+      "dash_v": 6,
+      "dash_a": 3,
+      "durl_n": 0,
+      "durl_ms": 0
+    },
+    {
+      "cid": 381841268,
+      "code": 0,
+      "message": "OK",
+      "quality": 64,
+      "timelength": 1230,
+      "has_dash": true,
+      "dash_v": 6,
+      "dash_a": 3,
+      "durl_n": 0,
+      "durl_ms": 0
+    },
+    {
+      "cid": 381841269,
+      "code": 0,
+      "message": "OK",
+      "quality": 64,
+      "timelength": 10587,
+      "has_dash": true,
+      "dash_v": 6,
+      "dash_a": 3,
+      "durl_n": 0,
+      "durl_ms": 0
+    },
+    {
+      "cid": 381841275,
+      "code": 0,
+      "message": "OK",
+      "quality": 64,
+      "timelength": 9496,
+      "has_dash": true,
+      "dash_v": 6,
+      "dash_a": 3,
+      "durl_n": 0,
+      "durl_ms": 0
+    },
+    {
+      "cid": 381841296,
+      "code": 0,
+      "message": "OK",
+      "quality": 64,
+      "timelength": 14953,
+      "has_dash": true,
+      "dash_v": 6,
+      "dash_a": 3,
+      "durl_n": 0,
+      "durl_ms": 0
+    },
+    {
+      "cid": 381841330,
+      "code": 0,
+      "message": "OK",
+      "quality": 64,
+      "timelength": 9194,
+      "has_dash": true,
+      "dash_v": 6,
+      "dash_a": 3,
+      "durl_n": 0,
+      "durl_ms": 0
+    },
+    {
+      "cid": 381841356,
+      "code": 0,
+      "message": "OK",
+      "quality": 64,
+      "timelength": 3366,
+      "has_dash": true,
+      "dash_v": 6,
+      "dash_a": 3,
+      "durl_n": 0,
+      "durl_ms": 0
+    }
+  ],
+  "stein_playurl": {
+    "code": -101,
+    "message": "账号未登录",
+    "ttl": 1
+  }
+}

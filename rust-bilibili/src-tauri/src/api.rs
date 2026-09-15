@@ -1,8 +1,8 @@
 use std::time::Duration;
 
 use reqwest::header::{
-    HeaderMap, HeaderValue, ACCEPT, ACCEPT_LANGUAGE, CONTENT_LENGTH, CONTENT_RANGE, COOKIE, ORIGIN,
-    RANGE, REFERER, SET_COOKIE, USER_AGENT,
+    HeaderMap, HeaderValue, ACCEPT, ACCEPT_LANGUAGE, COOKIE, ORIGIN, RANGE, REFERER, SET_COOKIE,
+    USER_AGENT,
 };
 use serde::Deserialize;
 
@@ -11,9 +11,12 @@ use crate::{
         build_qrcode_svg, parse_set_cookie_headers, CookieSet, LoginStatus, QrLoginPollOutcome,
         QrLoginPollResponse, QrLoginStartResponse,
     },
+    download::bili_http::{header_content_length, header_content_range_total},
+    download::{is_dolby_track, is_hdr_track},
     error::{AppError, AppResult},
     models::{
         download::{DashStreams, DashTrack, DurlSegment, PlayUrlResponse},
+        stein::{SteinChoice, SteinGraph, SteinNode, SteinSegment},
         video::{AudioStreamOption, StreamOption, VideoData, VideoPage},
     },
 };
@@ -42,14 +45,12 @@ impl BilibiliClient {
         bvid: &str,
         cookies: Option<&CookieSet>,
     ) -> AppResult<VideoData> {
-        self.video_info_list(bvid, cookies)
-            .await?
-            .into_iter()
-            .next()
-            .ok_or_else(|| AppError::Api {
+        select_video_by_bvid(self.video_info_list(bvid, cookies).await?, bvid).ok_or_else(|| {
+            AppError::Api {
                 code: -1,
                 message: "B站响应缺少视频信息".to_string(),
-            })
+            }
+        })
     }
 
     pub async fn video_info_list(
@@ -93,8 +94,40 @@ impl BilibiliClient {
         for (index, video) in videos.iter_mut().enumerate() {
             if let Some(page) = video.pages.first() {
                 if index == 0 {
+                    if video.is_stein == Some(true) {
+                        match self
+                            .crawl_stein_graph(&video.id, page.cid, cookies)
+                            .await
+                        {
+                            Ok(graph) => {
+                                video.access_message = Some(format!(
+                                    "互动视频：共 {} 个分片、{} 个剧情节点。可整图下载或按路径拼接。",
+                                    graph.segment_count,
+                                    graph.nodes.len()
+                                ));
+                                video.stein_graph = Some(graph);
+                            }
+                            Err(err) => {
+                                video.access_message = Some(format!(
+                                    "互动视频解析剧情图失败：{err}。仍可尝试下载入口分片。"
+                                ));
+                            }
+                        }
+                    }
                     if let Ok(playurl) = self.playurl(&video.id, page.cid, 127, cookies).await {
-                        video.apply_playurl_sizes(&playurl);
+                        // 互动视频入口时长很短，不要用 preview 规则误伤；仅非 stein 应用 playurl 尺寸
+                        if video.is_stein != Some(true) {
+                            video.apply_playurl_sizes(&playurl);
+                        } else {
+                            // 仍更新画质列表尺寸（用入口流），但不触发试看拦截标记
+                            let is_preview = video.is_preview;
+                            let access = video.access_message.clone();
+                            video.apply_playurl_sizes(&playurl);
+                            video.is_preview = is_preview;
+                            if let Some(msg) = access {
+                                video.access_message = Some(msg);
+                            }
+                        }
                     }
                 }
             }
@@ -180,6 +213,250 @@ impl BilibiliClient {
         let mut playurl = data.into_playurl_response();
         self.enrich_playurl_track_sizes(&mut playurl, bvid).await;
         Ok(playurl)
+    }
+
+    /// 爬取互动视频剧情图：BFS edgeinfo_v2，收集全部 cid 与选项边。
+    pub async fn crawl_stein_graph(
+        &self,
+        bvid: &str,
+        entry_cid: u64,
+        cookies: Option<&CookieSet>,
+    ) -> AppResult<SteinGraph> {
+        let graph_version = self.player_graph_version(bvid, entry_cid, cookies).await?;
+        let mut visited_edges = std::collections::HashSet::new();
+        let mut queue: std::collections::VecDeque<Option<u64>> =
+            std::collections::VecDeque::from([None]);
+        let mut nodes: Vec<SteinNode> = Vec::new();
+        let mut segment_map: std::collections::BTreeMap<u64, SteinSegment> =
+            std::collections::BTreeMap::new();
+        // edge_id → 到达该节点时播放的 cid
+        let mut play_cid_by_edge: std::collections::HashMap<u64, u64> =
+            std::collections::HashMap::new();
+        let mut entry_edge_id = 1_u64;
+
+        // 入口分片
+        segment_map.insert(
+            entry_cid,
+            SteinSegment {
+                cid: entry_cid,
+                title: "入口".to_string(),
+                edge_id: 0,
+            },
+        );
+
+        const MAX_EDGES: usize = 300;
+        while let Some(edge_id) = queue.pop_front() {
+            if nodes.len() >= MAX_EDGES {
+                break;
+            }
+            let key = edge_id.unwrap_or(0);
+            if !visited_edges.insert(key) {
+                continue;
+            }
+
+            let info = self
+                .edgeinfo_v2(bvid, graph_version, edge_id, cookies)
+                .await?;
+            let eid = info.edge_id.unwrap_or(key);
+            if edge_id.is_none() {
+                entry_edge_id = if eid == 0 { 1 } else { eid };
+                play_cid_by_edge.insert(entry_edge_id, entry_cid);
+            }
+            let title = info.title.unwrap_or_else(|| format!("节点{eid}"));
+            let is_leaf = info.is_leaf.unwrap_or(0) == 1;
+
+            // 选项出现时机
+            let (start_time_r_ms, pause_video) = first_question_timing(&info.edges);
+
+            for video in info
+                .preload
+                .as_ref()
+                .and_then(|p| p.video.as_ref())
+                .into_iter()
+                .flatten()
+            {
+                if video.cid != 0 {
+                    segment_map.entry(video.cid).or_insert_with(|| SteinSegment {
+                        cid: video.cid,
+                        title: title.clone(),
+                        edge_id: eid,
+                    });
+                }
+            }
+
+            // story_list 里的当前节点 cid 也可作为本 edge 播放源
+            if let Some(story) = info.story_list.as_ref() {
+                for s in story {
+                    if s.is_current.unwrap_or(0) == 1 && s.cid.unwrap_or(0) != 0 {
+                        play_cid_by_edge.entry(eid).or_insert(s.cid.unwrap_or(0));
+                        segment_map
+                            .entry(s.cid.unwrap_or(0))
+                            .or_insert_with(|| SteinSegment {
+                                cid: s.cid.unwrap_or(0),
+                                title: title.clone(),
+                                edge_id: eid,
+                            });
+                    }
+                }
+            }
+
+            let mut choices = Vec::new();
+            for choice in flatten_stein_choices(&info.edges) {
+                let next_edge = choice.id.unwrap_or(0);
+                let cid = choice.cid.unwrap_or(0);
+                let option = choice
+                    .option
+                    .clone()
+                    .filter(|s| !s.trim().is_empty())
+                    .unwrap_or_else(|| format!("选项{next_edge}"));
+                if cid != 0 {
+                    segment_map.entry(cid).or_insert_with(|| SteinSegment {
+                        cid,
+                        title: option.clone(),
+                        edge_id: next_edge,
+                    });
+                    if next_edge != 0 {
+                        // 选择后跳转到 next_edge 时播放该 cid
+                        play_cid_by_edge.entry(next_edge).or_insert(cid);
+                    }
+                }
+                if next_edge != 0 {
+                    choices.push(SteinChoice {
+                        edge_id: next_edge,
+                        option,
+                        cid,
+                    });
+                    if !visited_edges.contains(&next_edge) {
+                        queue.push_back(Some(next_edge));
+                    }
+                }
+            }
+
+            // 更新入口标题
+            if edge_id.is_none() {
+                if let Some(seg) = segment_map.get_mut(&entry_cid) {
+                    seg.title = title.clone();
+                    seg.edge_id = eid;
+                }
+            }
+
+            let play_cid = play_cid_by_edge.get(&eid).copied().unwrap_or(0);
+            nodes.push(SteinNode {
+                edge_id: eid,
+                title,
+                is_leaf,
+                play_cid,
+                start_time_r_ms,
+                pause_video,
+                choices,
+            });
+        }
+
+        // 确保 entry_edge_id 在 nodes 中
+        if entry_edge_id == 0 {
+            entry_edge_id = nodes.first().map(|n| n.edge_id).unwrap_or(1);
+        }
+        // 补全 play_cid
+        for node in &mut nodes {
+            if node.play_cid == 0 {
+                if node.edge_id == entry_edge_id {
+                    node.play_cid = entry_cid;
+                } else if let Some(cid) = play_cid_by_edge.get(&node.edge_id) {
+                    node.play_cid = *cid;
+                }
+            }
+        }
+
+        let segments: Vec<SteinSegment> = segment_map.into_values().collect();
+        let segment_count = segments.len() as u32;
+        Ok(SteinGraph {
+            graph_version,
+            entry_edge_id,
+            entry_cid,
+            segment_count,
+            segments,
+            nodes,
+        })
+    }
+
+    async fn player_graph_version(
+        &self,
+        bvid: &str,
+        cid: u64,
+        cookies: Option<&CookieSet>,
+    ) -> AppResult<u64> {
+        let mut request = self
+            .client
+            .get(format!("{BASE_URL}/x/player/v2"))
+            .query(&[("bvid", bvid.to_string()), ("cid", cid.to_string())])
+            .header(REFERER, format!("https://www.bilibili.com/video/{bvid}"));
+        if let Some(cookies) = cookies {
+            request = request.header(COOKIE, cookies.to_header());
+        }
+        let response = request
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<ApiResponse<PlayerV2Data>>()
+            .await?;
+        if response.code != 0 {
+            return Err(AppError::Api {
+                code: response.code,
+                message: response.message,
+            });
+        }
+        let data = response.data.ok_or_else(|| AppError::Api {
+            code: -1,
+            message: "播放器响应缺少 data".to_string(),
+        })?;
+        data.interaction
+            .and_then(|i| i.graph_version)
+            .ok_or_else(|| AppError::Api {
+                code: -1,
+                message: "互动视频缺少 graph_version".to_string(),
+            })
+    }
+
+    async fn edgeinfo_v2(
+        &self,
+        bvid: &str,
+        graph_version: u64,
+        edge_id: Option<u64>,
+        cookies: Option<&CookieSet>,
+    ) -> AppResult<SteinEdgeInfoData> {
+        let mut params = vec![
+            ("bvid".to_string(), bvid.to_string()),
+            ("graph_version".to_string(), graph_version.to_string()),
+            ("portal".to_string(), "0".to_string()),
+            ("screen".to_string(), "0".to_string()),
+        ];
+        if let Some(edge_id) = edge_id {
+            params.push(("edge_id".to_string(), edge_id.to_string()));
+        }
+        let mut request = self
+            .client
+            .get(format!("{BASE_URL}/x/stein/edgeinfo_v2"))
+            .query(&params)
+            .header(REFERER, format!("https://www.bilibili.com/video/{bvid}"));
+        if let Some(cookies) = cookies {
+            request = request.header(COOKIE, cookies.to_header());
+        }
+        let response = request
+            .send()
+            .await?
+            .error_for_status()?
+            .json::<ApiResponse<SteinEdgeInfoData>>()
+            .await?;
+        if response.code != 0 {
+            return Err(AppError::Api {
+                code: response.code,
+                message: response.message,
+            });
+        }
+        response.data.ok_or_else(|| AppError::Api {
+            code: -1,
+            message: "剧情图响应缺少 data".to_string(),
+        })
     }
 
     pub async fn enrich_video_sizes(
@@ -336,10 +613,7 @@ fn default_headers() -> HeaderMap {
     let mut headers = HeaderMap::new();
     headers.insert(
         USER_AGENT,
-        HeaderValue::from_static(
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
-             (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-        ),
+        HeaderValue::from_static(crate::download::bili_http::BILIBILI_UA),
     );
     headers.insert(
         ACCEPT,
@@ -379,26 +653,6 @@ fn format_count(count: u64) -> String {
     }
 }
 
-fn header_content_length(headers: &HeaderMap) -> Option<u64> {
-    headers
-        .get(CONTENT_LENGTH)?
-        .to_str()
-        .ok()?
-        .parse::<u64>()
-        .ok()
-}
-
-fn header_content_range_total(headers: &HeaderMap) -> Option<u64> {
-    headers
-        .get(CONTENT_RANGE)?
-        .to_str()
-        .ok()?
-        .rsplit('/')
-        .next()?
-        .parse::<u64>()
-        .ok()
-}
-
 #[derive(Debug, Deserialize)]
 struct ApiResponse<T> {
     code: i32,
@@ -427,12 +681,34 @@ struct ViewData {
     rights: Rights,
     #[serde(default)]
     desc: String,
+    /// 高档充电 / UPower 专属稿
+    #[serde(default)]
+    is_upower_exclusive: bool,
+    /// 当前账号是否可完整播放
+    #[serde(default)]
+    is_upower_play: bool,
+    /// 当前是否处于试看态
+    #[serde(default)]
+    is_upower_preview: bool,
 }
 
 impl ViewData {
     fn into_video_data_list(self) -> Vec<VideoData> {
-        let is_charging = self.rights.elec_high == 1;
+        let is_charging =
+            self.rights.elec_high == 1 || self.is_upower_exclusive || self.is_upower_preview;
         let is_vip = self.rights.vip_free == 1;
+        let is_stein = self.rights.is_stein_gate == 1;
+        let is_upower_play = self.is_upower_play;
+        let access_message = if is_stein {
+            Some("互动视频：将解析剧情图并支持整图/路径下载。".to_string())
+        } else if is_charging && !is_upower_play {
+            Some(
+                "该视频为充电专属内容，当前账号仅可试看。请登录并对该 UP 开通对应档位包月充电后再下载完整版。"
+                    .to_string(),
+            )
+        } else {
+            None
+        };
         let streams = default_stream_options(is_charging, is_vip);
         let qualities = streams
             .iter()
@@ -470,12 +746,17 @@ impl ViewData {
             streams,
             audio_streams: default_audio_stream_options(),
             is_charging: Some(is_charging),
+            is_upower_play: Some(is_upower_play),
+            is_preview: Some(self.is_upower_preview && !is_upower_play),
             is_vip: Some(is_vip),
             vip_type: None,
             is_login: None,
             login_name: None,
             login_level: None,
             desc: Some(self.desc),
+            access_message,
+            is_stein: Some(is_stein),
+            stein_graph: None,
             error: None,
         };
 
@@ -487,12 +768,24 @@ impl ViewData {
         if videos.is_empty() {
             vec![base_video]
         } else {
-            if !videos.iter().any(|video| video.id == base_video.id) {
+            if let Some(existing) = videos.iter_mut().find(|video| video.id == base_video.id) {
+                *existing = base_video;
+            } else {
                 videos.insert(0, base_video);
             }
             dedupe_videos_by_bvid(videos)
         }
     }
+}
+
+fn select_video_by_bvid(videos: Vec<VideoData>, bvid: &str) -> Option<VideoData> {
+    if let Some(index) = videos
+        .iter()
+        .position(|video| video.id.eq_ignore_ascii_case(bvid))
+    {
+        return videos.get(index).cloned();
+    }
+    videos.into_iter().next()
 }
 
 fn dedupe_videos_by_bvid(videos: Vec<VideoData>) -> Vec<VideoData> {
@@ -506,6 +799,25 @@ fn dedupe_videos_by_bvid(videos: Vec<VideoData>) -> Vec<VideoData> {
 
 impl VideoData {
     fn apply_playurl_sizes(&mut self, playurl: &PlayUrlResponse) {
+        let meta_sec = self
+            .pages
+            .first()
+            .map(|page| page.duration_sec)
+            .filter(|sec| *sec > 0)
+            .unwrap_or(self.duration_sec);
+        if playurl.is_preview_stream(meta_sec) {
+            self.is_preview = Some(true);
+            self.is_charging = Some(true);
+            let message = playurl.preview_block_message(meta_sec);
+            self.access_message = Some(message);
+        } else if self.is_preview == Some(true) {
+            // playurl 已给出全片，清除解析阶段的试看标记
+            self.is_preview = Some(false);
+            if self.is_upower_play != Some(false) {
+                self.access_message = None;
+            }
+        }
+
         if let Some(dash) = &playurl.dash {
             self.audio_streams = build_audio_stream_options(&dash.audio);
             self.streams = build_stream_options_from_dash(
@@ -722,22 +1034,6 @@ const VIDEO_QUALITY_TIERS: &[(u32, &str, bool, bool)] = &[
     (16, "360P", false, false),
 ];
 
-fn is_dolby_track(track: &DashTrack) -> bool {
-    let codecs = track.codecs.to_ascii_lowercase();
-    codecs.contains("dvh")
-        || codecs.contains("dvhe")
-        || codecs.contains("dolby")
-        || track
-            .mime_type
-            .as_deref()
-            .is_some_and(|mime| mime.to_ascii_lowercase().contains("dolby"))
-}
-
-fn is_hdr_track(track: &DashTrack) -> bool {
-    let codecs = track.codecs.to_ascii_lowercase();
-    codecs.contains("hev1") || codecs.contains("hvc1") || track.id == 125
-}
-
 fn dolby_track_score(track: &DashTrack) -> u8 {
     u8::from(is_dolby_track(track))
 }
@@ -776,6 +1072,8 @@ struct Rights {
     elec_high: u32,
     #[serde(default)]
     vip_free: u32,
+    #[serde(default)]
+    is_stein_gate: u32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -887,6 +1185,8 @@ impl UgcEpisode {
             streams,
             audio_streams: default_audio_stream_options(),
             is_charging: Some(is_charging),
+            is_upower_play: base.is_upower_play,
+            is_preview: base.is_preview,
             is_vip: Some(is_vip),
             vip_type: base.vip_type,
             is_login: base.is_login,
@@ -896,6 +1196,9 @@ impl UgcEpisode {
                 arc.desc,
                 base.desc.clone().unwrap_or_default(),
             ])),
+            access_message: base.access_message.clone(),
+            is_stein: base.is_stein,
+            stein_graph: None,
             error: None,
         })
     }
@@ -976,6 +1279,121 @@ struct QrPollData {
     code: i32,
     #[serde(default)]
     message: String,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct PlayerV2Data {
+    #[serde(default)]
+    interaction: Option<PlayerInteraction>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct PlayerInteraction {
+    #[serde(default)]
+    graph_version: Option<u64>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct SteinEdgeInfoData {
+    #[serde(default)]
+    title: Option<String>,
+    #[serde(default)]
+    edge_id: Option<u64>,
+    #[serde(default)]
+    is_leaf: Option<u32>,
+    #[serde(default)]
+    edges: Option<SteinEdges>,
+    #[serde(default)]
+    preload: Option<SteinPreload>,
+    #[serde(default)]
+    story_list: Option<Vec<SteinStoryItem>>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct SteinStoryItem {
+    #[serde(default)]
+    cid: Option<u64>,
+    #[serde(default)]
+    is_current: Option<u32>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct SteinEdges {
+    #[serde(default)]
+    choices: Option<Vec<SteinChoiceData>>,
+    #[serde(default)]
+    questions: Option<Vec<SteinQuestion>>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct SteinQuestion {
+    #[serde(default)]
+    choices: Option<Vec<SteinChoiceData>>,
+    #[serde(default)]
+    start_time_r: Option<u64>,
+    #[serde(default)]
+    pause_video: Option<u32>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct SteinChoiceData {
+    #[serde(default)]
+    id: Option<u64>,
+    #[serde(default)]
+    option: Option<String>,
+    #[serde(default)]
+    cid: Option<u64>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct SteinPreload {
+    #[serde(default)]
+    video: Option<Vec<SteinPreloadVideo>>,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct SteinPreloadVideo {
+    #[serde(default)]
+    cid: u64,
+}
+
+fn flatten_stein_choices(edges: &Option<SteinEdges>) -> Vec<&SteinChoiceData> {
+    let Some(edges) = edges else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    if let Some(choices) = &edges.choices {
+        out.extend(choices.iter());
+    }
+    if let Some(questions) = &edges.questions {
+        for q in questions {
+            if let Some(choices) = &q.choices {
+                out.extend(choices.iter());
+            }
+        }
+    }
+    out
+}
+
+fn first_question_timing(edges: &Option<SteinEdges>) -> (u64, bool) {
+    let Some(edges) = edges else {
+        return (800, true);
+    };
+    let Some(questions) = &edges.questions else {
+        return (800, true);
+    };
+    let Some(q) = questions.first() else {
+        return (800, true);
+    };
+    let start = q.start_time_r.unwrap_or(800);
+    // B站 start_time_r 多为毫秒；若值很小（<=30）按秒理解
+    let start_ms = if start > 0 && start <= 30 {
+        start * 1000
+    } else {
+        start
+    };
+    let pause = q.pause_video.unwrap_or(1) != 0;
+    (start_ms, pause)
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -1261,6 +1679,47 @@ mod tests {
     }
 
     #[test]
+    fn video_info_prefers_base_video_when_ugc_season_contains_same_bvid() {
+        let raw = r#"{
+            "bvid": "BVcurrent111",
+            "title": "当前视频",
+            "owner": { "name": "UP主", "face": "https://i0.hdslb.com/bfs/face/up.jpg" },
+            "pic": "https://i0.hdslb.com/bfs/archive/current.jpg",
+            "stat": { "view": 100 },
+            "duration": 188,
+            "pages": [
+                { "cid": 11, "page": 1, "part": "P1" },
+                { "cid": 12, "page": 2, "part": "P2" }
+            ],
+            "rights": {},
+            "desc": "合集简介",
+            "ugc_season": {
+                "sections": [{
+                    "episodes": [{
+                        "bvid": "BVcurrent111",
+                        "cid": 11,
+                        "title": "当前视频合集条目",
+                        "arc": {
+                            "bvid": "BVcurrent111",
+                            "cid": 11,
+                            "title": "当前视频合集条目",
+                            "duration": 188
+                        }
+                    }]
+                }]
+            }
+        }"#;
+        let data: ViewData = serde_json::from_str(raw).expect("view data should parse");
+        let videos = data.into_video_data_list();
+
+        assert_eq!(videos.len(), 1);
+        assert_eq!(videos[0].id, "BVcurrent111");
+        assert_eq!(videos[0].title, "当前视频");
+        assert_eq!(videos[0].pages.len(), 2);
+        assert_eq!(videos[0].pages[1].cid, 12);
+    }
+
+    #[test]
     fn nav_data_maps_face_to_login_avatar() {
         let raw = r#"{
             "isLogin": true,
@@ -1303,12 +1762,17 @@ mod tests {
             streams: default_stream_options(false, false),
             audio_streams: default_audio_stream_options(),
             is_charging: Some(false),
+            is_upower_play: Some(true),
+            is_preview: Some(false),
             is_vip: Some(false),
             vip_type: None,
             is_login: None,
             login_name: None,
             login_level: None,
             desc: None,
+            access_message: None,
+            is_stein: Some(false),
+            stein_graph: None,
             error: None,
         };
         let playurl = PlayUrlResponse {

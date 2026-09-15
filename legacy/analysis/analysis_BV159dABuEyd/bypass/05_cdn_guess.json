@@ -1,0 +1,18 @@
+[
+  {
+    "label": "orig_ref",
+    "path": "/upgcxcode/52/00/38167710052/38167710052-1-448.mp4",
+    "status": 200,
+    "clen": "1682316",
+    "ctype": "video/mp4",
+    "magic": "000000206674797069736f6d"
+  },
+  {
+    "label": "orig_noref",
+    "path": "/upgcxcode/52/00/38167710052/38167710052-1-448.mp4",
+    "status": 403,
+    "clen": "548",
+    "ctype": "text/html",
+    "magic": "3c68746d6c3e0d0a3c686561"
+  }
+]

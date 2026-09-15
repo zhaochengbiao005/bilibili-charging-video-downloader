@@ -553,16 +553,19 @@ class BilibiliDownloaderGUI:
 
                 lines = [f"标题: {title}", f"时长: {duration}s  |  分P: {len(pages)}"]
 
-                # 付费状态检测
+                # 付费状态检测（UPower 充电专属，不是大会员）
                 vip_type = login_info.get("vip_type", 0) if has_cookie else 0
-                is_charging = rights.get("elec_high", 0) == 1
-                is_pay = info.get("elec", 0) == 1
+                charging = self.api.check_charging_status(bvid)
+                is_charging = charging.get("is_charging", False)
+                is_pay = charging.get("need_pay", False)
                 if is_charging or is_pay:
-                    if vip_type == 0:
-                        lines.append("⚠ 充电付费视频 — 当前账号无大会员，仅能获取15秒预览")
-                        lines.append("  需要开通大会员或对该UP主充电后才能下载完整版")
+                    if charging.get("is_upower_play"):
+                        lines.append("ℹ 充电专属视频（当前账号具备完整播放标记，仍以实际流为准）")
                     else:
-                        lines.append("ℹ 大会员专属视频（你的账号已具备访问权限）")
+                        lines.append("⚠ 充电专属视频 — 当前账号可能仅能获取试看流")
+                        lines.append("  需要对该 UP 开通对应档位包月充电（不是开通大会员）")
+                    if vip_type:
+                        lines.append(f"  账号大会员状态: vip_type={vip_type}（大会员≠充电权限）")
 
                 # 检查实际 API 返回的访问状态
                 if pages:
@@ -570,9 +573,16 @@ class BilibiliDownloaderGUI:
                     access = self.api.check_video_access(bvid, cid)
                     self._log(f"  访问检测: quality={access.get('quality')} "
                               f"dash={access.get('has_dash')} "
-                              f"durl时长={access.get('durl_total_ms', 0)}ms")
-                    if access.get("durl_total_ms", 0) < 60000 and (is_charging or is_pay):
-                        self._log("  [!] 确认: 仅返回预览片段，需要付费购买完整版")
+                              f"stream={access.get('stream_ms', access.get('durl_total_ms', 0))}ms "
+                              f"preview={access.get('is_preview')}")
+                    if access.get("is_preview"):
+                        self._log("  [!] 确认: 仅返回试看片段，完整版需对应档位包月充电")
+                        lines.append(
+                            BilibiliAPI.preview_block_message(
+                                access.get("meta_sec") or duration,
+                                access.get("stream_ms") or access.get("durl_total_ms") or 0,
+                            )
+                        )
 
                 if desc:
                     lines.append(f"简介: {desc}")
@@ -869,7 +879,7 @@ class BilibiliDownloaderGUI:
                     )
                 else:
                     self._log(f"[!] Cookie 无效或已过期: {login_info['error_msg']}")
-                    self._log("[!] 充电视频只能下载到 15 秒预览版!")
+                    self._log("[!] 未登录时充电视频通常只能获取试看流")
             except Exception as e:
                 self._log(f"[!] Cookie 验证失败: {e}")
 
@@ -913,6 +923,25 @@ class BilibiliDownloaderGUI:
                                   f"dash={'dash' in playurl_data}")
                     dash = self.api.extract_dash_urls(playurl_data)
                     durl = self.api.extract_durl_urls(playurl_data)
+
+                    meta_sec = int(page.get("duration") or info.get("duration") or 0)
+                    stream_ms = sum(s.get("length", 0) for s in durl)
+                    if stream_ms == 0 and dash.get("duration"):
+                        stream_ms = int(dash["duration"]) * 1000
+                    urls = [s.get("url", "") for s in durl]
+                    is_preview_encode = any("-1-448." in u or "-448.mp4" in u for u in urls)
+                    if BilibiliAPI.is_preview_stream(
+                        meta_sec=meta_sec,
+                        stream_ms=stream_ms,
+                        has_dash_video=bool(dash.get("video")),
+                        is_preview_encode=is_preview_encode,
+                    ):
+                        with page_lock:
+                            self._log(
+                                f"[P{page['page']}] [!] "
+                                f"{BilibiliAPI.preview_block_message(meta_sec, stream_ms)}"
+                            )
+                        return
 
                     dl = VideoDownloader(max_workers=max(2, w // 4))
 

@@ -1,0 +1,31 @@
+{
+  "bvid": "BV159dABuEyd",
+  "meta_ms": 125000,
+  "goal": "find FULL stream without charged cookie",
+  "preview_url_path": "/upgcxcode/52/00/38167710052/38167710052-1-448.mp4",
+  "full_hits": {
+    "web_params": [],
+    "hosts": [],
+    "appkey": [],
+    "fake_auth": [],
+    "html": {
+      "code": 0,
+      "message": "OK",
+      "quality": 32,
+      "format": "mp4",
+      "timelength_meta": 124300,
+      "has_dash": false,
+      "dash_v": 0,
+      "dash_a": 0,
+      "durl_n": 1,
+      "stream_ms": 14977,
+      "durl_size": 948973,
+      "verdict": "PREVIEW",
+      "first_url_host": "809aj93l.edge.mountaintoys.cn:4483"
+    },
+    "cdn_interesting": [],
+    "mp4_duration": 15.3,
+    "content_length": "1682316"
+  },
+  "preview_only_confirmed": true
+}

@@ -45,14 +45,59 @@ export interface VideoData {
   streams: StreamOption[];
   audio_streams: AudioStreamOption[];
   is_charging?: boolean;
+  /** 是否已开通对应档位、可播完整充电专属 */
+  is_upower_play?: boolean;
+  /** playurl 实际只返回试看流 */
+  is_preview?: boolean;
   is_vip?: boolean;
   vip_type?: number;     // 0=none, 1=monthly, 2=annual
   is_login?: boolean;
   login_name?: string;
   login_level?: number;
   desc?: string;
+  /** 访问受限/试看提示 */
+  access_message?: string;
+  /** 互动视频（stein gate） */
+  is_stein?: boolean;
+  stein_graph?: SteinGraph | null;
   error?: string;
 }
+
+export interface SteinChoice {
+  edge_id: number;
+  option: string;
+  cid: number;
+}
+
+export interface SteinNode {
+  edge_id: number;
+  title: string;
+  is_leaf: boolean;
+  /** 到达本节点时播放的分片 cid（入口用 entry_cid） */
+  play_cid: number;
+  /** 选项出现时机：距片尾的毫秒数 */
+  start_time_r_ms: number;
+  /** 出现选项时是否暂停 */
+  pause_video: boolean;
+  choices: SteinChoice[];
+}
+
+export interface SteinSegment {
+  cid: number;
+  title: string;
+  edge_id: number;
+}
+
+export interface SteinGraph {
+  graph_version: number;
+  entry_edge_id: number;
+  entry_cid: number;
+  segment_count: number;
+  segments: SteinSegment[];
+  nodes: SteinNode[];
+}
+
+export type SteinDownloadMode = 'none' | 'all' | 'path';
 
 export interface FetchInfoRequest {
   bvid: string;
@@ -70,6 +115,7 @@ export interface EnrichVideoRequest {
   cookie_path?: string | null;
 }
 
+/** 与 Rust models/download.rs 的 DownloadStage enum 一一对应（serde snake_case）。 */
 export type DownloadStage =
   | 'queued'
   | 'resolving'
@@ -86,10 +132,7 @@ export type DownloadStage =
   | 'downloading_segments'
   | 'merging'
   | 'converting_audio'
-  | 'completed'
-  | 'failed'
-  | 'cancelled'
-  | 'paused';
+  | 'completed';
 
 export interface StartDownloadRequest {
   bvid: string;
@@ -104,6 +147,8 @@ export interface StartDownloadRequest {
   download_danmaku: boolean;
   danmaku_mode: DanmakuMode;
   threads: number;
+  stein_mode?: SteinDownloadMode;
+  stein_path_edges?: number[];
 }
 
 export type DanmakuMode = 'none' | 'ass' | 'burn';

@@ -1,0 +1,79 @@
+{
+  "url": "https://api.bilibili.com/x/ugcpay-rank/elec/month/up",
+  "params": {
+    "up_mid": 11186360
+  },
+  "resp": {
+    "code": 0,
+    "message": "",
+    "ttl": 0,
+    "data": {
+      "count": 1760,
+      "list": [
+        {
+          "uname": "诗雅的小朋友",
+          "avatar": "https://i1.hdslb.com/bfs/face/163d47e620b6bd9ff288817472d9d65adc4f3be4.webp",
+          "mid": 11186360,
+          "pay_mid": 362040784,
+          "rank": 1,
+          "trend_type": 0,
+          "vip_info": {
+            "vipDueMsec": 0,
+            "vipStatus": 0,
+            "vipType": 0
+          },
+          "message": "",
+          "message_hidden": 0
+        },
+        {
+          "uname": "Walker鸡仔",
+          "avatar": "http://i0.hdslb.com/bfs/face/18809816600b9158e47e3613e73b9b79ceaa4154.jpg",
+          "mid": 11186360,
+          "pay_mid": 31761249,
+          "rank": 2,
+          "trend_type": 0,
+          "vip_info": {
+            "vipDueMsec": 0,
+            "vipStatus": 0,
+            "vipType": 0
+          },
+          "message": "",
+          "message_hidden": 0
+        },
+        {
+          "uname": "二狗殿",
+          "avatar": "https://i2.hdslb.com/bfs/face/7b6a3161f168481a177db70ef1e47e2117bab624.webp",
+          "mid": 11186360,
+          "pay_mid": 158387,
+          "rank": 3,
+          "trend_type": 0,
+          "vip_info": {
+            "vipDueMsec": 0,
+            "vipStatus": 0,
+            "vipType": 0
+          },
+          "message": "",
+          "message_hidden": 0
+        },
+        {
+          "uname": "椰子的壳",
+          "avatar": "http://i0.hdslb.com/bfs/face/c446762d10eba4af3d87b7f851935da14620f2d9.jpg",
+          "mid": 11186360,
+          "pay_mid": 7068942,
+          "rank": 4,
+          "trend_type": 0,
+          "vip_info": {
+            "vipDueMsec": 0,
+            "vipStatus": 0,
+            "vipType": 0
+          },
+          "message": "",
+          "message_hidden": 0
+        }
+      ],
+      "total_count": 1954,
+      "total": 1954,
+      "special_day": 0
+    }
+  }
+}

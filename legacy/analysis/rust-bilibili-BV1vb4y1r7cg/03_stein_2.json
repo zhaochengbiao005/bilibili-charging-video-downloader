@@ -1,0 +1,11 @@
+{
+  "url": "https://api.bilibili.com/x/stein/edgeinfo",
+  "params": {
+    "bvid": "BV1vb4y1r7cg",
+    "graph_version": 0
+  },
+  "resp": {
+    "_status": 404,
+    "_text": "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.01 Transitional//EN\">\n<html lang=\"zh-cn\">\n\n<head>\n    <meta http-equiv=\"Page-Enter\" content=\"blendTrans(Duration=0.5)\">\n    <meta http-equiv=\"Page-Exit\" content=\"blendTrans(Duration=0.5)\">\n    <meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">\n    <meta name=\"viewport\"\n        content=\"width=device-width, user-scalable=no, initial-scale=1."
+  }
+}

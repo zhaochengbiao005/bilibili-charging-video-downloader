@@ -1,0 +1,128 @@
+{
+  "code": 0,
+  "message": "0",
+  "ttl": 1,
+  "data": {
+    "title": "选择角色",
+    "edge_id": 1,
+    "story_list": [
+      {
+        "node_id": 1,
+        "edge_id": 1,
+        "title": "选择角色",
+        "cid": 381841269,
+        "start_pos": 9000,
+        "cover": "http://i0.hdslb.com/bfs/steins-gate/381841269_screenshot.jpg",
+        "is_current": 1,
+        "cursor": 0
+      }
+    ],
+    "edges": {
+      "dimension": {
+        "width": 1920,
+        "height": 1080,
+        "rotate": 0,
+        "sar": "1:1"
+      },
+      "questions": [
+        {
+          "id": 0,
+          "type": 1,
+          "start_time_r": 300,
+          "duration": -1,
+          "pause_video": 1,
+          "title": "",
+          "choices": [
+            {
+              "id": 19458529,
+              "platform_action": "JUMP 19458529 381841243",
+              "native_action": "",
+              "condition": "",
+              "cid": 381841243,
+              "option": "A 华强",
+              "is_default": 1
+            },
+            {
+              "id": 19458530,
+              "platform_action": "JUMP 19458530 381841253",
+              "native_action": "",
+              "condition": "",
+              "cid": 381841253,
+              "option": "B 瓜摊老板"
+            }
+          ]
+        }
+      ],
+      "skin": {
+        "choice_image": "https://i0.hdslb.com/bfs/app/63f40dfd5802d6ff7a4b47252ac78e4c2c616844.png",
+        "title_text_color": "ffffffff",
+        "title_shadow_color": "33000000",
+        "title_shadow_offset_y": 1,
+        "title_shadow_radius": 1,
+        "progressbar_color": "ffffffff",
+        "progressbar_shadow_color": "000000cc"
+      }
+    },
+    "buvid": "0017843108507305987832829",
+    "preload": {
+      "video": [
+        {
+          "aid": 632023735,
+          "cid": 381841243
+        },
+        {
+          "aid": 632023735,
+          "cid": 381841253
+        }
+      ]
+    },
+    "hidden_vars": [
+      {
+        "value": 7,
+        "id": "v-3tLd1Ih2Ah",
+        "id_v2": "$3tLd1Ih2Ah",
+        "type": 2,
+        "is_show": 0,
+        "name": "随机值",
+        "skip_overwrite": 0
+      },
+      {
+        "value": 0,
+        "id": "v-Hb4VuFnEJ",
+        "id_v2": "$Hb4VuFnEJ",
+        "type": 1,
+        "is_show": 0,
+        "name": "数值1",
+        "skip_overwrite": 0
+      },
+      {
+        "value": 0,
+        "id": "v-L3TX4C78U7",
+        "id_v2": "$L3TX4C78U7",
+        "type": 1,
+        "is_show": 0,
+        "name": "数值3",
+        "skip_overwrite": 0
+      },
+      {
+        "value": 0,
+        "id": "v-Vw5fEX7Op9",
+        "id_v2": "$Vw5fEX7Op9",
+        "type": 1,
+        "is_show": 0,
+        "name": "数值2",
+        "skip_overwrite": 0
+      },
+      {
+        "value": 0,
+        "id": "v-fgBuAYN5TO",
+        "id_v2": "$fgBuAYN5TO",
+        "type": 1,
+        "is_show": 0,
+        "name": "数值4",
+        "skip_overwrite": 0
+      }
+    ],
+    "is_leaf": 0
+  }
+}

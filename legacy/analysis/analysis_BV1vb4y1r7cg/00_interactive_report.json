@@ -1,0 +1,37 @@
+{
+  "type": "stein_gate_interactive",
+  "sample": {
+    "bvid": "BV1vb4y1r7cg",
+    "title": "【互动视频】选择角色，结局由你来定！",
+    "graph_version": 542689,
+    "nodes_crawled": 100,
+    "unique_cids": 71
+  },
+  "detect": {
+    "view.rights.is_stein_gate": 1,
+    "player_v2.interaction.graph_version": 542689,
+    "view.pages_count": 1,
+    "view.duration_meta": 1613,
+    "interaction.msg": "登录后才能体验全部结局哦～"
+  },
+  "apis": [
+    "GET /x/web-interface/view?bvid= → rights.is_stein_gate, entry pages[0].cid",
+    "GET /x/player/v2?bvid=&cid= → interaction.graph_version",
+    "GET /x/stein/edgeinfo_v2?bvid=&graph_version=&edge_id= → story_list + choices",
+    "GET /x/player/playurl?bvid=&cid=&fnval=4048 → segment media"
+  ],
+  "download_flow": [
+    "detect stein",
+    "read graph_version",
+    "BFS edgeinfo_v2; choice.id = next edge_id",
+    "collect unique cid from story_list / preload.video",
+    "playurl each cid and download like normal video",
+    "store as multi-file tree; optional path concat"
+  ],
+  "limitations": [
+    "login may unlock full endings",
+    "condition/hidden_vars may hide branches",
+    "one BVID many cids; not single continuous file",
+    "current app only downloads pages[0].cid intro"
+  ]
+}

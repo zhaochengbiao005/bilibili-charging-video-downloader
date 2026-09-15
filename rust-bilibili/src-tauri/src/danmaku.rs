@@ -97,8 +97,7 @@ impl DanmakuClient {
             .header(ORIGIN, "https://www.bilibili.com")
             .header(
                 USER_AGENT,
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
-                 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+                crate::download::bili_http::BILIBILI_UA,
             )
             .header(REFERER, format!("https://www.bilibili.com/video/{bvid}"));
         if let Some(cookies) = cookies {
@@ -123,8 +122,7 @@ impl DanmakuClient {
             .header(ORIGIN, "https://www.bilibili.com")
             .header(
                 USER_AGENT,
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
-                 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+                crate::download::bili_http::BILIBILI_UA,
             )
             .header(REFERER, format!("https://www.bilibili.com/video/{bvid}"));
         if let Some(cookies) = cookies {

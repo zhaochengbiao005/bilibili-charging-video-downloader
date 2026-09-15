@@ -5,6 +5,7 @@ mod auth;
 pub mod cloud;
 mod commands;
 mod danmaku;
+mod download;
 mod downloader;
 mod error;
 mod ffmpeg;

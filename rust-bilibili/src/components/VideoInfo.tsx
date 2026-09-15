@@ -160,10 +160,25 @@ export function VideoInfo({
         )}
 
         <div className="flex flex-wrap items-center gap-2">
+          {data.is_stein && (
+            <span className="inline-flex items-center gap-1 px-3 py-1 bg-violet-50 text-violet-700 rounded-full text-xs font-bold border border-violet-100">
+              <Layers size={12} />
+              互动视频
+              {data.stein_graph?.segment_count
+                ? ` · ${data.stein_graph.segment_count} 分片`
+                : ''}
+            </span>
+          )}
           {data.is_charging && (
             <span className="inline-flex items-center gap-1 px-3 py-1 bg-orange-50 text-orange-600 rounded-full text-xs font-bold border border-orange-100">
               <AlertTriangle size={12} />
               充电专属
+            </span>
+          )}
+          {data.is_preview && (
+            <span className="inline-flex items-center gap-1 px-3 py-1 bg-red-50 text-red-600 rounded-full text-xs font-bold border border-red-100">
+              <AlertTriangle size={12} />
+              仅试看
             </span>
           )}
           {data.is_vip && (
@@ -172,12 +187,22 @@ export function VideoInfo({
               {data.vip_type === 2 ? '年度大会员' : '大会员'}
             </span>
           )}
-          {!data.is_charging && !data.is_vip && (
+          {!data.is_charging && !data.is_vip && !data.is_stein && (
             <span className="inline-flex items-center gap-1 px-3 py-1 bg-green-50 text-green-600 rounded-full text-xs font-bold border border-green-100">
               公开视频
             </span>
           )}
         </div>
+
+        {(data.is_preview || data.access_message) && (
+          <div className="flex items-start gap-2 text-xs text-orange-600 bg-orange-50 rounded-xl px-3 py-2.5 border border-orange-100 leading-relaxed">
+            <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+            <span>
+              {data.access_message ||
+                '当前仅能获取充电试看流。请登录并对该 UP 开通对应档位包月充电后再下载完整版。'}
+            </span>
+          </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
           <div className="flex items-center gap-1.5 font-medium">

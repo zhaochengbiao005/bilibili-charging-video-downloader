@@ -70,11 +70,21 @@ pub struct VideoData {
     pub streams: Vec<StreamOption>,
     pub audio_streams: Vec<AudioStreamOption>,
     pub is_charging: Option<bool>,
+    /// 当前账号是否已具备充电专属完整播放权（is_upower_play）
+    pub is_upower_play: Option<bool>,
+    /// playurl 实际只返回了试看流
+    pub is_preview: Option<bool>,
     pub is_vip: Option<bool>,
     pub vip_type: Option<u32>,
     pub is_login: Option<bool>,
     pub login_name: Option<String>,
     pub login_level: Option<u32>,
     pub desc: Option<String>,
+    /// 访问受限/试看等提示文案
+    pub access_message: Option<String>,
+    /// 是否为互动视频（stein gate）
+    pub is_stein: Option<bool>,
+    /// 互动视频剧情图（解析后填充）
+    pub stein_graph: Option<crate::models::stein::SteinGraph>,
     pub error: Option<String>,
 }

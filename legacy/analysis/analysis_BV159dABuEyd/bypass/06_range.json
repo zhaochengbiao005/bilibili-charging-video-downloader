@@ -1,0 +1,16 @@
+{
+  "url_host": "upos-sz-estgcos.bilivideo.com",
+  "status": 200,
+  "content_length": "1682316",
+  "accept_ranges": "bytes",
+  "downloaded_bytes": 1682316,
+  "magic": "000000206674797069736f6d",
+  "mp4_duration_sec_guess": 15.3,
+  "range_end_status": 206,
+  "range_end_len": 64,
+  "range_past_status": 416,
+  "range_past_len": 477,
+  "range_far_status": 416,
+  "range_far_clen": "477",
+  "range_far_body_len": 477
+}

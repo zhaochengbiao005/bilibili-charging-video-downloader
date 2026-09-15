@@ -1,0 +1,178 @@
+[
+  {
+    "path": "/upgcxcode/52/00/38167710052/38167710052-1-16.mp4",
+    "mode": "signed_qs",
+    "status": 403,
+    "clen": "548",
+    "ctype": "text/html",
+    "magic": "3c68746d6c3e0d0a3c686561"
+  },
+  {
+    "path": "/upgcxcode/52/00/38167710052/38167710052-1-16.mp4",
+    "mode": "bare",
+    "status": 403,
+    "clen": "501",
+    "ctype": "application/xml",
+    "magic": "3c3f786d6c2076657273696f"
+  },
+  {
+    "path": "/upgcxcode/52/00/38167710052/38167710052-1-32.mp4",
+    "mode": "signed_qs",
+    "status": 403,
+    "clen": "548",
+    "ctype": "text/html",
+    "magic": "3c68746d6c3e0d0a3c686561"
+  },
+  {
+    "path": "/upgcxcode/52/00/38167710052/38167710052-1-32.mp4",
+    "mode": "bare",
+    "status": 403,
+    "clen": "497",
+    "ctype": "application/xml",
+    "magic": "3c3f786d6c2076657273696f"
+  },
+  {
+    "path": "/upgcxcode/52/00/38167710052/38167710052-1-64.mp4",
+    "mode": "signed_qs",
+    "status": 403,
+    "clen": "548",
+    "ctype": "text/html",
+    "magic": "3c68746d6c3e0d0a3c686561"
+  },
+  {
+    "path": "/upgcxcode/52/00/38167710052/38167710052-1-64.mp4",
+    "mode": "bare",
+    "status": 403,
+    "clen": "497",
+    "ctype": "application/xml",
+    "magic": "3c3f786d6c2076657273696f"
+  },
+  {
+    "path": "/upgcxcode/52/00/38167710052/38167710052-1-80.mp4",
+    "mode": "signed_qs",
+    "status": 403,
+    "clen": "548",
+    "ctype": "text/html",
+    "magic": "3c68746d6c3e0d0a3c686561"
+  },
+  {
+    "path": "/upgcxcode/52/00/38167710052/38167710052-1-80.mp4",
+    "mode": "bare",
+    "status": 403,
+    "clen": "497",
+    "ctype": "application/xml",
+    "magic": "3c3f786d6c2076657273696f"
+  },
+  {
+    "path": "/upgcxcode/52/00/38167710052/38167710052-1-112.mp4",
+    "mode": "signed_qs",
+    "status": 403,
+    "clen": "548",
+    "ctype": "text/html",
+    "magic": "3c68746d6c3e0d0a3c686561"
+  },
+  {
+    "path": "/upgcxcode/52/00/38167710052/38167710052-1-112.mp4",
+    "mode": "bare",
+    "status": 403,
+    "clen": "498",
+    "ctype": "application/xml",
+    "magic": "3c3f786d6c2076657273696f"
+  },
+  {
+    "path": "/upgcxcode/52/00/38167710052/38167710052-1-30080.m4s",
+    "mode": "signed_qs",
+    "status": 403,
+    "clen": "548",
+    "ctype": "text/html",
+    "magic": "3c68746d6c3e0d0a3c686561"
+  },
+  {
+    "path": "/upgcxcode/52/00/38167710052/38167710052-1-30080.m4s",
+    "mode": "bare",
+    "status": 403,
+    "clen": "504",
+    "ctype": "application/xml",
+    "magic": "3c3f786d6c2076657273696f"
+  },
+  {
+    "path": "/upgcxcode/52/00/38167710052/38167710052-1-30064.m4s",
+    "mode": "signed_qs",
+    "status": 403,
+    "clen": "548",
+    "ctype": "text/html",
+    "magic": "3c68746d6c3e0d0a3c686561"
+  },
+  {
+    "path": "/upgcxcode/52/00/38167710052/38167710052-1-30064.m4s",
+    "mode": "bare",
+    "status": 403,
+    "clen": "500",
+    "ctype": "application/xml",
+    "magic": "3c3f786d6c2076657273696f"
+  },
+  {
+    "path": "/upgcxcode/52/00/38167710052/38167710052-1-30280.m4s",
+    "mode": "signed_qs",
+    "status": 403,
+    "clen": "548",
+    "ctype": "text/html",
+    "magic": "3c68746d6c3e0d0a3c686561"
+  },
+  {
+    "path": "/upgcxcode/52/00/38167710052/38167710052-1-30280.m4s",
+    "mode": "bare",
+    "status": 403,
+    "clen": "500",
+    "ctype": "application/xml",
+    "magic": "3c3f786d6c2076657273696f"
+  },
+  {
+    "path": "/upgcxcode/52/00/38167710052/38167710052-1-448.mp4",
+    "mode": "signed_qs",
+    "status": 200,
+    "clen": "1682316",
+    "ctype": "video/mp4",
+    "magic": "000000206674797069736f6d"
+  },
+  {
+    "path": "/upgcxcode/52/00/38167710052/38167710052-1-448.mp4",
+    "mode": "bare",
+    "status": 403,
+    "clen": "498",
+    "ctype": "application/xml",
+    "magic": "3c3f786d6c2076657273696f"
+  },
+  {
+    "path": "/upgcxcode/52/00/38167710052/38167710052-1-100026.m4s",
+    "mode": "signed_qs",
+    "status": 403,
+    "clen": "548",
+    "ctype": "text/html",
+    "magic": "3c68746d6c3e0d0a3c686561"
+  },
+  {
+    "path": "/upgcxcode/52/00/38167710052/38167710052-1-100026.m4s",
+    "mode": "bare",
+    "status": 403,
+    "clen": "501",
+    "ctype": "application/xml",
+    "magic": "3c3f786d6c2076657273696f"
+  },
+  {
+    "path": "/upgcxcode/52/00/38167710052/38167710052-1-100048.m4s",
+    "mode": "signed_qs",
+    "status": 403,
+    "clen": "548",
+    "ctype": "text/html",
+    "magic": "3c68746d6c3e0d0a3c686561"
+  },
+  {
+    "path": "/upgcxcode/52/00/38167710052/38167710052-1-100048.m4s",
+    "mode": "bare",
+    "status": 403,
+    "clen": "501",
+    "ctype": "application/xml",
+    "magic": "3c3f786d6c2076657273696f"
+  }
+]

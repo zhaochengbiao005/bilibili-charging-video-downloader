@@ -1,7 +1,7 @@
 use std::{
     path::{Path, PathBuf},
     sync::{
-        atomic::{AtomicBool, Ordering},
+        atomic::AtomicBool,
         Arc,
     },
     time::Instant,
@@ -19,6 +19,10 @@ use tokio::{
 };
 
 use crate::{
+    download::{
+        bili_http::{probe_content_size, BILIBILI_UA},
+        ensure_not_cancelled, DownloadStage,
+    },
     error::{AppError, AppResult},
     models::download::DownloadProgressEvent,
 };
@@ -34,12 +38,16 @@ pub struct DownloadClient {
 #[derive(Debug, Clone)]
 pub struct FileDownloadSpec {
     pub task_id: String,
-    pub stage: String,
+    pub stage: DownloadStage,
     pub url: String,
+    /// 备用 CDN 节点地址。主地址被节点拒绝（403/404/429/5xx/连接失败）时按序重试。
+    pub backup_urls: Vec<String>,
     pub output_path: PathBuf,
     pub referer: String,
     pub max_workers: usize,
     pub cookie_header: Option<String>,
+    /// playurl 已给出的精确字节数。优先于 HEAD/Range 探测，避免 CDN 对 HEAD 返回 404 导致体积为 0。
+    pub content_length_hint: Option<u64>,
 }
 
 #[derive(Debug, Clone)]
@@ -54,10 +62,7 @@ impl DownloadClient {
     pub fn new() -> AppResult<Self> {
         let client = reqwest::Client::builder()
             .pool_max_idle_per_host(32)
-            .user_agent(
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 \
-                 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-            )
+            .user_agent(BILIBILI_UA)
             .build()?;
         Ok(Self { client })
     }
@@ -72,17 +77,72 @@ impl DownloadClient {
             fs::create_dir_all(parent).await?;
         }
 
-        let total_size = self.content_length(&spec).await.unwrap_or(0);
+        let urls = candidate_urls(&spec);
+        let mut last_error: Option<AppError> = None;
+        for (index, url) in urls.iter().enumerate() {
+            let mut attempt = spec.clone();
+            attempt.url = url.clone();
+            match self
+                .download_one_url(&attempt, cancel.clone(), progress.clone())
+                .await
+            {
+                Ok(result) => return Ok(result),
+                Err(err) if index + 1 < urls.len() && is_url_retryable(&err) => {
+                    last_error = Some(err);
+                    progress(DownloadProgressEvent {
+                        task_id: spec.task_id.clone(),
+                        stage: spec.stage,
+                        percent: 0.0,
+                        bytes_done: 0,
+                        bytes_total: 0,
+                        speed_bytes_per_sec: 0,
+                        message: Some(format!(
+                            "下载节点 {}/{} 拒绝，切换备用节点重试",
+                            index + 1,
+                            urls.len()
+                        )),
+                    });
+                }
+                Err(err) => return Err(err),
+            }
+        }
+
+        Err(last_error.unwrap_or_else(|| AppError::Download {
+            task_id: Some(spec.task_id.clone()),
+            message: "所有下载节点均不可用".to_string(),
+        }))
+    }
+
+    /// 下载单个 URL：体积已知且超阈值走 Range 分块，否则流式。
+    async fn download_one_url(
+        &self,
+        spec: &FileDownloadSpec,
+        cancel: Arc<AtomicBool>,
+        progress: ProgressSender,
+    ) -> AppResult<FileDownloadResult> {
+        let total_size = match spec.content_length_hint {
+            Some(size) if size > 0 => size,
+            _ => {
+                probe_content_size(
+                    &self.client,
+                    &spec.url,
+                    &spec.referer,
+                    spec.cookie_header.as_deref(),
+                )
+                .await
+                .unwrap_or(0)
+            }
+        };
         if total_size > CHUNK_SIZE {
             match self
-                .download_range(&spec, total_size, cancel.clone(), progress.clone())
+                .download_range(spec, total_size, cancel.clone(), progress.clone())
                 .await
             {
                 Ok(result) => return Ok(result),
                 Err(err) if is_range_fallback(&err) => {
                     progress(DownloadProgressEvent {
                         task_id: spec.task_id.clone(),
-                        stage: spec.stage.clone(),
+                        stage: spec.stage,
                         percent: 0.0,
                         bytes_done: 0,
                         bytes_total: total_size,
@@ -94,21 +154,8 @@ impl DownloadClient {
             }
         }
 
-        self.download_stream(&spec, total_size, cancel, progress)
+        self.download_stream(spec, total_size, cancel, progress)
             .await
-    }
-
-    async fn content_length(&self, spec: &FileDownloadSpec) -> Option<u64> {
-        let mut request = self.client.head(&spec.url).header(REFERER, &spec.referer);
-        if let Some(cookie_header) = &spec.cookie_header {
-            request = request.header(COOKIE, cookie_header);
-        }
-        let response = request.send().await.ok()?;
-        response
-            .headers()
-            .get(CONTENT_LENGTH)
-            .and_then(|value| value.to_str().ok())
-            .and_then(|value| value.parse::<u64>().ok())
     }
 
     async fn download_range(
@@ -170,7 +217,7 @@ impl DownloadClient {
                     emit_progress(
                         &progress,
                         &spec.task_id,
-                        &spec.stage,
+                        spec.stage,
                         bytes_done,
                         total_size,
                         started,
@@ -289,7 +336,7 @@ impl DownloadClient {
             emit_progress(
                 &progress,
                 &spec.task_id,
-                &spec.stage,
+                spec.stage,
                 bytes_done,
                 total_size,
                 started,
@@ -328,7 +375,7 @@ impl Drop for TempDirCleanup {
 pub fn emit_progress(
     progress: &ProgressSender,
     task_id: &str,
-    stage: &str,
+    stage: DownloadStage,
     bytes_done: u64,
     bytes_total: u64,
     started: Instant,
@@ -347,7 +394,7 @@ pub fn emit_progress(
     };
     progress(DownloadProgressEvent {
         task_id: task_id.to_string(),
-        stage: stage.to_string(),
+        stage,
         percent,
         bytes_done,
         bytes_total,
@@ -356,14 +403,15 @@ pub fn emit_progress(
     });
 }
 
-fn ensure_not_cancelled(cancel: &Arc<AtomicBool>, task_id: &str) -> AppResult<()> {
-    if cancel.load(Ordering::SeqCst) {
-        return Err(AppError::Download {
-            task_id: Some(task_id.to_string()),
-            message: "任务已取消".to_string(),
-        });
-    }
-    Ok(())
+/// 构造一个把进度事件推送到前端的 ProgressSender。
+pub fn progress_sender<R, E>(app: E) -> ProgressSender
+where
+    R: tauri::Runtime,
+    E: tauri::Emitter<R> + Send + Sync + 'static,
+{
+    Arc::new(move |event| {
+        let _ = app.emit("download://progress", event);
+    })
 }
 
 async fn replace_file(temp_path: &Path, output_path: &Path) -> AppResult<()> {
@@ -381,6 +429,74 @@ fn is_range_fallback(err: &AppError) -> bool {
     )
 }
 
+/// 按序收集可用下载地址：主地址 + 备用节点，去重、去空。
+fn candidate_urls(spec: &FileDownloadSpec) -> Vec<String> {
+    let mut urls = Vec::new();
+    let push = |urls: &mut Vec<String>, url: &str| {
+        let trimmed = url.trim();
+        if !trimmed.is_empty() && !urls.iter().any(|existing| existing == trimmed) {
+            urls.push(trimmed.to_string());
+        }
+    };
+    push(&mut urls, &spec.url);
+    for backup in &spec.backup_urls {
+        push(&mut urls, backup);
+    }
+    urls
+}
+
+/// 判定失败是否属于“该节点拒绝此地址”、换备用节点可能成功的类型。
+/// 命中：403/404/429/5xx 或连接层失败（超时、重置、DNS、不可达）。
+fn is_url_retryable(err: &AppError) -> bool {
+    match err {
+        AppError::Download { message, .. } => {
+            message != "range_not_supported" && mentions_http_rejection(message)
+        }
+        AppError::Network { message } => {
+            mentions_http_rejection(message) || mentions_connection_failure(message)
+        }
+        _ => false,
+    }
+}
+
+fn mentions_http_rejection(message: &str) -> bool {
+    let upper = message.to_ascii_uppercase();
+    [
+        "HTTP 401",
+        "HTTP 403",
+        "HTTP 404",
+        "HTTP 429",
+        "HTTP 500",
+        "HTTP 502",
+        "HTTP 503",
+        "HTTP 504",
+        "FORBIDDEN",
+        "NOT FOUND",
+        "TOO MANY REQUESTS",
+        "INTERNAL SERVER ERROR",
+        "BAD GATEWAY",
+        "SERVICE UNAVAILABLE",
+        "GATEWAY TIMEOUT",
+    ]
+    .iter()
+    .any(|token| upper.contains(token))
+}
+
+fn mentions_connection_failure(message: &str) -> bool {
+    let lower = message.to_ascii_lowercase();
+    [
+        "connection",
+        "timed out",
+        "timeout",
+        "reset",
+        "unreachable",
+        "dns error",
+        "resolve",
+    ]
+    .iter()
+    .any(|token| lower.contains(token))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -396,7 +512,7 @@ mod tests {
         emit_progress(
             &sender,
             "task",
-            "downloading_video",
+            DownloadStage::DownloadingVideo,
             50,
             200,
             Instant::now(),
@@ -407,5 +523,59 @@ mod tests {
         assert_eq!(events[0].percent, 25.0);
         assert_eq!(events[0].bytes_done, 50);
         assert_eq!(events[0].bytes_total, 200);
+    }
+
+    fn make_spec(url: &str, backups: &[&str]) -> FileDownloadSpec {
+        FileDownloadSpec {
+            task_id: "t".to_string(),
+            stage: DownloadStage::Queued,
+            url: url.to_string(),
+            backup_urls: backups.iter().map(|s| s.to_string()).collect(),
+            output_path: PathBuf::from("out"),
+            referer: "r".to_string(),
+            max_workers: 1,
+            cookie_header: None,
+            content_length_hint: None,
+        }
+    }
+
+    #[test]
+    fn candidate_urls_orders_primary_then_backups_deduped() {
+        let spec = make_spec("https://a", &["https://b", "https://a", "   ", "https://c"]);
+        assert_eq!(
+            candidate_urls(&spec),
+            vec!["https://a", "https://b", "https://c"]
+        );
+    }
+
+    #[test]
+    fn candidate_urls_empty_primary_falls_back_to_backups() {
+        let spec = make_spec("  ", &["https://b"]);
+        assert_eq!(candidate_urls(&spec), vec!["https://b"]);
+    }
+
+    #[test]
+    fn retryable_when_cdn_rejects_or_connection_fails() {
+        assert!(is_url_retryable(&AppError::Download {
+            task_id: None,
+            message: "分块下载失败，HTTP 403".to_string(),
+        }));
+        assert!(is_url_retryable(&AppError::Network {
+            message: "error sending request for url (https://x): HTTP status client error \
+                       (403 Forbidden) for url (https://x)"
+                .to_string(),
+        }));
+        assert!(is_url_retryable(&AppError::Network {
+            message: "error sending request: connection timed out".to_string(),
+        }));
+        assert!(!is_url_retryable(&AppError::Download {
+            task_id: None,
+            message: "range_not_supported".to_string(),
+        }));
+        assert!(!is_url_retryable(&AppError::Download {
+            task_id: None,
+            message: "任务已取消".to_string(),
+        }));
+        assert!(!is_url_retryable(&AppError::FfmpegNotFound));
     }
 }

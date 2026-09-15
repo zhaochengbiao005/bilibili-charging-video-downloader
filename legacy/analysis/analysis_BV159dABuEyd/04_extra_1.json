@@ -1,0 +1,11 @@
+{
+  "url": "https://api.bilibili.com/x/web-interface/archive/relation",
+  "params": {
+    "bvid": "BV159dABuEyd"
+  },
+  "resp": {
+    "code": -101,
+    "message": "账号未登录",
+    "ttl": 1
+  }
+}

@@ -1,0 +1,114 @@
+{
+  "code": 0,
+  "message": "OK",
+  "ttl": 1,
+  "data": {
+    "from": "local",
+    "result": "suee",
+    "message": "",
+    "quality": 64,
+    "format": "mp4",
+    "timelength": 124300,
+    "accept_format": "mp4,mp4,mp4,mp4,mp4",
+    "accept_description": [
+      "高清 1080P+",
+      "高清 1080P",
+      "高清 720P",
+      "清晰 480P",
+      "流畅 360P"
+    ],
+    "accept_quality": [
+      112,
+      80,
+      64,
+      32,
+      16
+    ],
+    "video_codecid": 7,
+    "seek_param": "start",
+    "seek_type": "second",
+    "durl": [
+      {
+        "order": 1,
+        "length": 14977,
+        "size": 1682316,
+        "ahead": "",
+        "vhead": "",
+        "url": "https://upos-sz-estgcos.bilivideo.com/upgcxcode/52/00/38167710052/38167710052-1-448.mp4?e=ig8euxZM2rNcNbR1hbdVhwdlhWRghwdVhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&deadline=1784314168&nbs=1&gen=playurlv3&os=estgcos&uipk=5&platform=pc&oi=707900661&trid=c30ee44191b34206b5b21cefeade78fu&og=cos&mid=0&upsig=7be945eb05f6459bd4e26a16d2c1a68e&uparams=e,deadline,nbs,gen,os,uipk,platform,oi,trid,og,mid&bvc=vod&nettype=0&bw=961323&lrs=-1&qn_dyeid=28a1d690c33f6d14003a36016a5a5d18&agrr=0&buvid=&build=0&dl=0&f=u_0_0&orderid=0,3",
+        "backup_url": [
+          "https://upos-sz-mirrorcos.bilivideo.com/upgcxcode/52/00/38167710052/38167710052-1-448.mp4?e=ig8euxZM2rNcNbR1hbdVhwdlhWRghwdVhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&uipk=5&oi=707900661&trid=c30ee44191b34206b5b21cefeade78fu&deadline=1784314168&gen=playurlv3&os=cosbv&nbs=1&platform=pc&mid=0&og=cos&upsig=c1bfa4a397b1170f8d3dfe194ff27c22&uparams=e,uipk,oi,trid,deadline,gen,os,nbs,platform,mid,og&bvc=vod&nettype=0&bw=961323&lrs=-1&buvid=&build=0&dl=0&f=u_0_0&qn_dyeid=28a1d690c33f6d14003a36016a5a5d18&agrr=0&orderid=1,3",
+          "https://upos-sz-mirrorcosb.bilivideo.com/upgcxcode/52/00/38167710052/38167710052-1-448.mp4?e=ig8euxZM2rNcNbR1hbdVhwdlhWRghwdVhoNvNC8BqJIzNbfqXBvEqxTEto8BTrNvN0GvT90W5JZMkX_YN0MvXg8gNEV4NC8xNEV4N03eN0B5tZlqNxTEto8BTrNvNeZVuJ10Kj_g2UB02J0mN0B5tZlqNCNEto8BTrNvNC7MTX502C8f2jmMQJ6mqF2fka1mqx6gqj0eN0B599M=&oi=707900661&trid=c30ee44191b34206b5b21cefeade78fu&mid=0&deadline=1784314168&os=cosbbv&og=cos&nbs=1&uipk=5&platform=pc&gen=playurlv3&upsig=66430db548022b2be0788a9bf367b7c3&uparams=e,oi,trid,mid,deadline,os,og,nbs,uipk,platform,gen&bvc=vod&nettype=0&bw=961323&lrs=-1&agrr=0&buvid=&build=0&dl=0&f=u_0_0&qn_dyeid=28a1d690c33f6d14003a36016a5a5d18&orderid=2,3"
+        ]
+      }
+    ],
+    "support_formats": [
+      {
+        "quality": 112,
+        "format": "mp4",
+        "new_description": "1080P 高码率",
+        "display_desc": "1080P",
+        "superscript": "高码率",
+        "codecs": null,
+        "can_watch_qn_reason": 0,
+        "limit_watch_reason": 0,
+        "report": {}
+      },
+      {
+        "quality": 80,
+        "format": "mp4",
+        "new_description": "1080P 高清",
+        "display_desc": "1080P",
+        "superscript": "",
+        "codecs": null,
+        "can_watch_qn_reason": 0,
+        "limit_watch_reason": 0,
+        "report": {}
+      },
+      {
+        "quality": 64,
+        "format": "mp4",
+        "new_description": "720P 准高清",
+        "display_desc": "720P",
+        "superscript": "",
+        "codecs": null,
+        "can_watch_qn_reason": 0,
+        "limit_watch_reason": 0,
+        "report": {}
+      },
+      {
+        "quality": 32,
+        "format": "mp4",
+        "new_description": "480P 标清",
+        "display_desc": "480P",
+        "superscript": "",
+        "codecs": null,
+        "can_watch_qn_reason": 0,
+        "limit_watch_reason": 0,
+        "report": {}
+      },
+      {
+        "quality": 16,
+        "format": "mp4",
+        "new_description": "360P 流畅",
+        "display_desc": "360P",
+        "superscript": "",
+        "codecs": null,
+        "can_watch_qn_reason": 0,
+        "limit_watch_reason": 0,
+        "report": {}
+      }
+    ],
+    "high_format": null,
+    "last_play_time": 0,
+    "last_play_cid": 0,
+    "view_info": null,
+    "play_conf": {
+      "is_new_description": false
+    },
+    "cur_language": "",
+    "cur_production_type": 0,
+    "auto_qn_resp": {
+      "dyeid": "28a1d690c33f6d14003a36016a5a5d18"
+    }
+  }
+}

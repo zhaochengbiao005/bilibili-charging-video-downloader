@@ -140,6 +140,82 @@ impl FfmpegManager {
         Ok(())
     }
 
+    /// 按顺序无损拼接多个 MP4（concat demuxer）。
+    pub async fn concat_videos(
+        &self,
+        app_dir: &Path,
+        resource_dir: Option<&Path>,
+        inputs: &[PathBuf],
+        output_path: &Path,
+    ) -> AppResult<()> {
+        if inputs.is_empty() {
+            return Err(AppError::Merge {
+                message: "没有可拼接的视频片段".to_string(),
+            });
+        }
+        if inputs.len() == 1 {
+            if let Some(parent) = output_path.parent() {
+                tokio::fs::create_dir_all(parent).await?;
+            }
+            tokio::fs::copy(&inputs[0], output_path).await?;
+            return Ok(());
+        }
+        if let Some(parent) = output_path.parent() {
+            tokio::fs::create_dir_all(parent).await?;
+        }
+        let executable = self.resolve_executable(app_dir, resource_dir)?;
+        let list_path = output_path.with_extension("concat.txt");
+        let mut list_body = String::new();
+        for input in inputs {
+            let path = input.to_string_lossy().replace('\\', "/").replace('\'', "'\\''");
+            list_body.push_str(&format!("file '{path}'\n"));
+        }
+        tokio::fs::write(&list_path, list_body).await?;
+        let temp_path = temp_output_path(output_path);
+
+        let mut command = Command::new(executable);
+        hide_child_window(&mut command);
+        let output = command
+            .arg("-y")
+            .arg("-hide_banner")
+            .arg("-loglevel")
+            .arg("error")
+            .arg("-f")
+            .arg("concat")
+            .arg("-safe")
+            .arg("0")
+            .arg("-i")
+            .arg(&list_path)
+            .arg("-c")
+            .arg("copy")
+            .arg(&temp_path)
+            .output()
+            .await
+            .map_err(|err| {
+                if err.kind() == std::io::ErrorKind::NotFound {
+                    AppError::FfmpegNotFound
+                } else {
+                    AppError::Io {
+                        message: err.to_string(),
+                    }
+                }
+            })?;
+
+        let _ = tokio::fs::remove_file(&list_path).await;
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+            let message = if stderr.is_empty() {
+                format!("FFmpeg 拼接退出码 {}", output.status)
+            } else {
+                stderr
+            };
+            let _ = tokio::fs::remove_file(&temp_path).await;
+            return Err(AppError::Merge { message });
+        }
+        replace_file(&temp_path, output_path).await?;
+        Ok(())
+    }
+
     pub async fn convert_audio_to_mp3(
         &self,
         app_dir: &Path,
@@ -364,7 +440,7 @@ fn temp_output_path(output_path: &Path) -> PathBuf {
     }
 }
 
-fn ffmpeg_filter_path(path: &Path) -> String {
+pub(crate) fn ffmpeg_filter_path(path: &Path) -> String {
     let normalized = path.to_string_lossy().replace('\\', "/");
     let escaped = normalized
         .replace('\\', "\\\\")

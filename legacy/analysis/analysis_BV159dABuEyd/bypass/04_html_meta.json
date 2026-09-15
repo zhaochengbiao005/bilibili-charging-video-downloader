@@ -1,0 +1,28 @@
+{
+  "http": 200,
+  "len": 194849,
+  "has_playinfo": true,
+  "has_initial": true,
+  "playinfo_summary": {
+    "code": 0,
+    "message": "OK",
+    "quality": 32,
+    "format": "mp4",
+    "timelength_meta": 124300,
+    "has_dash": false,
+    "dash_v": 0,
+    "dash_a": 0,
+    "durl_n": 1,
+    "stream_ms": 14977,
+    "durl_size": 948973,
+    "verdict": "PREVIEW",
+    "first_url_host": "809aj93l.edge.mountaintoys.cn:4483"
+  },
+  "bilivideo_url_count": 0,
+  "bilivideo_hosts": [],
+  "html_has_is_upower_exclusive": true,
+  "html_has_is_upower_play": true,
+  "html_has_is_upower_preview": true,
+  "html_has_elec_high_level": false,
+  "html_has_privilege_type": true
+}

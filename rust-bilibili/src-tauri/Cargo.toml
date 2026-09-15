@@ -1,6 +1,6 @@
 [package]
 name = "bilibili-downloader"
-version = "1.0.4"
+version = "1.0.7"
 edition = "2021"
 description = "B站充电视频下载器 - Rust/tauri 全栈版"
 
