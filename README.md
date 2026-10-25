@@ -41,6 +41,26 @@
 - `downloads/`：默认下载目录。
 - `logs/`：运行日志和崩溃日志。
 
+## 从源码构建
+
+需要 Node.js 18+ 和 Rust（stable，MSVC toolchain）：
+
+```bash
+cd rust-bilibili
+npm install
+npm run tauri dev      # 开发调试
+npm run tauri build    # 打包 Windows 安装包
+```
+
+验证改动：
+
+```bash
+npm run lint && npm run build   # 前端类型检查 + 构建
+cd src-tauri && cargo test      # Rust 单元测试
+```
+
+构建脚本会自动准备 FFmpeg 资源（`npm run prepare:ffmpeg`，基于 ffmpeg-static）。开发调试时若本机已安装 FFmpeg，也可直接使用系统 PATH 中的版本。
+
 ## 链接
 
 - 我的 B站主页：[https://space.bilibili.com/228533833](https://space.bilibili.com/228533833)
@@ -53,3 +73,7 @@
 随安装包分发的 FFmpeg 组件会保留对应的许可说明文件。使用本应用时，请同时遵守 FFmpeg 的相关许可条款。
 
 FFmpeg 官网：[https://ffmpeg.org/](https://ffmpeg.org/)
+
+## 开源许可
+
+本项目基于 [MIT License](LICENSE) 开源。

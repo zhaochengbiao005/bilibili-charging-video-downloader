@@ -13,6 +13,7 @@ __pycache__/
 .vscode/
 .idea/
 .codeartsdoer/
+.dsh-ops/
 
 # Data (runtime)
 data/
