@@ -10,6 +10,7 @@ export function Settings() {
     default_outdir: 'downloads',
     auto_merge: true,
     max_history: 200,
+    concurrent_downloads: 2,
   });
   const [cloudCfg, setCloudCfg] = useState<CloudConfig>({
     default_provider: 'baidu_netdisk',
@@ -549,6 +550,21 @@ AppKey / client_id / client_secret 等字段也能识别`}
                 自动合并音视频（需要 FFmpeg）
               </span>
             </label>
+          </div>
+
+          <div>
+            <label className="block text-sm font-bold text-gray-600 mb-2">并发下载任务数</label>
+            <div className="flex items-center gap-3">
+              <input
+                type="number"
+                min={1}
+                max={16}
+                value={cfg.concurrent_downloads}
+                onChange={e => setCfg({ ...cfg, concurrent_downloads: Number(e.target.value) })}
+                className="bg-white/60 border border-white/80 rounded-2xl py-3 px-4 w-36 focus:outline-none focus:ring-2 focus:ring-bili-pink/30 text-sm font-medium text-gray-700"
+              />
+              <span className="text-xs text-gray-400">同时下载 / 直传的任务上限（1-16），保存后重启应用生效</span>
+            </div>
           </div>
         </div>
 

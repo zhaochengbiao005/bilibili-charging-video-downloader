@@ -249,6 +249,7 @@ export interface AppConfig {
   default_outdir: string;
   auto_merge: boolean;
   max_history: number;
+  concurrent_downloads: number;
 }
 
 export type CloudProvider = 'baidu_netdisk';

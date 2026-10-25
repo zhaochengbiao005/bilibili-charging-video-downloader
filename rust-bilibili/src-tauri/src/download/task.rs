@@ -67,6 +67,7 @@ impl TaskOrchestrator {
         history_store: HistoryStore,
         baidu_token_store: BaiduTokenStore,
         app_dir: PathBuf,
+        concurrent_downloads: usize,
     ) -> Self {
         Self {
             client,
@@ -78,7 +79,7 @@ impl TaskOrchestrator {
             baidu_token_store,
             app_dir,
             cancel_tokens: Arc::new(RwLock::new(HashMap::new())),
-            download_slots: Arc::new(Semaphore::new(2)),
+            download_slots: Arc::new(Semaphore::new(concurrent_downloads.clamp(1, 16))),
         }
     }
 
@@ -114,7 +115,6 @@ impl TaskOrchestrator {
         self: &Arc<Self>,
         app: AppHandle,
         task_id: String,
-        cancel: Arc<AtomicBool>,
         body: F,
     ) where
         F: FnOnce(Arc<TaskOrchestrator>) -> Fut + Send + 'static,
@@ -149,7 +149,6 @@ impl TaskOrchestrator {
                     return;
                 }
             };
-            let _ = &cancel; // 令牌由 command 层注册，任务结束时统一移除
             let result = body(this.clone()).await;
             drop(permit);
             this.cancel_tokens.write().await.remove(&task_id);
@@ -732,7 +731,14 @@ impl TaskOrchestrator {
                     );
                     output_files.push(out_mp4);
                 } else {
-                    output_files.push(video_tmp);
+                    // 跳过合并：裸视频流改名 {label}.mp4（仅视频轨），离线播放器映射保持一致；
+                    // 裸音频流 {label}.audio.m4a 留在磁盘（skip_merge 的本意就是保留原始流）
+                    tokio::fs::rename(&video_tmp, &out_mp4).await?;
+                    cid_to_file.insert(
+                        *cid,
+                        format!("segments/{}", out_mp4.file_name().unwrap().to_string_lossy()),
+                    );
+                    output_files.push(out_mp4);
                 }
             } else if !playurl.durl.is_empty() {
                 download_durl_segments(
@@ -1062,9 +1068,7 @@ async fn download_durl_segments(
         tokio::io::copy(&mut file, &mut output).await?;
     }
     tokio::io::AsyncWriteExt::flush(&mut output).await?;
-    if output_path.exists() {
-        tokio::fs::remove_file(output_path).await?;
-    }
+    // rename 原子覆盖已存在文件；先 remove 会留下文件缺失窗口
     tokio::fs::rename(&temp_path, output_path).await?;
     let _ = tokio::fs::remove_dir_all(temp_dir).await;
     Ok(())

@@ -7,6 +7,13 @@ pub struct AppConfig {
     pub default_outdir: String,
     pub auto_merge: bool,
     pub max_history: usize,
+    /// 同时执行的下载/直传任务数（1-16），旧配置文件缺省为 2
+    #[serde(default = "default_concurrent_downloads")]
+    pub concurrent_downloads: usize,
+}
+
+fn default_concurrent_downloads() -> usize {
+    2
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -29,6 +36,7 @@ impl AppConfig {
             default_outdir,
             auto_merge: true,
             max_history: 200,
+            concurrent_downloads: default_concurrent_downloads(),
         }
     }
 }

@@ -136,7 +136,7 @@ pub async fn start_download(
     let cancel_for_body = cancel.clone();
     let app_for_body = app.clone();
 
-    state.tasks.spawn_queued(app, task_id.clone(), cancel, move |tasks| async move {
+    state.tasks.spawn_queued(app, task_id.clone(), move |tasks| async move {
         match tasks
             .run_download_task(
                 task_for_body,
@@ -200,7 +200,7 @@ pub async fn start_cloud_upload(
     let cancel_for_body = cancel.clone();
     let app_for_body = app.clone();
 
-    state.tasks.spawn_queued(app, task_id.clone(), cancel, move |tasks| async move {
+    state.tasks.spawn_queued(app, task_id.clone(), move |tasks| async move {
         let result = tasks
             .run_cloud_upload_task(
                 task_for_body,
@@ -349,14 +349,6 @@ pub async fn baidu_upload_test_file(state: State<'_, AppState>) -> AppResult<Clo
 pub fn get_pending_cloud_upload_count(state: State<'_, AppState>) -> AppResult<usize> {
     let store = CloudUploadSessionStore::new(state.config_store.app_dir());
     Ok(store.load()?.len())
-}
-
-#[tauri::command]
-pub fn get_quality_options() -> Vec<String> {
-    ["360P", "480P", "720P", "1080P", "1080P60", "4K", "HDR"]
-        .into_iter()
-        .map(str::to_string)
-        .collect()
 }
 
 #[tauri::command]

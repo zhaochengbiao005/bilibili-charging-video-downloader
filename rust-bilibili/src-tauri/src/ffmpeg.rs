@@ -450,9 +450,7 @@ pub(crate) fn ffmpeg_filter_path(path: &Path) -> String {
 }
 
 async fn replace_file(temp_path: &Path, output_path: &Path) -> AppResult<()> {
-    if output_path.exists() {
-        tokio::fs::remove_file(output_path).await?;
-    }
+    // rename 原子覆盖已存在文件；先 remove 会有文件缺失窗口
     tokio::fs::rename(temp_path, output_path).await?;
     Ok(())
 }

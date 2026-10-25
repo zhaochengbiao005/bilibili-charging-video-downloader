@@ -35,6 +35,11 @@ impl AppState {
         let downloader = DownloadClient::new()?;
         let ffmpeg = FfmpegManager::new();
         let danmaku = DanmakuClient::new();
+        // 并发任务数来自配置（旧 config.json 无此字段时默认 2）
+        let concurrent_downloads = config_store
+            .load()
+            .map(|config| config.concurrent_downloads)
+            .unwrap_or(2);
         let tasks = Arc::new(TaskOrchestrator::new(
             client.clone(),
             downloader,
@@ -44,6 +49,7 @@ impl AppState {
             history_store.clone(),
             baidu_token_store.clone(),
             config_store.app_dir().to_path_buf(),
+            concurrent_downloads,
         ));
 
         Ok(Self {

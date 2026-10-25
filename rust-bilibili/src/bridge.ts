@@ -342,10 +342,6 @@ export async function installFfmpeg(): Promise<string> {
   return res.task_id;
 }
 
-export async function getQualityOptions(): Promise<string[]> {
-  return callCommand<string[]>('get_quality_options');
-}
-
 export async function getDefaultOutdir(): Promise<string> {
   if (cache.config) return cache.config.config.default_outdir;
   return callCommand<string>('get_default_outdir');

@@ -762,6 +762,7 @@ mod tests {
     fn retryable_cloud_error_matches_network_and_rate_limits() {
         assert!(is_retryable_cloud_error(&AppError::Network {
             message: "connection reset".to_string(),
+            status: None,
         }));
         assert!(is_retryable_cloud_error(&AppError::Cloud {
             provider: Some(CloudProvider::BaiduNetdisk),

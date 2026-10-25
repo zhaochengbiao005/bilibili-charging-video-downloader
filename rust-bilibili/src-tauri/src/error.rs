@@ -10,7 +10,11 @@ pub enum AppError {
     Api { code: i32, message: String },
 
     #[error("网络请求失败: {message}")]
-    Network { message: String },
+    Network {
+        message: String,
+        /// HTTP 状态码；`None` 表示连接层失败（超时/重置/DNS），此类错误换节点可重试。
+        status: Option<u16>,
+    },
 
     #[error("登录状态无效，请重新登录")]
     AuthRequired,
@@ -50,6 +54,7 @@ impl From<reqwest::Error> for AppError {
     fn from(value: reqwest::Error) -> Self {
         Self::Network {
             message: value.to_string(),
+            status: value.status().map(|status| status.as_u16()),
         }
     }
 }

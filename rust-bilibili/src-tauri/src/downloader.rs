@@ -372,6 +372,28 @@ impl Drop for TempDirCleanup {
     }
 }
 
+/// 每任务进度事件节流窗口；携带文案或 100% 的事件不受限。
+const PROGRESS_MIN_INTERVAL: std::time::Duration = std::time::Duration::from_millis(200);
+
+fn progress_allowed(task_id: &str) -> bool {
+    static LAST_EMITTED: std::sync::LazyLock<
+        std::sync::Mutex<std::collections::HashMap<String, Instant>>,
+    > = std::sync::LazyLock::new(|| std::sync::Mutex::new(std::collections::HashMap::new()));
+    let mut last = LAST_EMITTED.lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    let now = Instant::now();
+    if last.len() > 256 {
+        last.retain(|_, emitted| now.duration_since(*emitted) < std::time::Duration::from_secs(60));
+    }
+    let allowed = match last.get(task_id) {
+        Some(emitted) => now.duration_since(*emitted) >= PROGRESS_MIN_INTERVAL,
+        None => true,
+    };
+    if allowed {
+        last.insert(task_id.to_string(), now);
+    }
+    allowed
+}
+
 pub fn emit_progress(
     progress: &ProgressSender,
     task_id: &str,
@@ -386,6 +408,10 @@ pub fn emit_progress(
     } else {
         0.0
     };
+    // 节流：纯进度事件（无文案、未完成）200ms 内只发一次
+    if message.is_none() && percent < 100.0 && !progress_allowed(task_id) {
+        return;
+    }
     let elapsed = started.elapsed().as_secs_f64();
     let speed = if elapsed > 0.0 {
         (bytes_done as f64 / elapsed) as u64
@@ -415,9 +441,7 @@ where
 }
 
 async fn replace_file(temp_path: &Path, output_path: &Path) -> AppResult<()> {
-    if output_path.exists() {
-        fs::remove_file(output_path).await?;
-    }
+    // Windows 下 rename 原子覆盖已存在文件；先 remove 会留下文件缺失窗口
     fs::rename(temp_path, output_path).await?;
     Ok(())
 }
@@ -452,9 +476,11 @@ fn is_url_retryable(err: &AppError) -> bool {
         AppError::Download { message, .. } => {
             message != "range_not_supported" && mentions_http_rejection(message)
         }
-        AppError::Network { message } => {
-            mentions_http_rejection(message) || mentions_connection_failure(message)
-        }
+        // 有状态码按类型判定；连接层失败（无状态码）换节点总能重试
+        AppError::Network { status, .. } => match status {
+            Some(status) => matches!(status, 401 | 403 | 404 | 429 | 500 | 502 | 503 | 504),
+            None => true,
+        },
         _ => false,
     }
 }
@@ -480,21 +506,6 @@ fn mentions_http_rejection(message: &str) -> bool {
     ]
     .iter()
     .any(|token| upper.contains(token))
-}
-
-fn mentions_connection_failure(message: &str) -> bool {
-    let lower = message.to_ascii_lowercase();
-    [
-        "connection",
-        "timed out",
-        "timeout",
-        "reset",
-        "unreachable",
-        "dns error",
-        "resolve",
-    ]
-    .iter()
-    .any(|token| lower.contains(token))
 }
 
 #[cfg(test)]
@@ -564,9 +575,19 @@ mod tests {
             message: "error sending request for url (https://x): HTTP status client error \
                        (403 Forbidden) for url (https://x)"
                 .to_string(),
+            status: Some(403),
         }));
         assert!(is_url_retryable(&AppError::Network {
             message: "error sending request: connection timed out".to_string(),
+            status: None,
+        }));
+        assert!(is_url_retryable(&AppError::Network {
+            message: "error sending request for url (https://x): HTTP status client error (429)".to_string(),
+            status: Some(429),
+        }));
+        assert!(!is_url_retryable(&AppError::Network {
+            message: "error sending request for url (https://x): HTTP status client error (400)".to_string(),
+            status: Some(400),
         }));
         assert!(!is_url_retryable(&AppError::Download {
             task_id: None,

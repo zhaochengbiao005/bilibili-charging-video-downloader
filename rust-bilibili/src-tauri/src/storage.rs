@@ -180,9 +180,8 @@ pub(crate) fn write_json_atomic<T: serde::Serialize + ?Sized>(
     let content = serde_json::to_vec_pretty(value)?;
     fs::write(&temp_path, content)?;
 
-    if path.exists() {
-        fs::remove_file(path)?;
-    }
+    // Windows 下 rename 原子覆盖已存在文件；先 remove 会在两操作之间留下文件缺失窗口
+    // （读取方看到不存在/0 字节），所以只 rename。
     fs::rename(temp_path, path)?;
     Ok(())
 }
